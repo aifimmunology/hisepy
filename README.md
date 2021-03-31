@@ -1,2 +1,9 @@
-# hisepy
-The HISE Python SDK
+# hise-python-sdk
+The Python package for HISE IDE Images.
+
+```
+import hisepy
+```
+
+Documentation TK
+
