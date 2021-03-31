@@ -1,4 +1,4 @@
-# hise-python-sdk
+# hisepy
 The Python package for HISE IDE Images.
 
 ```
