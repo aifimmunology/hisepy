@@ -2,3 +2,8 @@
 *~
 \#*
 .\#*
+
+build
+dist
+hisepy.egg-info
+hisepy/__pycache__

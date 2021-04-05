@@ -6,8 +6,9 @@ import pyreadr
 import pandas
 import numpy
 import networkx
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header
-from community import community_louvain
+import community as community_louvain
+from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+
 
 jupyter_home_dir = "/home/jupyter"
 clustering_output = "clustering.rds"

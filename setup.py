@@ -30,12 +30,13 @@ setup(
         'pandas',
         'numpy',
         'networkx',
-        'community.community_louvain'        
+        'community',
+        'python-louvain'
     ],
-    #   scripts=['],
+    #   scripts=[''],
     include_package_data=True,
     classifiers=[
         'Immunology',
         'Statistical Regression',
-        'Programming Language :: Python :: 3.8'],
+        'Programming Language :: Python :: 3.7'],
 )
