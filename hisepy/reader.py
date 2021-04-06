@@ -49,7 +49,6 @@ def read_files(file_list):
     
     qstr = "&".join(map(lambda x: "id=%s" % (x), file_list))
     endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path), search_path, qstr)
-                                                                                      
     resp = requests.request("GET", endpoint, headers = get_bearer_token_header())
     
     if resp.status_code != 200:
@@ -64,7 +63,6 @@ def read_files(file_list):
     response = []
     
     for f in obj:
-        f = obj[idx]
         if "id" not in f:
             f["id"] = uuid.UUID(int = 0)
 
@@ -100,6 +98,6 @@ def cache_and_convert_file_data(file_data):
         raise(SystemError("Request to get file %s from %s failed with status %d. %s" %
                           (f_path,resp.status_code,resp.text)))
     open(f_path, 'wb').write(resp.content)
-    return hise_file(id = f_desc["file"]["id"],
+    return hise_file(file_id = f_desc["id"],
                      file_path = f_path,
                      descriptors = file_data["descriptors"])
