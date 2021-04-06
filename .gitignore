@@ -7,3 +7,4 @@ build
 dist
 hisepy.egg-info
 hisepy/__pycache__
+cache
