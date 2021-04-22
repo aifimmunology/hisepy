@@ -19,13 +19,12 @@ def schedule_hsne_notebook(data, num_scales = 5, graph_scale_index = 4, project 
         raise(Exception("cannot ask for a graph_scale_index greater than the number of scales - 1 (values were %d scales and index of %d)" % (num_scales, graph_scale_index)))
     
     schedule_notebook([hsne_clustering_output, hsne_embedding_output],
-                      args = {"project": project},                      
+                      args = {"project": project, "notebook_plaform": "HSNE"},
                       function = run_hsne,                      
                       function_args = {"data": data,
                                        "num_scales": num_scales,
                                        "graph_scale_index": graph_scale_index})
                       
-
 def run_hsne(args):
     print("Running HSNE")
     hsne = nptsne.HSne(True)
