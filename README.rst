@@ -40,6 +40,7 @@ Scheduling General Notebook Jobs
 --------------------
 
 ::
+
    def a_func_to_run_on_a_larger_instance(args):
      #some heavy-weight function
      #that takes in an args dictionary 
@@ -47,7 +48,7 @@ Scheduling General Notebook Jobs
      #...
      
    job = hisepy.schedule_notebook(["foo.csv","bar.txt"],
-                                  function = a_func_to_run_on_a_large_instance,
+                                  function = a_func_to_run_on_a_larger_instance,
                                   function_args = {"something": "that i want to pass to my function"})
    #is the job done?
    job.is_completed()
