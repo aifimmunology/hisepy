@@ -6,8 +6,8 @@ import networkx
 import community as community_louvain
 from hisepy.scheduler import schedule_notebook
 
-hsne_clustering_output = "clustering.rds"
-hsne_embedding_output = "embedding.rds"
+clustering_output = "clustering.rds"
+embedding_output = "embedding.rds"
 
 def schedule_hsne_notebook(data, num_scales = 5, graph_scale_index = 4, project = None):
     if type(data) is pandas.core.frame.DataFrame:
@@ -18,7 +18,7 @@ def schedule_hsne_notebook(data, num_scales = 5, graph_scale_index = 4, project 
     if graph_scale_index > num_scales - 1:
         raise(Exception("cannot ask for a graph_scale_index greater than the number of scales - 1 (values were %d scales and index of %d)" % (num_scales, graph_scale_index)))
     
-    schedule_notebook([hsne_clustering_output, hsne_embedding_output],
+    schedule_notebook([clustering_output, embedding_output],
                       args = {"project": project, "notebook_plaform": "HSNE"},
                       function = run_hsne,                      
                       function_args = {"data": data,
