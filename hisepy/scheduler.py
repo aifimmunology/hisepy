@@ -98,7 +98,7 @@ def schedule_notebook(output_files,
         print("I expect this notebook to produce the following output files:")
         for f in output_files:
             print("\t%s" % (f))
-        print("I will copy those files back to HISE where they will be available for later download into this or another IDE instnce.")
+        print("I will copy those files back to HISE where they will be available for later download into this or another IDE instance.")
         print("OK? ")
         resp = input()
         if len(resp) == 0 or resp.lower()[0] != "y":
