@@ -51,30 +51,23 @@ def schedule_notebook(output_files,
     if os.path.exists(job_submitted_file):
         #you've already scheduled this/a notebook
         job = notebook_job(id = open(job_submitted_file, "r").read().rstrip())
-        if job.is_completed(False):
-            print("Downloading output from completed job")
-            output = job.download_output()
-            clear_notebook_job()
-            return output
-        else:
-            print("Job %s submitted and is currently in status %s." % (job.id, job.status))
-            print("To load a notebook job, run:")
-            print("\tjob = hisepy.get_notebook_job(\"%s\")" % (job.id))
-            print("To download output from that job (if it is completed) run:")
+        print("Job %s submitted and is currently in status %s." % (job.id, job.status))
+        if job.is_completed(reload = False):
+            print("To download output from this job run:")
+            print("\tjob = hisepy.get_notebook_job()")
             print("\tfiles = job.download_output()")
-            print("To clear this job and schedule another job from this IDE instance, run:")
-            print("\thisepy.clear_notebook_job()")
-        return
+        print("To clear this job and schedule another job from this IDE instance, run:")
+        print("\thisepy.clear_notebook_job()")
+        return job
     elif os.path.exists(is_instance_flag_file):
         #we're on the scheduled instance. Run the thing if the thing is there to be run
         if function is not None:
             if function_args is not None:
-                return function(function_args)
+                function(function_args)
             else:
                 function()
-        else:
-            #no-op here
-            return None
+        #we're on a scheduled instance, so return an empty job
+        return notebook_job()
     
     payload = {
         "notebook_name": notebook_name(),
@@ -148,7 +141,7 @@ class notebook_job:
         
         if obj is not None:
             self.init_from_object(obj)
-        else:
+        elif self.id is not None:
             self.reload()
 
     def init_from_object(self,obj):
@@ -168,6 +161,10 @@ class notebook_job:
             raise(Exception("No status found in json object"))
         
     def reload(self):
+        if self.id is None:
+            print("job id is empty, not reloading")
+            return
+        
         headers = get_bearer_token_header()
         endpoint = "https://%s/%s/%s" % (get_from_metadata_server(server_id_path),
                                          scheduler_path,
@@ -206,6 +203,10 @@ class trace:
         self.reload()
 
     def reload(self):
+        if self.id is None:
+            print("Trace Id is empty, not reloading")
+            return
+        
         headers = get_bearer_token_header()
         endpoint = "https://%s/%s/%s" % (get_from_metadata_server(server_id_path),
                                          trace_path,
