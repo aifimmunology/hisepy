@@ -7,7 +7,7 @@ from hisepy.auth import get_from_metadata_server, get_bearer_token_header, serve
 from hisepy.reader import read_files
 
 home = os.getenv("HOME") or "/root"
-is_instance_flag_file = "%s/.hsneinstance" % (home)
+is_instance_flag_file = "%s/.scheduledinstance" % (home)
 job_submitted_file = "%s/.notebookschedulerjobid" % (home)
 
 trace_path = "tracer/trace"
@@ -92,7 +92,7 @@ def schedule_notebook(output_files,
         for f in output_files:
             print("\t%s" % (f))
         print("I will copy those files back to HISE where they will be available for later download into this or another IDE instance.")
-        print("OK? ")
+        print("OK? ", end = "")
         resp = input()
         if len(resp) == 0 or resp.lower()[0] != "y":
             print("Not scheduling.")
