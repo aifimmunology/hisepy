@@ -6,9 +6,9 @@ import json
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from hisepy.reader import read_files
 
-home = os.getenv("HOME") or "/root"
-is_instance_flag_file = "%s/.scheduledinstance" % (home)
-job_submitted_file = "%s/.notebookschedulerjobid" % (home)
+ideHome = os.getenv("IDE_HOME") or "/home/jupyter"
+is_instance_flag_file = "%s/.scheduledinstance" % (ideHome)
+job_submitted_file = "%s/.notebookschedulerjobid" % (ideHome)
 
 trace_path = "tracer/trace"
 scheduler_path = "toolchain/scheduler"
