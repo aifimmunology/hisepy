@@ -21,11 +21,9 @@ title_field = "title"
 
 job_complete_status = "Completed"
 
-
 def schedule_notebook(output_files,
-                      args = dict(),                      
+                      platform = None,
                       function = None,
-                      function_args = None,
                       do_verification = True):
     
     if type(output_files) is not list:
@@ -41,12 +39,8 @@ def schedule_notebook(output_files,
             raise(TypeError("function must be a function, not a %s" % (type(function))))
         else:
             paramct = len(inspect.signature(function).parameters)
-            if paramct > 1:
-                raise(TypeError("Function %s expects %d parameters. On execution, we will only pass a single argument as an argument to %s" % (function.__name__,paramct,function.__name__)))
-            elif paramct == 1 and function_args is None:
-                raise(TypeError("Function %s expects 1 parameter, but no arguments were specified" % (function.__name__)))
-            elif paramct == 0 and function_args is not None:
-                raise(TypeError("Function %s expects 0 parameter, but a %s was specified as input" % (function.__name__, type(function_args))))
+            if paramct != 0:
+                raise(TypeError("Function %s expects %d parameters. Cannot pass params to a scheduled function" % (function.__name__,paramct)))
             
     if os.path.exists(job_submitted_file):
         #you've already scheduled this/a notebook
@@ -62,10 +56,7 @@ def schedule_notebook(output_files,
     elif os.path.exists(is_instance_flag_file):
         #we're on the scheduled instance. Run the thing if the thing is there to be run
         if function is not None:
-            if function_args is not None:
-                function(function_args)
-            else:
-                function()
+            function()
         #we're on a scheduled instance, so return an empty job
         return notebook_job()
     
@@ -75,9 +66,8 @@ def schedule_notebook(output_files,
         "notebook_path": os.getcwd(),
         "output_files": output_files,
     }
-    
-    for key, val in args.items():
-        payload[key] = val
+    if platform is not None:
+        payload["notebook_platform"] = platform
 
     nb_file = "%s/%s" % (payload["notebook_path"],payload["notebook_name"])        
     if not os.path.exists(nb_file) or not os.path.isfile(nb_file):
@@ -178,6 +168,10 @@ class notebook_job:
 
     def trace(self):
         return trace(self.trace_id)
+
+    def check_status(self):
+        self.reload()
+        return self.status
     
     def is_completed(self, reload = True):
         if reload:
