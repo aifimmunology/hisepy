@@ -23,6 +23,7 @@ job_complete_status = "Completed"
 
 def schedule_notebook(output_files,
                       platform = None,
+                      project = None,                      
                       function = None,
                       do_verification = True):
     
@@ -68,7 +69,9 @@ def schedule_notebook(output_files,
     }
     if platform is not None:
         payload["notebook_platform"] = platform
-
+    if project is not None:
+        payload["project"] = project
+    
     nb_file = "%s/%s" % (payload["notebook_path"],payload["notebook_name"])        
     if not os.path.exists(nb_file) or not os.path.isfile(nb_file):
         raise(TypeError("Notebook %s does not exist. Check values for notebook_path and notebook_name and try again" % (nb_file)))
