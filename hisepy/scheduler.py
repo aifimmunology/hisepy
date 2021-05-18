@@ -107,7 +107,7 @@ def clear_notebook_job():
         print("No job record found")
 
 def current_notebook():
-    name = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 1 | awk '{print $2}'")
+    name = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 1 | awk '{print $2}'").read().rstrip()
     if name is None or name == "":
         raise(TypeError("Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"))
     return name
