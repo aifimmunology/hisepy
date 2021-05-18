@@ -49,12 +49,14 @@ def schedule_notebook(output_files,
     elif os.path.exists(is_instance_flag_file):
         #we're on a scheduled instance, so return an empty job
         return notebook_job()
+    notebook = current_notebook()
+    nbtokens = notebook.split("/")
     
     payload = {
-        "notebook_name": notebook_name(),
+        "notebook_name": nbtokens[-1],
         "instance_name": get_from_metadata_server(instance_name_path),
-        "notebook_path": os.getcwd(),
-        "output_files": output_files,
+        "notebook_path": "/".join(nbtokens[0:-1]),
+        "output_files": output_files
     }
     if platform is not None:
         payload["notebook_platform"] = platform
@@ -104,10 +106,10 @@ def clear_notebook_job():
     else:
         print("No job record found")
 
-def notebook_name():
-    name = os.popen("ls -t | grep -F .ipynb | head -1").read().rstrip()
+def current_notebook():
+    name = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 1 | awk '{print $2}'").read().rstrip()
     if name is None or name == "":
-        raise(TypeError("Cannot get name of the current notebook. Make sure you are running this function from the notebook you want to schedule."))
+        raise(TypeError("Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"))
     return name
 
 class notebook_job:
