@@ -8,7 +8,7 @@ from hisepy.reader import read_files
 
 ideHome = os.getenv("IDE_HOME") or "/home/jupyter"
 is_instance_flag_file = "%s/.scheduledinstance" % (ideHome)
-job_submitted_file = "%s/.notebookschedulerjobid" % (ideHome)
+job_record_file = "%s/.notebookschedulerjobid" % (ideHome)
 
 trace_path = "tracer/trace"
 scheduler_path = "toolchain/scheduler"
@@ -23,9 +23,8 @@ job_complete_status = "Completed"
 
 def schedule_notebook(output_files,
                       platform = None,
-                      project = None,                      
-                      function = None,
-                      do_verification = True):
+                      project = None,
+                      prompt = True):
     
     if type(output_files) is not list:
         raise(TypeError("output_files must be a list, not a %s" % (type(output_files))))
@@ -35,29 +34,19 @@ def schedule_notebook(output_files,
         for i,of in enumerate(output_files):
             output_files[i] = os.path.abspath(of)
     
-    if function is not None:
-        if not inspect.isfunction(function):
-            raise(TypeError("function must be a function, not a %s" % (type(function))))
-        else:
-            paramct = len(inspect.signature(function).parameters)
-            if paramct != 0:
-                raise(TypeError("Function %s expects %d parameters. Cannot pass params to a scheduled function" % (function.__name__,paramct)))
-            
-    if os.path.exists(job_submitted_file):
-        #you've already scheduled this/a notebook
-        job = notebook_job(id = open(job_submitted_file, "r").read().rstrip())
-        print("Job %s submitted and is currently in status %s." % (job.id, job.status))
-        if job.is_completed(reload = False):
-            print("To download output from this job run:")
-            print("\tjob = hisepy.get_notebook_job()")
-            print("\tfiles = job.download_output()")
+    if os.path.exists(job_record_file):
+        #you're on a cloned instance that was created from this job
+        job = notebook_job(id = open(job_record_file, "r").read().rstrip())
+        print("You are on a cloned instance created from notebook job %s in status %s." %
+              (job.id, job.status))
+        if len(job.ledger_output) > 0:
+            print("The following output files are available in the curent directory of this IDE:")
+            for f in job.ledger_output:
+                print(f)
         print("To clear this job and schedule another job from this IDE instance, run:")
-        print("\thisepy.clear_notebook_job()")
+        print("hisepy.clear_notebook_job()")
         return job
     elif os.path.exists(is_instance_flag_file):
-        #we're on the scheduled instance. Run the thing if the thing is there to be run
-        if function is not None:
-            function()
         #we're on a scheduled instance, so return an empty job
         return notebook_job()
     
@@ -71,21 +60,19 @@ def schedule_notebook(output_files,
         payload["notebook_platform"] = platform
     if project is not None:
         payload["project"] = project
-    
+        
     nb_file = "%s/%s" % (payload["notebook_path"],payload["notebook_name"])        
     if not os.path.exists(nb_file) or not os.path.isfile(nb_file):
         raise(TypeError("Notebook %s does not exist. Check values for notebook_path and notebook_name and try again" % (nb_file)))
 
-    if do_verification:
+    if prompt:
         print("About to schedule notebook %s for run on a large instance." % (nb_file))
-        print("I will run all the cells in the notebook.")
-        if function is not None:
-            print("When I reach this cell, I will execute the code contained in function %s" % (function.__name__))
+        print("I will run all the cells in the notebook, only skipping this schedule function.")
         print("I expect this notebook to produce the following output files:")
         for f in output_files:
             print("\t%s" % (f))
         print("I will copy those files back to HISE where they will be available for later download into this or another IDE instance.")
-        print("OK? ", end = "")
+        print("OK? (y/n) ", end = "")
         resp = input()
         if len(resp) == 0 or resp.lower()[0] != "y":
             print("Not scheduling.")
@@ -98,32 +85,29 @@ def schedule_notebook(output_files,
     if resp.status_code != 200:
         raise(Exception("Request to %s failed with status %d. %s" % (endpoint,resp.status_code,resp.text)))
     job = notebook_job(obj = json.loads(resp.text))
-    f = open(job_submitted_file, "w")
-    f.write(job.id)
-    f.close()
     print("Scheduled.")    
     return job
 
 def get_notebook_job(job_id = None):
     if job_id is None:
-        if os.path.exists(job_submitted_file):
-            job_id = open(job_submitted_file, "r").read().rstrip()
+        if os.path.exists(job_record_file):
+            job_id = open(job_record_file, "r").read().rstrip()
         else:
             raise(Exception("Job Id not specified, and no schedule record found on instance"))
     return notebook_job(id = job_id)
     
 def clear_notebook_job():
-    if os.path.exists(job_submitted_file):
-        job_id = open(job_submitted_file, "r").read().rstrip()
-        os.remove(job_submitted_file)
+    if os.path.exists(job_record_file):
+        job_id = open(job_record_file, "r").read().rstrip()
+        os.remove(job_record_file)
         print("Cleared job %s" % (job_id))
     else:
-        print("No job currently available")
+        print("No job record found")
 
 def notebook_name():
     name = os.popen("ls -t | grep -F .ipynb | head -1").read().rstrip()
     if name is None or name == "":
-        raise(TypeError("Cannot get name of the current notebook. Please specify using the \"notebook_name\" argument."))
+        raise(TypeError("Cannot get name of the current notebook. Make sure you are running this function from the notebook you want to schedule."))
     return name
 
 class notebook_job:
@@ -131,6 +115,7 @@ class notebook_job:
         self.id = id
         self.trace_id = None
         self.status = "Unknown"
+        self.ledger_output = []
         
         if obj is not None:
             self.init_from_object(obj)
@@ -142,7 +127,11 @@ class notebook_job:
             self.id = obj[job_id_field]        
         else:
             raise(Exception("No job id found in json object"))
-        
+
+        if ledger_output in obj:
+            for fid in obj[ledger_output_field]:
+                  self.ledger_output.append(obj[ledger_output_field][fid])
+                  
         if trace_id_field in obj:
             self.trace_id = obj[trace_id_field]
         else:
