@@ -8,3 +8,4 @@ dist
 hisepy.egg-info
 hisepy/__pycache__
 cache
+*.ipynb
