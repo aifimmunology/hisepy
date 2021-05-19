@@ -18,6 +18,7 @@ file_ids_field = "fileIds"
 trace_id_field = "trace_id"
 status_field = "status"
 title_field = "title"
+ledger_output_field = "ledger_output"
 
 job_complete_status = "Completed"
 
@@ -107,6 +108,10 @@ def clear_notebook_job():
         print("No job record found")
 
 def current_notebook():
+    test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
+    if test_notebook != "":
+        return test_notebook
+    
     name = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 1 | awk '{print $2}'").read().rstrip()
     if name is None or name == "":
         raise(TypeError("Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"))
@@ -130,7 +135,7 @@ class notebook_job:
         else:
             raise(Exception("No job id found in json object"))
 
-        if ledger_output in obj:
+        if ledger_output_field in obj:
             for fid in obj[ledger_output_field]:
                   self.ledger_output.append(obj[ledger_output_field][fid])
                   
