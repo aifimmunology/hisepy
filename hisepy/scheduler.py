@@ -109,7 +109,7 @@ def clear_notebook_job():
 
 def current_notebook():
     test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
-    if test_notebook != "":
+    if test_notebook != "" and test_notebook != None:
         return test_notebook
     
     name = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 1 | awk '{print $2}'").read().rstrip()
