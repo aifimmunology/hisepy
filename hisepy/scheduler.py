@@ -31,9 +31,6 @@ def schedule_notebook(output_files,
         raise(TypeError("output_files must be a list, not a %s" % (type(output_files))))
     elif len(output_files) == 0:
         raise(TypeError("output_files must contain at least on expected output file"))
-    else:
-        for i,of in enumerate(output_files):
-            output_files[i] = os.path.abspath(of)
     
     if os.path.exists(job_record_file):
         #you're on a cloned instance that was created from this job
