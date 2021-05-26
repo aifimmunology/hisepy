@@ -4,6 +4,7 @@ import os
 metadata_server_root = "http://metadata.google.internal/computeMetadata/v1/instance"
 instance_name_path = "name"
 client_id_path = "attributes/iap-client-id"
+account_guid_path = "attributes/currentAccountGuid"
 identity_path = "service-accounts/default/identity"
 server_id_path = "attributes/hise-server"
 token_env = "TOKEN_GENERATOR"
@@ -13,6 +14,9 @@ default_metadata = {
     client_id_path: "REDACTED_GCP_CLIENT_ID",
     server_id_path: "dev.allenimmunology.org"
 }
+
+# dev primecollective
+defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 
 def get_from_metadata_server(path):
     value = None
@@ -36,9 +40,9 @@ def get_bearer_token_header():
     client_id = get_from_metadata_server(client_id_path)
     token_gen = os.getenv(token_env)
     if token_gen is not None:
-        return {"Authorization": "Bearer %s" % os.popen(token_gen).read().rstrip()}
-        
-    return {"Authorization": "Bearer %s" %
-            (get_from_metadata_server("%s?format=full&audience=%s" %
-                                      (identity_path, client_id)))}
+        headers = {"Authorization": "Bearer %s" % os.popen(token_gen).read().rstrip(), "InstanceAccountGuid": defaultLocalAccountGuid}
+    else:
+        headers = {"Authorization": "Bearer %s" % (get_from_metadata_server("%s?format=full&audience=%s" % (identity_path, client_id))),
+            "InstanceAccountGuid": "%s" % (get_from_metadata_server("%s" % (account_guid_path)))}
+    return headers
 
