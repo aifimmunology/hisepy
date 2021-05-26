@@ -12,7 +12,7 @@ token_env = "TOKEN_GENERATOR"
 default_metadata = {
     instance_name_path: "local-testing-instance",
     client_id_path: "938455265122-t3ovcfjsbdlrv628abnt0qpl36m23k6j.apps.googleusercontent.com",
-    server_id_path: "dev.allenimmunology.org",
+    server_id_path: "dev.allenimmunology.org"
 }
 
 # dev primecollective
@@ -44,7 +44,5 @@ def get_bearer_token_header():
     else:
         headers = {"Authorization": "Bearer %s" % (get_from_metadata_server("%s?format=full&audience=%s" % (identity_path, client_id))),
             "InstanceAccountGuid": "%s" % (get_from_metadata_server("%s" % (account_guid_path)))}
-    print("HEADERS ARE:")
-    print(headers)
     return headers
 
