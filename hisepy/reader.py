@@ -3,8 +3,6 @@ import json
 import os
 import pathlib
 import uuid
-import requests
-import json
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 
 search_path = "hydration/analysis/files"

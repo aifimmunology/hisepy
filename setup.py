@@ -25,13 +25,8 @@ setup(
     url='https://github.com/aifimmunology/hisepy',
     packages=['hisepy'],
     install_requires=[
-        'nptsne',
-        'pyreadr',
         'pandas',
         'numpy',
-        'networkx',
-        'community',
-        'python-louvain'
     ],
     #   scripts=[''],
     include_package_data=True,
