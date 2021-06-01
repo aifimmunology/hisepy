@@ -31,7 +31,11 @@ def schedule_notebook(output_files,
         raise(TypeError("output_files must be a list, not a %s" % (type(output_files))))
     elif len(output_files) == 0:
         raise(TypeError("output_files must contain at least on expected output file"))
-    
+    else:
+        for f in output_files:
+            if " " in f:
+                raise(TypeError("%s is an invalid output file. Spaces are not allowed in output file names." % (f)))
+
     if os.path.exists(job_record_file):
         #you're on a cloned instance that was created from this job
         job = notebook_job(id = open(job_record_file, "r").read().rstrip())
@@ -106,10 +110,10 @@ def clear_notebook_job():
 
 def current_notebook():
     test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
-    if test_notebook != "" and test_notebook != None:
+    if test_notebook is not None and test_notebook != "":
         return test_notebook
     
-    name = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 1 | awk '{print $2}'").read().rstrip()
+    name = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 1 | cut -f2- -d ' '").read().rstrip()
     if name is None or name == "":
         raise(TypeError("Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"))
     return name
