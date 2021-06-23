@@ -11,6 +11,24 @@ scheduler_path = "toolchain/scheduler"
 cache_dir = "cache"
 
 class hise_file:
+    '''
+    A class representing a hise_file.
+
+    Attributes
+    __________
+    file_id : str 
+        UUID for a file. 
+    file_path : string 
+        Path where physical file is saved.
+    descriptors : dict
+        Contains metadata.
+
+    Methods
+    _______
+    load(): 
+        attaches fields like path or descriptors to hise_file object 
+    '''
+
     def __init__(self, file_id, file_path = None, descriptors = None):
         if type(file_id) is uuid.UUID:
             self.id = file_id
@@ -42,6 +60,17 @@ class hise_file:
         self.message = "OK"
 
 def read_files(file_list):
+    '''
+    Read the contents of a list of file ids into a hise_file object 
+
+        Parameters:
+            file_list : list 
+                a list of UUIDS to retrieve
+
+        Returns: 
+            response : a list of hise_file objects 
+
+    '''
     if type(file_list) is not list:
         raise(TypeError("You must pass a list of file ids to read_files"))
     
@@ -75,6 +104,9 @@ def read_files(file_list):
     return response
 
 def cache_and_convert_file_data(file_data):
+    '''
+    Helper function to convert files into a hise_file object 
+    '''
     if type(file_data) is not dict:
         raise(Exception("Item in response is not a dict, it is a %s." % (type(file_data))))
     elif "descriptors" not in file_data:
