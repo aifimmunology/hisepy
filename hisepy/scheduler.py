@@ -26,6 +26,22 @@ def schedule_notebook(output_files,
                       platform = None,
                       project = None,
                       prompt = True):
+    ''' 
+    Schedule a notebook to run on a seperate, and larger instance.
+
+        Parameters: 
+            output_files : list
+                List of expected outputs.
+            platform : str 
+                Optional. Used to specify what platform the job should be scheuled on.
+            project : str 
+                Optional. Specify the project short name for this job, if you belong to more than one.
+            prompt : bool 
+                Optional. Print a prompt before scheduling the notebook.
+
+        Returns: 
+            An instance of a job object.
+    ''' 
     
     if type(output_files) is not list:
         raise(TypeError("output_files must be a list, not a %s" % (type(output_files))))
@@ -93,6 +109,16 @@ def schedule_notebook(output_files,
     return job
 
 def get_notebook_job(job_id = None):
+    '''
+    Get the instance of a particular notebook job.
+
+        Parameters:
+            job_id : str
+
+        Returns: 
+            A job object (see documentation on notebook_job class).
+    '''
+
     if job_id is None:
         if os.path.exists(job_record_file):
             job_id = open(job_record_file, "r").read().rstrip()
@@ -101,6 +127,9 @@ def get_notebook_job(job_id = None):
     return notebook_job(id = job_id)
     
 def clear_notebook_job():
+    '''
+    Clear the record of most recent job. This will not delete the job or have any effect on its status. Using this function will allow to to schedule another job.
+    '''
     if os.path.exists(job_record_file):
         job_id = open(job_record_file, "r").read().rstrip()
         os.remove(job_record_file)
@@ -109,6 +138,13 @@ def clear_notebook_job():
         print("No job record found")
 
 def current_notebook():
+    '''
+    Return the name of a notebook.
+
+        Returns: 
+            name : str 
+                Name of notebook.
+    '''
     test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
     if test_notebook is not None and test_notebook != "":
         return test_notebook
@@ -119,6 +155,26 @@ def current_notebook():
     return name
 
 class notebook_job:
+    '''
+    A class representing a notebook job.
+
+    Attributes
+    __________
+    id : str 
+        UUID for notebook job.
+    status : string 
+        Status of notebook job.
+    
+    Methods
+    _______
+
+    check_status(): 
+        Returns status of job.
+    is_completed(): 
+        Determines whether job is running or not.
+    download_output(): 
+        Downloads all expected outputs if job produced any.
+    '''
     def __init__(self, id = None, obj = None):
         self.id = id
         self.trace_id = None
@@ -191,6 +247,21 @@ class notebook_job:
             return None
         
 class trace:
+    '''
+    A class representing a trace object. Used to allow re-execution or file retrieval for a particular job id 
+
+    Attributes
+    __________ 
+    id : str 
+        UUID for scheduled notebook 
+    file_ids : list 
+        List of file_ids 
+
+    Methods 
+    _______
+    reload():
+        Reload job object 
+    '''
     def __init__(self, id):
         self.id = id
         self.file_ids = []
