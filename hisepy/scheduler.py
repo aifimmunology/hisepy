@@ -4,18 +4,16 @@ import inspect
 import json
 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
-from hisepy.reader import read_files
+from hisepy.reader import download_files
 
 ideHome = os.getenv("IDE_HOME") or "/home/jupyter"
 is_instance_flag_file = "%s/.scheduledinstance" % (ideHome)
 job_record_file = "%s/.notebookschedulerjobid" % (ideHome)
 
-trace_path = "tracer/trace"
 scheduler_path = "toolchain/scheduler"
 
 job_id_field = "id"
 file_ids_field = "fileIds"
-trace_id_field = "trace_id"
 status_field = "status"
 title_field = "title"
 ledger_output_field = "ledger_output"
@@ -177,9 +175,8 @@ class notebook_job:
     '''
     def __init__(self, id = None, obj = None):
         self.id = id
-        self.trace_id = None
         self.status = "Unknown"
-        self.ledger_output = []
+        self.ledger_output = {}
         
         if obj is not None:
             self.init_from_object(obj)
@@ -194,13 +191,8 @@ class notebook_job:
 
         if ledger_output_field in obj:
             for fid in obj[ledger_output_field]:
-                  self.ledger_output.append(obj[ledger_output_field][fid])
+                  self.ledger_output[fid] = obj[ledger_output_field][fid]
                   
-        if trace_id_field in obj:
-            self.trace_id = obj[trace_id_field]
-        else:
-            raise(Exception("No trace id found in json object"))
-        
         if status_field in obj:
             self.status = obj[status_field]
         else:
@@ -235,15 +227,11 @@ class notebook_job:
         return self.status == job_complete_status
 
     def download_output(self):
-        if self.is_completed():
-            trace = self.trace()
-            if len(trace.file_ids) > 0:
-                return read_files(trace.file_ids)
-            else:
-                raise(
-                    Exception("Job is in completed status, but trace contains no output files"))
+        if len(self.ledger_output) > 0:
+            return download_files(self.ledger_output)
         else:
-            print("Job %s is currently in status %s. Try again later." % (self.id, self.status))
+            print("Job %s in status %s currently has no output. Try again later." %
+                  (self.id, self.status))
             return None
         
 class trace:
