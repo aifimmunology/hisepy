@@ -6,6 +6,7 @@ import uuid
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 
 search_path = "hydration/analysis/files"
+download_path = "hydration/source/server"
 trace_path = "tracer/trace"
 scheduler_path = "toolchain/scheduler"
 cache_dir = "cache"
@@ -50,6 +51,10 @@ class hise_file:
             self.path = None
             
     def load(self):
+        if self.path is not None and os.path.exists(self.path):
+            #already loaded
+            return True
+        
         obj = read_files([str(self.id)])
         if len(obj) == 0:
             raise(TypeError("Failed to load file %s" % self.id))
@@ -103,6 +108,42 @@ def read_files(file_list):
             
     return response
 
+def download_files(file_dict):
+    '''
+    Read the contents of a dictionary of non-result file ids into hise_file objects
+    These files will contain NULL descriptors (since they are not result files)
+    
+        Parameters:
+            file_dict : dictionary
+                a dictionary of file_uuid: file_name
+
+        Returns: 
+            response : a list of hise_file objects with empty descriptors 
+
+    '''
+    if type(file_dict) is not dict:
+        raise(TypeError("You must pass a dictionary of file_uuid: file_name to download_files"))
+
+    response = []
+    #use a dummy batch id for these files
+    download_cache = "%s/%s" % (cache_dir, "downloadable")
+    for f_id in file_dict:
+        endpoint = "https://%s/%s/%s" % (get_from_metadata_server(server_id_path),
+                                         download_path,
+                                         f_id)
+        hf = hise_file(f_id)
+        try:
+            cache_file(endpoint, file_dict[f_id], download_cache)
+            hf.status = True
+            hf.message = "OK"
+            hf.path = "%s/%s" % (download_cache, file_dict[f_id])
+        except Exception as e:            
+            hf.status = False
+            hf.message = str(e)
+        response.append(hf)
+
+    return response
+
 def cache_and_convert_file_data(file_data):
     '''
     Helper function to convert files into a hise_file object 
@@ -118,16 +159,22 @@ def cache_and_convert_file_data(file_data):
     batch_id = "unknown"
     if "batchID" in f_desc and f_desc["batchID"] != "":
         batch_id = f_desc["batchID"]
-    ddir = "%s/%s" % (cache_dir, batch_id)
-    if not os.path.exists(ddir):
-        pathlib.Path(ddir).mkdir(parents=True, exist_ok=True)
-        
-    f_path = "%s/%s" % (ddir, f_desc["name"].split("/")[-1])
-    resp = requests.request("GET", file_data["url"], headers = get_bearer_token_header())
+    file_dir = "%s/%s" % (cache_dir, batch_id)
+    file_name = f_desc["name"].split("/")[-1]
+    cache_file(file_data["url"],
+               file_name,
+               file_dir)
+    return hise_file(file_id = f_desc["id"],
+                     file_path = "%s/%s" % (file_dir, file_name),
+                     descriptors = file_data["descriptors"])
+
+def cache_file(url, file_name, file_dir):
+    if not os.path.exists(file_dir):
+        pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
+    
+    f_path = "%s/%s" % (file_dir, file_name)
+    resp = requests.request("GET", url, headers = get_bearer_token_header())
     if resp.status_code != 200:
         raise(SystemError("Request to get file %s from %s failed with status %d. %s" %
-                          (f_path,resp.status_code,resp.text)))
+                          (file_name,resp.status_code,resp.text)))
     open(f_path, 'wb').write(resp.content)
-    return hise_file(file_id = f_desc["id"],
-                     file_path = f_path,
-                     descriptors = file_data["descriptors"])
