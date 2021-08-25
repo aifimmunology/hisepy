@@ -1,7 +1,10 @@
 import requests
+import random
 import os
 import inspect
 import json
+import pandas
+import time
 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from hisepy.reader import download_files
@@ -12,15 +15,27 @@ job_record_file = "%s/.notebookschedulerjobid" % (ideHome)
 
 scheduler_path = "toolchain/scheduler"
 
+platform_default = "Notebook"
+platform_louvain = "Louvain"
+
 job_id_field = "id"
 file_ids_field = "fileIds"
 status_field = "status"
 title_field = "title"
 ledger_output_field = "ledger_output"
 
+notebook_name_field = "notebook_name"
+instance_name_field = "instance_name"
+notebook_path_field = "notebook_path"
+input_files_field = "input_files"
+output_files_field = "output_files"
+platform_field = "platform"
+project_field = "project"
+
 job_complete_status = "Completed"
 
-def schedule_notebook(output_files,
+def schedule_notebook(output_files = None,
+                      input_data = None,
                       platform = None,
                       project = None,
                       prompt = True):
@@ -41,15 +56,6 @@ def schedule_notebook(output_files,
             An instance of a job object.
     ''' 
     
-    if type(output_files) is not list:
-        raise(TypeError("output_files must be a list, not a %s" % (type(output_files))))
-    elif len(output_files) == 0:
-        raise(TypeError("output_files must contain at least on expected output file"))
-    else:
-        for f in output_files:
-            if " " in f:
-                raise(TypeError("%s is an invalid output file. Spaces are not allowed in output file names." % (f)))
-
     if os.path.exists(job_record_file):
         #you're on a cloned instance that was created from this job
         job = notebook_job(id = open(job_record_file, "r").read().rstrip())
@@ -65,34 +71,11 @@ def schedule_notebook(output_files,
     elif os.path.exists(is_instance_flag_file):
         #we're on a scheduled instance, so return an empty job
         return notebook_job()
-    notebook = current_notebook()
-    nbtokens = notebook.split("/")
-    
-    payload = {
-        "notebook_name": nbtokens[-1],
-        "instance_name": get_from_metadata_server(instance_name_path),
-        "notebook_path": "/".join(nbtokens[0:-1]),
-        "output_files": output_files
-    }
-    if platform is not None:
-        payload["notebook_platform"] = platform
-    if project is not None:
-        payload["project"] = project
-        
-    nb_file = "%s/%s" % (payload["notebook_path"],payload["notebook_name"])        
-    if not os.path.exists(nb_file) or not os.path.isfile(nb_file):
-        raise(TypeError("Notebook %s does not exist. Check values for notebook_path and notebook_name and try again" % (nb_file)))
+
+    payload = validate_schedule_input(output_files, input_data, platform, project)
 
     if prompt:
-        print("About to schedule notebook %s for run on a large instance." % (nb_file))
-        print("I will run all the cells in the notebook, only skipping this schedule function.")
-        print("I expect this notebook to produce the following output files:")
-        for f in output_files:
-            print("\t%s" % (f))
-        print("I will copy those files back to HISE where they will be available for later download into this or another IDE instance.")
-        print("OK? (y/n) ", end = "")
-        resp = input()
-        if len(resp) == 0 or resp.lower()[0] != "y":
+        if not prompt_for_platform(payload[platform_field]):
             print("Not scheduling.")
             return None
 
@@ -105,6 +88,72 @@ def schedule_notebook(output_files,
     job = notebook_job(obj = json.loads(resp.text))
     print("Scheduled.")    
     return job
+
+def validate_schedule_input(output_files, input_data, platform, project):
+    notebook = current_notebook()
+    nbtokens = notebook.split("/")
+
+    if platform is None:
+        platform = platform_default
+        
+    payload = {
+        notebook_name_field: nbtokens[-1],
+        instance_name_field: get_from_metadata_server(instance_name_path),
+        notebook_path_field: "/".join(nbtokens[0:-1]),
+        platform_field: platform                
+    }
+    if project is not None:
+        payload[project_field] = project
+    
+    if platform == platform_louvain:
+        if input_data is None or type(input_data) is not pandas.DataFrame:
+            raise(TypeError("Notebook platform %s requires input_data of type pandas.DataFrame"
+                            % (platform_louvain)))
+        elif output_files is not None:
+            raise(TypeError("Notebook platform %s does not take output files"
+                            % (platform_louvain)))
+        else:
+            #this might take a bit, so give the user some notice
+            print("Converting and normalizing input data...")
+            payload[input_files_field] = [convert_and_normalize_dataframe(input_data)]
+
+    else:
+        if output_files is None or type(output_files) is not list or len(output_files) == 0:
+            raise(TypeError("You must specify a list of at least one expected output file using the output_files argument"))
+        else:
+            for f in output_files:
+                if " " in f:
+                    raise(TypeError("%s is an invalid output file. Spaces are not allowed in output file names." % (f)))
+            payload[output_files_field] = output_files
+            
+    return payload
+
+def convert_and_normalize_dataframe(df):
+    #TODO: actually normalize
+    dfcsv = "scheduler_input_data_%06d.csv" % random.randint(0,1000000)
+    df.to_csv(dfcsv)
+    return dfcsv
+
+def prompt_for_platform(platform):
+    if platform == platform_louvain:
+        print("About to execute a louvain dimension reduction of your data on a DataProc cluster.")
+        print("I expect this job to produce a csv file that I will copy into HISE")
+        print("and which you can download using the job object this function returns.")
+        print("You can also close this instance down and clone it later to return to this point,")
+        print("or you can download the resulting csv into any other IDE instance using the read_files method.")  
+        
+    else:
+        print("About to schedule notebook %s for run on a large instance." % (nb_file))
+        print("I will run all the cells in the notebook, only skipping this schedule function.")
+        print("I expect this notebook to produce the following output files:")
+        for f in output_files:
+            print("\t%s" % (f))
+        print("I will copy those files back to HISE where they will be available for later download into this or another IDE instance.")
+
+
+    print("OK? (y/n) ", end = "")
+    resp = input()
+    return len(resp) > 0 and resp.lower()[0] == "y"
 
 def get_notebook_job(job_id = None):
     '''
@@ -146,11 +195,23 @@ def current_notebook():
     test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
     if test_notebook is not None and test_notebook != "":
         return test_notebook
-    
-    name = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 1 | cut -f2- -d ' '").read().rstrip()
-    if name is None or name == "":
+    ambiguitySeconds =  15 * 60
+    notebooks = os.popen("find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 3 | cut -f2- -d ' '").read().rstrip().split("\n")
+    if len(notebooks) == 0 or notebooks[0] == "":
         raise(TypeError("Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"))
-    return name
+    elif len(notebooks) > 1:
+        olderIsNew = (time.time()-os.stat(notebooks[1]).st_mtime < ambiguitySeconds)
+        newerIsOld = (time.time()-os.stat(notebooks[0]).st_mtime >= ambiguitySeconds)
+        if newerIsOld or olderIsNew:
+            resp = -1
+            while (resp < 0 or resp > len(notebooks)):
+                print("Cannot determine the current notebook.")
+                for idx in range(len(notebooks)):
+                    print("%d) %s" % (idx + 1, notebooks[idx]))
+                print("Please select (1-%d) " % (len(notebooks)))
+                resp = int(input()) - 1
+            return notebooks[resp]
+    return notebooks[0]
 
 class notebook_job:
     '''
