@@ -1,5 +1,5 @@
 from .version import __version__
-from .reader import hise_file, read_files
+from .reader import hise_file, read_files, read_subjects, read_samples
 from .scheduler import notebook_job, schedule_notebook, get_notebook_job, clear_notebook_job
 
 # if somebody does "from somepackage import *", this is what they will
@@ -7,6 +7,8 @@ from .scheduler import notebook_job, schedule_notebook, get_notebook_job, clear_
 __all__ = [
     'hise_file',
     'read_files',
+    'read_subjects',
+    'read_samples',
     'schedule_notebook',
     'get_notebook_job',
     'clear_notebook_job',

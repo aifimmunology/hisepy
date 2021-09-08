@@ -5,7 +5,9 @@ import pathlib
 import uuid
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 
-search_path = "hydration/analysis/files"
+file_search_path = "hydration/analysis/files"
+sample_search_path = "ledger/sample/q"
+subject_search_path = "ledger/subject/q"
 download_path = "hydration/source/server"
 trace_path = "tracer/trace"
 scheduler_path = "toolchain/scheduler"
@@ -78,9 +80,9 @@ def read_files(file_list):
     '''
     if type(file_list) is not list:
         raise(TypeError("You must pass a list of file ids to read_files"))
-    
+     
     qstr = "&".join(map(lambda x: "id=%s" % (x), file_list))
-    endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path), search_path, qstr)
+    endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path), file_search_path, qstr)
     resp = requests.request("GET", endpoint, headers = get_bearer_token_header())
     
     if resp.status_code != 200:
@@ -178,3 +180,80 @@ def cache_file(url, file_name, file_dir):
         raise(SystemError("Request to get file %s from %s failed with status %d. %s" %
                           (file_name,resp.status_code,resp.text)))
     open(f_path, 'wb').write(resp.content)
+
+def read_samples(sample_ids = None, query = None):
+    '''
+    Read or search the SampleStatus materialized view. 
+    User should specify one or the other of sample_ids or query
+
+        Parameters:
+            sample_ids : list
+               a list of UUIDS to retrieve
+            query:
+               a dictionary object containing search parameters using mongo query language
+
+        Returns: 
+            response : a list of samples
+
+    '''
+    if sample_ids is not None:
+        if type(sample_ids) is not list:
+            raise(TypeError("sample_ids must be a list"))
+        query = {"id": {"$in": sample_ids}}
+    if query is None:
+        raise(TypeError("You must specify either a list of sample_ids or a query"))
+    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path), sample_search_path)
+    resp = requests.request("POST",
+                            endpoint,
+                            data = json.dumps({"filter": query}),
+                            headers = get_bearer_token_header())
+    
+    if resp.status_code != 200:
+        raise(SystemError("Request to %s failed with status %d. %s" %
+                          (endpoint,resp.status_code,resp.text)))
+    
+    obj = json.loads(resp.text)
+    if type(obj) is not dict:
+        raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
+    elif "payload" not in obj:
+        raise(TypeError("Response %s contained an empty payload!" % (resp.test)))
+    return obj["payload"]
+
+def read_subjects(subject_ids = None, query = None):
+    '''
+    Read or search the Subject materialized view. 
+    User should specify one or the other of subject_ids or query
+
+        Parameters:
+            subject_ids : list
+               a list of UUIDS to retrieve
+            query:
+               a dictionary object containing search parameters using mongo query language
+
+        Returns: 
+            response : a list of subjects
+
+    '''
+    if subject_ids is not None:
+        if type(subject_ids) is not list:
+            raise(TypeError("subject_ids must be a list"))
+        query = {"id": {"$in": subject_ids}}
+    if query is None:
+        raise(TypeError("You must specify either a list of subject_ids or a query"))
+    
+    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path), subject_search_path)
+    resp = requests.request("POST",
+                            endpoint,
+                            data = json.dumps({"filter": query}),                            
+                            headers = get_bearer_token_header())
+    
+    if resp.status_code != 200:
+        raise(SystemError("Request to %s failed with status %d. %s" %
+                          (endpoint,resp.status_code,resp.text)))
+    
+    obj = json.loads(resp.text)
+    if type(obj) is not dict:
+        raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
+    elif "payload" not in obj:
+        raise(TypeError("Response %s contained an empty payload!" % (resp.test)))
+    return obj["payload"]
