@@ -106,7 +106,7 @@ def validate_schedule_input(output_files, input_data, platform, project):
         CONFIG['SCHEDULER']['PLATFORM_FIELD']: platform                
     }
     if project is not None:
-        payload[project_field] = project
+        payload[CONFIG['SCHEDULER']['PROJECT_FIELD']] = project
     
     if platform == CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']:
         if input_data is None or type(input_data) is not pandas.DataFrame:
