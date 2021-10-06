@@ -5,14 +5,16 @@ import inspect
 import json
 import pandas
 import time
-
+import hisepy.config_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from hisepy.reader import download_files
 
-ideHome = os.getenv("IDE_HOME") or "/home/jupyter"
-is_instance_flag_file = "%s/.scheduledinstance" % (ideHome)
-job_record_file = "%s/.notebookschedulerjobid" % (ideHome)
+CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
+is_instance_flag_file = "/%s/.scheduledinstance" % (CONFIG['IDE']['HOME_DIR'])
+job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
 
+
+''' to be replaced with CONFIG 
 scheduler_path = "toolchain/scheduler"
 
 platform_default = "Notebook"
@@ -33,6 +35,7 @@ platform_field = "platform"
 project_field = "project"
 
 job_complete_status = "Completed"
+''' 
 
 def schedule_notebook(output_files = None,
                       input_data = None,
@@ -75,13 +78,13 @@ def schedule_notebook(output_files = None,
     payload = validate_schedule_input(output_files, input_data, platform, project)
 
     if prompt:
-        if not prompt_for_platform(payload[platform_field]):
+        if not prompt_for_platform(payload[CONFIG['SCHEDULER']['PLATFORM_FIELD']]):
             print("Not scheduling.")
             return None
 
     print("Scheduling...")
     headers = get_bearer_token_header()
-    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path), scheduler_path)
+    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path), CONFIG['TOOLCHAIN']['SCHEDULER_PATH'])
     resp = requests.request("POST", endpoint, json = payload, headers = headers)
     if resp.status_code != 200:
         raise(Exception("Request to %s failed with status %d. %s" % (endpoint,resp.status_code,resp.text)))
@@ -94,28 +97,28 @@ def validate_schedule_input(output_files, input_data, platform, project):
     nbtokens = notebook.split("/")
 
     if platform is None:
-        platform = platform_default
+        platform = CONFIG['SCHEDULER']['PLATFORM_DEFAULT']
         
     payload = {
-        notebook_name_field: nbtokens[-1],
-        instance_name_field: get_from_metadata_server(instance_name_path),
-        notebook_path_field: "/".join(nbtokens[0:-1]),
-        platform_field: platform                
+        CONFIG['SCHEDULER']['NOTEBOOK_NAME_FIELD']: nbtokens[-1],
+        CONFIG['SCHEDULER']['INSTANCE_NAME_FIELD']: get_from_metadata_server(instance_name_path),
+        CONFIG['SCHEDULER']['NOTEBOOK_PATH_FIELD']: "/".join(nbtokens[0:-1]),
+        CONFIG['SCHEDULER']['PLATFORM_FIELD']: platform                
     }
     if project is not None:
         payload[project_field] = project
     
-    if platform == platform_louvain:
+    if platform == CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']:
         if input_data is None or type(input_data) is not pandas.DataFrame:
             raise(TypeError("Notebook platform %s requires input_data of type pandas.DataFrame"
-                            % (platform_louvain)))
+                            % (CONFIG['SCHEDULER']['PLATFORM_LOUVAIN'])))
         elif output_files is not None:
             raise(TypeError("Notebook platform %s does not take output files"
-                            % (platform_louvain)))
+                            % (CONFIG['SCHEDULER']['PLATFORM_LOUVAIN'])))
         else:
             #this might take a bit, so give the user some notice
             print("Converting and normalizing input data...")
-            payload[input_files_field] = [convert_and_normalize_dataframe(input_data)]
+            payload[CONFIG['SCHEDULER']['INPUT_FILES_FIELD']] = [convert_and_normalize_dataframe(input_data)]
 
     else:
         if output_files is None or type(output_files) is not list or len(output_files) == 0:
@@ -124,7 +127,7 @@ def validate_schedule_input(output_files, input_data, platform, project):
             for f in output_files:
                 if " " in f:
                     raise(TypeError("%s is an invalid output file. Spaces are not allowed in output file names." % (f)))
-            payload[output_files_field] = output_files
+            payload[CONFIG['SCHEDULER']['OUTPUT_FILES_FIELD']] = output_files
             
     return payload
 
@@ -135,7 +138,7 @@ def convert_and_normalize_dataframe(df):
     return dfcsv
 
 def prompt_for_platform(platform):
-    if platform == platform_louvain:
+    if platform == CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']:
         print("About to execute a louvain dimension reduction of your data on a DataProc cluster.")
         print("I expect this job to produce a csv file that I will copy into HISE")
         print("and which you can download using the job object this function returns.")
@@ -245,17 +248,17 @@ class notebook_job:
             self.reload()
 
     def init_from_object(self,obj):
-        if job_id_field in obj:        
-            self.id = obj[job_id_field]        
+        if CONFIG['SCHEDULER']['JOB_ID_FIELD'] in obj:        
+            self.id = obj[CONFIG['SCHEDULER']['JOB_ID_FIELD']]        
         else:
             raise(Exception("No job id found in json object"))
 
-        if ledger_output_field in obj:
-            for fid in obj[ledger_output_field]:
-                  self.ledger_output[fid] = obj[ledger_output_field][fid]
+        if CONFIG['SCHEDULER']['LEDGER_OUTPUT_FIELD'] in obj:
+            for fid in obj[CONFIG['SCHEDULER']['LEDGER_OUTPUT_FIELD']]:
+                  self.ledger_output[fid] = obj[CONFIG['SCHEDULER']['LEDGER_OUTPUT_FIELD']][fid]
                   
-        if status_field in obj:
-            self.status = obj[status_field]
+        if CONFIG['SCHEDULER']['STATUS_FIELD'] in obj:
+            self.status = obj[CONFIG['SCHEDULER']['STATUS_FIELD']]
         else:
             raise(Exception("No status found in json object"))
         
@@ -266,7 +269,7 @@ class notebook_job:
         
         headers = get_bearer_token_header()
         endpoint = "https://%s/%s/%s" % (get_from_metadata_server(server_id_path),
-                                         scheduler_path,
+                                         CONFIG['TOOLCHAIN']['SCHEDULER_PATH'],
                                          self.id)
         resp = requests.request("GET", endpoint, headers = headers)
         if resp.status_code != 200:
@@ -285,7 +288,7 @@ class notebook_job:
     def is_completed(self, reload = True):
         if reload:
             self.reload()
-        return self.status == job_complete_status
+        return self.status == CONFIG['SCHEDULER']['JOB_COMPLETE_STATUS']
 
     def download_output(self):
         if len(self.ledger_output) > 0:
@@ -334,12 +337,12 @@ class trace:
         if type(j_obj) is list and len(j_obj) > 0:
             j_obj = j_obj[0]
 
-        if file_ids_field in j_obj:
-            for f in j_obj[file_ids_field]:
+        if CONFIG['SCHEDULER']['FILE_IDS_FIELD'] in j_obj:
+            for f in j_obj[CONFIG['SCHEDULER']['FILE_IDS_FIELD']]:
                 self.file_ids.append(f)
         
-        if title_field in j_obj:
-            self.title = j_obj[title_field]
+        if CONFIG['SCHEDULER']['TITLE_FIELD'] in j_obj:
+            self.title = j_obj[CONFIG['SCHEDULER']['TITLE_FIELD']]
         else:
             self.title = "Trace %s" % self.id
 
