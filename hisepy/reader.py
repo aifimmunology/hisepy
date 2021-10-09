@@ -6,6 +6,7 @@ import uuid
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 import hisepy.formatter as hf 
 
+query_search_path = 'hydration/analysis/query'
 file_search_path = "hydration/analysis/files"
 sample_search_path = "ledger/sample/q"
 subject_search_path = "ledger/subject/q"
@@ -67,7 +68,7 @@ class hise_file:
         self.status = True
         self.message = "OK"
 
-def read_files(file_list):
+def read_files(file_list=None, query_id=None):
     '''
     Read the contents of a list of file ids into a hise_file object 
 
@@ -79,9 +80,24 @@ def read_files(file_list):
             response : a list of hise_file objects 
 
     '''
-    if type(file_list) is not list:
-        raise(TypeError("You must pass a list of file ids to read_files"))
-     
+    # users should only use one or the other; but not both. 
+    assert (((type(file_list) is list) & (query_id == None)) | 
+            ((file_list == None) & (type(query_id) is str)))
+            
+    if (file_list != None) & (type(file_list) is not list):
+       raise(TypeError("You must pass a list of file ids to read_files"))
+
+    # if user submits a query_id, grab all fileIds associated with that query 
+    if (file_list == None) & (query_id != None): 
+        q_endpoint = 'https://{s}/{q}/{qid}'.format(s=get_from_metadata_server(server_id_path), 
+                                                    q=query_search_path, 
+                                                    qid=query_id)
+        resp = requests.request('POST', q_endpoint, headers=get_bearer_token_header())
+        resp_obj = json.loads(resp.text) 
+        file_list = []
+        for o in resp_obj: 
+            file_list += [o['file']['id']]
+    
     qstr = "&".join(map(lambda x: "id=%s" % (x), file_list))
     endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path), file_search_path, qstr)
     resp = requests.request("GET", endpoint, headers = get_bearer_token_header())
