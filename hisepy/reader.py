@@ -4,6 +4,7 @@ import os
 import pathlib
 import uuid
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+import hisepy.formatter as hf 
 
 file_search_path = "hydration/analysis/files"
 sample_search_path = "ledger/sample/q"
@@ -181,7 +182,7 @@ def cache_file(url, file_name, file_dir):
                           (file_name,resp.status_code,resp.text)))
     open(f_path, 'wb').write(resp.content)
 
-def read_samples(sample_ids = None, query = None):
+def read_samples(sample_ids = None, query = None, to_df=True):
     '''
     Read or search the SampleStatus materialized view. 
     User should specify one or the other of sample_ids or query
@@ -217,7 +218,11 @@ def read_samples(sample_ids = None, query = None):
         raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
     elif "payload" not in obj:
         raise(TypeError("Response %s contained an empty payload!" % (resp.test)))
-    return obj["payload"]
+    if to_df: 
+        return hf.sample_to_df(obj["payload"])
+    else: 
+        return obj['payload']
+
 
 def read_subjects(subject_ids = None, query = None):
     '''
