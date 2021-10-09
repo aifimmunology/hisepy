@@ -20,28 +20,28 @@ def sample_to_df_worker(sample_out):
     dict_keys = sample_out.keys() 
 
     # if value is string vs. dict 
-    df = pd.DataFrame()
-    o_df = pd.DataFrame()
-    ddf = pd.DataFrame() 
+    single_df = pd.DataFrame()
+    meta_df = pd.DataFrame()
+    spec_df = pd.DataFrame() 
     for dv in dict_keys: 
         this_entry = sample_out[dv]
         if (type(this_entry) == list): 
             for i in range(0,len(this_entry)): 
                 this_entry[i].update((k, [v]) for k,v in this_entry[i].items())                
-                tmp2 = pd.DataFrame.from_dict(this_entry[i])
-                ddf = pd.concat([ddf, tmp2], axis=0)
+                specimen_tmp = pd.DataFrame.from_dict(this_entry[i])
+                spec_df = pd.concat([spec_df, specimen_tmp], axis=0)
         elif (type(this_entry) == str):
-            tmp_df = pd.DataFrame([this_entry], columns=[dv])
-            df = pd.concat([df,tmp_df], axis=1)
+            single_tmp = pd.DataFrame([this_entry], columns=[dv])
+            single_df = pd.concat([single_df,single_tmp], axis=1)
         elif (type(this_entry) == dict):
             this_entry.update((k, [v]) for k,v in this_entry.items()) # convert values to lists inplace
-            df2 = pd.DataFrame.from_dict(this_entry)
-            df2 = df2.add_prefix('{}.'.format(dv))
-            o_df = pd.concat([o_df, df2], axis=1)
+            metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
+            metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dv))
+            meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
 
     # combine everything together         
-    dict_df = {'metadata':pd.concat([o_df,df], axis=1), 
-                'specimens': ddf}
+    dict_df = {'metadata':pd.concat([single_df,meta_df], axis=1), 
+                'specimens': spec_df}
 
 
     return dict_df  
