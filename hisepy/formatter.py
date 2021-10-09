@@ -8,6 +8,26 @@ Contributors: James Harvey
 # libraries 
 import pandas as pd 
 
+
+
+# so = hp.read_subjects(["e2753c71-076a-49ec-b2c2-5e48a7b54aec"])
+
+def subject_to_df_worker(subject_out): 
+    '''
+    '''
+    dict_keys = subject_out.keys() 
+    for dk in dict_keys: 
+        this_entry = subject_out[0][dk]
+        if (type(this_entry) == dict):
+            import pdb; pdb.set_trace() 
+            this_entry.update((k, [v]) for k,v in this_entry.items()) # convert values to lists inplace
+            metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
+            metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dv))
+            meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
+
+    return 
+
+
 def sample_to_df_worker(sample_out):
     '''
     Takes output from readSamples, and outputs to a data.frame 
