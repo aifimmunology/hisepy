@@ -27,6 +27,9 @@ setup(
     install_requires=[
         'pandas',
         'numpy',
+        'yaml',
+        'anndata',
+        'scipy.sparse'
     ],
     #   scripts=[''],
     include_package_data=True,

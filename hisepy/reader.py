@@ -3,16 +3,10 @@ import json
 import os
 import pathlib
 import uuid
+import hisepy.config_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 
-query_search_path = 'hydration/analysis/query'
-file_search_path = "hydration/analysis/files"
-sample_search_path = "ledger/sample/q"
-subject_search_path = "ledger/subject/q"
-download_path = "hydration/source/server"
-trace_path = "tracer/trace"
-scheduler_path = "toolchain/scheduler"
-cache_dir = "cache"
+CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
 
 class hise_file:
     '''
@@ -89,7 +83,7 @@ def read_files(file_list=None, query_id=None):
     # if user submits a query_id, grab all fileIds associated with that query 
     if (file_list == None) & (query_id != None): 
         q_endpoint = 'https://{s}/{q}/{qid}'.format(s=get_from_metadata_server(server_id_path), 
-                                                    q=query_search_path, 
+                                                    q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
                                                     qid=query_id)
         resp = requests.request('POST', q_endpoint, headers=get_bearer_token_header())
         resp_obj = json.loads(resp.text) 
@@ -98,7 +92,9 @@ def read_files(file_list=None, query_id=None):
             file_list += [o['file']['id']]
     
     qstr = "&".join(map(lambda x: "id=%s" % (x), file_list))
-    endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path), file_search_path, qstr)
+    endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path), 
+                                    CONFIG['HYDRATION']['FILE_SEARCH_PATH'], 
+                                    qstr)
     resp = requests.request("GET", endpoint, headers = get_bearer_token_header())
     
     if resp.status_code != 200:
@@ -144,10 +140,10 @@ def download_files(file_dict):
 
     response = []
     #use a dummy batch id for these files
-    download_cache = "%s/%s" % (cache_dir, "downloadable")
+    download_cache = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], "downloadable")
     for f_id in file_dict:
         endpoint = "https://%s/%s/%s" % (get_from_metadata_server(server_id_path),
-                                         download_path,
+                                         CONFIG['HYDRATION']['DOWNLOAD_PATH'],
                                          f_id)
         hf = hise_file(f_id)
         try:
@@ -177,7 +173,7 @@ def cache_and_convert_file_data(file_data):
     batch_id = "unknown"
     if "batchID" in f_desc and f_desc["batchID"] != "":
         batch_id = f_desc["batchID"]
-    file_dir = "%s/%s" % (cache_dir, batch_id)
+    file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
     file_name = f_desc["name"].split("/")[-1]
     cache_file(file_data["url"],
                file_name,
@@ -218,7 +214,8 @@ def read_samples(sample_ids = None, query = None):
         query = {"id": {"$in": sample_ids}}
     if query is None:
         raise(TypeError("You must specify either a list of sample_ids or a query"))
-    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path), sample_search_path)
+    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path), 
+                                  CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
     resp = requests.request("POST",
                             endpoint,
                             data = json.dumps({"filter": query}),
@@ -257,7 +254,8 @@ def read_subjects(subject_ids = None, query = None):
     if query is None:
         raise(TypeError("You must specify either a list of subject_ids or a query"))
     
-    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path), subject_search_path)
+    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
+                                 CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
     resp = requests.request("POST",
                             endpoint,
                             data = json.dumps({"filter": query}),                            
