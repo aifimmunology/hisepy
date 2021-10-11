@@ -240,7 +240,7 @@ def read_samples(sample_ids = None, query = None, to_df=True):
         return obj['payload']
 
 
-def read_subjects(subject_ids = None, query = None):
+def read_subjects(subject_ids = None, query = None, to_df=True):
     '''
     Read or search the Subject materialized view. 
     User should specify one or the other of subject_ids or query
@@ -277,4 +277,7 @@ def read_subjects(subject_ids = None, query = None):
         raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
     elif "payload" not in obj:
         raise(TypeError("Response %s contained an empty payload!" % (resp.test)))
-    return obj["payload"]
+    if to_df: 
+        return hf.subject_to_df(obj["payload"])
+    else: 
+        return obj["payload"]
