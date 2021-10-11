@@ -5,7 +5,7 @@ import inspect
 import json
 import pandas
 import time
-import hisepy.config_utils as cu 
+import hisepy.common_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from hisepy.reader import download_files
 

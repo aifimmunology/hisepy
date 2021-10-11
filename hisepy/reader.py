@@ -3,7 +3,7 @@ import json
 import os
 import pathlib
 import uuid
-import hisepy.config_utils as cu 
+import hisepy.common_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 
 CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
