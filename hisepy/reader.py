@@ -73,7 +73,7 @@ def query_files(query_dict):
     assert 'file.fileType' in query_dict.keys()
 
     for d in query_dict.keys(): 
-        assert type(query_dict[d]['$in']) == list, "key {} has values not in a list".format(d)
+        assert type(query_dict[d]) == list, "key {} has values not in a list".format(d)
 
     # take the users' query and reformat it using mongo  query language 
     query_dict.update((k, {'$in' :v}) for k,v in query_dict.items())
@@ -90,9 +90,11 @@ def query_files(query_dict):
 
 
 
-def read_files(file_list=None, query_id=None):
+def read_files(file_list=None, query_id=None, query_dict=None):
     '''
     Read the contents of a list of file ids into a hise_file object 
+
+    NOTE: users should only use 1 parameter per function call
 
         Parameters:
             file_list : list 
@@ -107,15 +109,28 @@ def read_files(file_list=None, query_id=None):
             response : a list of hise_file objects 
 
     '''
-    # users should only use one or the other; but not both. 
-    assert (((type(file_list) is list) & (query_id == None)) | 
-            ((file_list == None) & (type(query_id) is str)))
-            
+
+    # make sure users only use 1 parameter 
+    if file_list is not None: 
+        assert (query_id is None) & (query_dict is None)
+    elif query_id is not None: 
+        assert (file_list is None) & (query_dict is None) 
+    elif query_dict is not None: 
+        assert (file_list is None) & (query_id is None)
+ 
     if (file_list != None) & (type(file_list) is not list):
        raise(TypeError("You must pass a list of file ids to read_files"))
 
+
+    # if user submits query, do the query and grab fileIds 
+    if (query_dict is not None): 
+        payload = query_files(query_dict)
+        file_list = []
+        for i in range(0,len(payload)): 
+            file_list += [payload[i]['file']['id']]
+
     # if user submits a query_id, grab all fileIds associated with that query 
-    if (file_list == None) & (query_id != None): 
+    if (query_id is not None): 
         q_endpoint = 'https://{s}/{q}/{qid}'.format(s=get_from_metadata_server(server_id_path), 
                                                     q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
                                                     qid=query_id)
