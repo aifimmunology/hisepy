@@ -62,7 +62,7 @@ class hise_file:
         self.message = "OK"
 
 
-def query_files(query_dict): 
+def query_files(user_query): 
     '''
     loads all associated files for a user-submitted query
         Parameters:
@@ -70,6 +70,7 @@ def query_files(query_dict):
                 dictionary where for each key:value pair, the value must be of type list.
                 NOTE: file.fileType must be present in the query 
     '''
+    query_dict = user_query.copy() 
     assert 'file.fileType' in query_dict.keys()
 
     for d in query_dict.keys(): 
