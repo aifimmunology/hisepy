@@ -61,6 +61,35 @@ class hise_file:
         self.status = True
         self.message = "OK"
 
+
+def query_files(query_dict): 
+    '''
+    loads all associated files for a user-submitted query
+        Parameters:
+            query_dict : dict 
+                dictionary where for each key:value pair, the value must be of type list.
+                NOTE: file.fileType must be present in the query 
+    '''
+    assert 'file.fileType' in query_dict.keys()
+
+    for d in query_dict.keys(): 
+        assert type(query_dict[d]['$in']) == list, "key {} has values not in a list".format(d)
+
+    # take the users' query and reformat it using mongo  query language 
+    query_dict.update((k, {'$in' :v}) for k,v in query_dict.items())
+
+    endpoint = "https://{s}/{de}".format(s=get_from_metadata_server(server_id_path), 
+                                            de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+    resp = requests.request("POST", endpoint, data=json.dumps({"filter": query_dict}), headers = get_bearer_token_header())
+    obj = json.loads(resp.text)
+    if type(obj) is not dict:
+        raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
+    elif "payload" not in obj:
+        raise(TypeError("Response %s contained an empty payload!" % (resp.test)))
+    return obj["payload"]
+
+
+
 def read_files(file_list=None, query_id=None):
     '''
     Read the contents of a list of file ids into a hise_file object 
@@ -68,7 +97,12 @@ def read_files(file_list=None, query_id=None):
         Parameters:
             file_list : list 
                 a list of UUIDS to retrieve
-
+            query_id : str
+                string value of queryID from Advanced Search
+            query_dict : dict
+                dictionary that allows users to submit a query. 
+                NOTE: for each key:value pair, the value must be of type list 
+    
         Returns: 
             response : a list of hise_file objects 
 
