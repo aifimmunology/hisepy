@@ -33,17 +33,20 @@ PROJECT_FOLDER:
 
 # hydration endpoints 
 HYDRATION:
+  HYDRATION_NAME : hydration
   FILE_SEARCH_PATH : hydration/analysis/files
   DESCRIPTORS_PATH : hydration/analysis/descriptors
   DOWNLOAD_PATH : hydration/source/server
 
 # ledger endpoints 
 LEDGER: 
+  LEDGER_NAME : ledger
   SAMPLE_SEARCH_PATH : ledger/sample/q
   SUBJECT_SEARCH_PATH : ledger/subject/q
 
 # tracer endpoints 
 TRACER: 
+  TRACER_NAME : tracer 
   TRACER_PATH : tracer/trace
 
 # globals specific for IDE 
