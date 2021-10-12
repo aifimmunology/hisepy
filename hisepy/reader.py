@@ -6,7 +6,9 @@ import uuid
 import hisepy.config_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 
+
 CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
+
 
 class hise_file:
     '''
@@ -61,7 +63,7 @@ class hise_file:
         self.status = True
         self.message = "OK"
 
-def read_files(file_list):
+def read_files(file_list=None, query_id=None):
     '''
     Read the contents of a list of file ids into a hise_file object 
 
@@ -73,9 +75,24 @@ def read_files(file_list):
             response : a list of hise_file objects 
 
     '''
-    if type(file_list) is not list:
-        raise(TypeError("You must pass a list of file ids to read_files"))
-     
+    # users should only use one or the other; but not both. 
+    assert (((type(file_list) is list) & (query_id == None)) | 
+            ((file_list == None) & (type(query_id) is str)))
+            
+    if (file_list != None) & (type(file_list) is not list):
+       raise(TypeError("You must pass a list of file ids to read_files"))
+
+    # if user submits a query_id, grab all fileIds associated with that query 
+    if (file_list == None) & (query_id != None): 
+        q_endpoint = 'https://{s}/{q}/{qid}'.format(s=get_from_metadata_server(server_id_path), 
+                                                    q=query_search_path, 
+                                                    qid=query_id)
+        resp = requests.request('POST', q_endpoint, headers=get_bearer_token_header())
+        resp_obj = json.loads(resp.text) 
+        file_list = []
+        for o in resp_obj: 
+            file_list += [o['file']['id']]
+    
     qstr = "&".join(map(lambda x: "id=%s" % (x), file_list))
     endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path), 
                                     CONFIG['HYDRATION']['FILE_SEARCH_PATH'], 
