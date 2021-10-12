@@ -29,11 +29,14 @@ HYDRATION:
   DOWNLOAD_PATH : hydration/source/server
   QUERY_SEARCH_PATH : hydration/analysis/query
 
+
+
 # ledger endpoints 
 LEDGER: 
   SAMPLE_SEARCH_PATH : ledger/sample/q
   SUBJECT_SEARCH_PATH : ledger/subject/q
   FILE_SEARCH_PATH : ledger/file/q
+
 
 # tracer endpoints 
 TRACER: 
