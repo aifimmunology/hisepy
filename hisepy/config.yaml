@@ -1,0 +1,65 @@
+
+
+
+# help with interacting with materialized view for emr/subject/file etc 
+# can this just be a list of values...? 
+MATERIALIZED_VIEW_FIELDS: 
+  EMR: emr 
+
+
+FILETYPES: 
+  SCRNA_RESULT : scRNA-seq-labeled 
+
+  
+# Authorization config
+AUTHORIZE: 
+  METADATA_SERVER_ROOT : http://metadata.google.internal/computeMetadata/v1/instance
+  INSTANCE_NAME_PATH : name
+  CLIENT_ID_PATH : attributes/iap-client-id
+  ACCOUNT_GUID_PATH : attributes/currentAccountGuid
+  IDENTITY_PATH : service-accounts/default/identity
+  SERVER_ID_PATH : attributes/hise-server
+  TOKEN_ENV : TOKEN_GENERATOR
+
+
+# hydration endpoints 
+HYDRATION:
+  FILE_SEARCH_PATH : hydration/analysis/files
+  DESCRIPTORS_PATH : hydration/analysis/descriptors
+  DOWNLOAD_PATH : hydration/source/server
+
+# ledger endpoints 
+LEDGER: 
+  SAMPLE_SEARCH_PATH : ledger/sample/q
+  SUBJECT_SEARCH_PATH : ledger/subject/q
+
+# tracer endpoints 
+TRACER: 
+  TRACER_PATH : tracer/trace
+
+# globals specific for IDE 
+IDE: 
+  CACHE_DIR : cache
+  HOME_DIR : home/jupyter
+
+# NOTE: should this be separate from the rest of scheduler section? 
+TOOLCHAIN: 
+  SCHEDULER_PATH : toolchain/scheduler
+
+# scheduler endpoints and global... 
+SCHEDULER: 
+  PLATFORM_DEFAULT : Notebook
+  PLATFORM_LOUVAIN : Louvain 
+  JOB_ID_FIELD : id
+  FILE_IDS_FIELD : fileIds
+  STATUS_FIELD : status 
+  TITLE_FIELD : title
+  LEDGER_OUTPUT_FIELD : ledger_output 
+  NOTEBOOK_NAME_FIELD : notebook_name
+  INSTANCE_NAME_FIELD : instance_name
+  NOTEBOOK_PATH_FIELD : notebook_path 
+  INPUT_FILES_FIELD : input_files
+  OUTPUT_FILES_FIELD : output_files 
+  PLATFORM_FIELD : platform 
+  PROJECT_FIELD : project 
+  JOB_COMPLETE_STATUS : Completed 
