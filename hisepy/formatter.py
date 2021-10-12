@@ -8,6 +8,49 @@ Contributors: James Harvey
 # libraries 
 import pandas as pd 
 
+
+# there's another layer/dict under emr.patientData. is leaving a dict under this column okay?
+# Do we want to expand this and create a df? maybe have a parameter asking what users want?  
+def subject_to_df_worker(subject_out): 
+    '''
+    Takes output from readSubjects, and reformats to a data.frame
+        Parameters: 
+            subject_out: list 
+                list of dictionaries containing data from subject materialized view
+        Returns: 
+            final_df : data.frame
+                data.frame containing data from subject materialized view          
+    '''
+    dict_keys = subject_out.keys()
+    meta_df = pd.DataFrame()
+    single_df = pd.DataFrame()  
+    for dk in dict_keys: 
+        this_entry = subject_out[dk]
+        if (type(this_entry) == dict):
+            this_entry.update((k, [v]) for k,v in this_entry.items()) # convert values to lists inplace
+            metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
+            metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dk))
+            meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
+        elif (type(this_entry) == str):
+            single_tmp = pd.DataFrame([this_entry], columns=[dk])
+            single_df = pd.concat([single_df,single_tmp], axis=1)
+        else: 
+            raise ValueError("There's an unexpected entry for collection... {}. please contact dev support!".format(dk))
+    final_df = pd.concat([single_df, meta_df], axis=1)
+    return final_df
+
+
+def subject_to_df(list_subject_out): 
+    '''
+    '''
+    subject_df = subject_to_df_worker(list_subject_out[0])
+    if len(list_subject_out) > 1:
+        for i in range(1, len(list_subject_out)): 
+            tmp_df = subject_to_df_worker(list_subject_out[i])
+            subject_df = subject_df.append(tmp_df)
+    return subject_df
+
+
 def sample_to_df_worker(sample_out):
     '''
     Takes output from readSamples, and outputs to a data.frame 
@@ -38,6 +81,8 @@ def sample_to_df_worker(sample_out):
             metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
             metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dv))
             meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
+        else: 
+            raise ValueError("There's an unexpected entry for collection... {}. please contact dev support!".format(dv))
 
     # combine everything together         
     dict_df = {'metadata':pd.concat([single_df,meta_df], axis=1), 
