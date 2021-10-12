@@ -1,5 +1,5 @@
 from .version import __version__
-from .reader import hise_file, read_files, read_subjects, read_samples
+from .reader import hise_file, read_files, read_subjects, read_samples, query_files
 from .scheduler import notebook_job, schedule_notebook, get_notebook_job, clear_notebook_job
 from .formatter import descriptors_to_df, subject_to_df, sample_to_df
 from .scRNA_utils import read_obs, read_mat, read_genes, create_AnnData 
