@@ -3,7 +3,11 @@
 
 # help with interacting with materialized view for emr/subject/file etc 
 # can this just be a list of values...? 
-MATERIALIZED_VIEW_FIELDS: 
+MATERIALIZED_VIEW: 
+  QUERYABLE_FIELDS : 
+    - file
+    - sample
+    - subject
   EMR: emr 
 
 
@@ -33,6 +37,7 @@ HYDRATION:
 
 # ledger endpoints 
 LEDGER: 
+  LEDGER_NAME : ledger
   SAMPLE_SEARCH_PATH : ledger/sample/q
   SUBJECT_SEARCH_PATH : ledger/subject/q
   FILE_SEARCH_PATH : ledger/file/q
