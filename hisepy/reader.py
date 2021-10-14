@@ -5,8 +5,11 @@ import pathlib
 import uuid
 import hisepy.common_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+import hisepy.formatter as hf 
+
 
 CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
+
 
 class hise_file:
     '''
@@ -61,21 +64,86 @@ class hise_file:
         self.status = True
         self.message = "OK"
 
-def read_files(file_list):
+
+def query_files(user_query): 
+    '''
+    loads all associated files for a user-submitted query
+        Parameters:
+            query_dict : dict 
+                dictionary where for each key:value pair, the value must be of type list.
+                NOTE: file.fileType must be present in the query 
+    '''
+    query_dict = user_query.copy() 
+    assert 'file.fileType' in query_dict.keys()
+
+    for d in query_dict.keys(): 
+        assert type(query_dict[d]) == list, "key {} has values not in a list".format(d)
+
+    # take the users' query and reformat it using mongo  query language 
+    query_dict.update((k, {'$in' :v}) for k,v in query_dict.items())
+
+    endpoint = "https://{s}/{de}".format(s=get_from_metadata_server(server_id_path), 
+                                            de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+    resp = requests.request("POST", endpoint, data=json.dumps({"filter": query_dict}), headers = get_bearer_token_header())
+    obj = json.loads(resp.text)
+    if type(obj) is not dict:
+        raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
+    elif "payload" not in obj:
+        raise(TypeError("Response %s contained an empty payload!" % (resp.test)))
+    return obj["payload"]
+
+
+
+def read_files(file_list=None, query_id=None, query_dict=None):
     '''
     Read the contents of a list of file ids into a hise_file object 
+
+    NOTE: users should only use 1 parameter per function call
 
         Parameters:
             file_list : list 
                 a list of UUIDS to retrieve
-
+            query_id : str
+                string value of queryID from Advanced Search
+            query_dict : dict
+                dictionary that allows users to submit a query. 
+                NOTE: for each key:value pair, the value must be of type list 
+    
         Returns: 
             response : a list of hise_file objects 
 
     '''
-    if type(file_list) is not list:
-        raise(TypeError("You must pass a list of file ids to read_files"))
-     
+
+    # make sure users only use 1 parameter 
+    if file_list is not None: 
+        assert (query_id is None) & (query_dict is None)
+    elif query_id is not None: 
+        assert (file_list is None) & (query_dict is None) 
+    elif query_dict is not None: 
+        assert (file_list is None) & (query_id is None)
+ 
+    if (file_list != None) & (type(file_list) is not list):
+       raise(TypeError("You must pass a list of file ids to read_files"))
+
+
+    # if user submits query, do the query and grab fileIds 
+    if (query_dict is not None): 
+        payload = query_files(query_dict)
+        file_list = []
+        for i in range(0,len(payload)): 
+            file_list += [payload[i]['file']['id']]
+
+    # if user submits a query_id, grab all fileIds associated with that query 
+    if (query_id is not None): 
+        q_endpoint = 'https://{s}/{q}/{qid}'.format(s=get_from_metadata_server(server_id_path), 
+                                                    q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
+                                                    qid=query_id)
+        resp = requests.request('POST', q_endpoint, headers=get_bearer_token_header())
+        resp_obj = json.loads(resp.text) 
+        file_list = []
+        for o in resp_obj: 
+            file_list += [o['file']['id']]
+    
     qstr = "&".join(map(lambda x: "id=%s" % (x), file_list))
     endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path), 
                                     CONFIG['HYDRATION']['FILE_SEARCH_PATH'], 
@@ -178,7 +246,7 @@ def cache_file(url, file_name, file_dir):
                           (file_name,resp.status_code,resp.text)))
     open(f_path, 'wb').write(resp.content)
 
-def read_samples(sample_ids = None, query = None):
+def read_samples(sample_ids = None, query = None, to_df=True):
     '''
     Read or search the SampleStatus materialized view. 
     User should specify one or the other of sample_ids or query
@@ -215,9 +283,13 @@ def read_samples(sample_ids = None, query = None):
         raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
     elif "payload" not in obj:
         raise(TypeError("Response %s contained an empty payload!" % (resp.test)))
-    return obj["payload"]
+    if to_df: 
+        return hf.sample_to_df(obj["payload"])
+    else: 
+        return obj['payload']
 
-def read_subjects(subject_ids = None, query = None):
+
+def read_subjects(subject_ids = None, query = None, to_df=True):
     '''
     Read or search the Subject materialized view. 
     User should specify one or the other of subject_ids or query
@@ -255,4 +327,7 @@ def read_subjects(subject_ids = None, query = None):
         raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
     elif "payload" not in obj:
         raise(TypeError("Response %s contained an empty payload!" % (resp.test)))
-    return obj["payload"]
+    if to_df: 
+        return hf.subject_to_df(obj["payload"])
+    else: 
+        return obj["payload"]

@@ -1,11 +1,15 @@
-''' config_utils.py 
+''' common_utils.py
 
-Description: utility methods to interact with config file and retrieve global endpoints and variables 
+Description: common methods for SDK development, but not available for end/HISE users
+
+Methods: 
+
 Contributors: James Harvey 
 '''
 
 # libraries 
 import yaml 
+
 
 def read_yaml(file_path):
     with open(file_path, "r") as f:
