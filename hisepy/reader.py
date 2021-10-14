@@ -9,8 +9,6 @@ import hisepy.formatter as hf
 
 
 _here = os.path.abspath(os.path.dirname(__file__))
-import pdb; pdb.set_trace()
-
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 class hise_file:
