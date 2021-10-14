@@ -12,6 +12,14 @@ from .scheduler import (
     get_notebook_job, 
     clear_notebook_job
 )
+from .project_folder import (
+    list_project_folders, 
+    list_files_in_project_folder, 
+    download_from_project_folder, 
+    archive_file_in_project_folder,
+    undo_archive_in_project_folder,
+    upload_to_project_folder
+)
 from .formatter import (
     descriptors_to_df, 
     subject_to_df, 
@@ -27,6 +35,7 @@ from .lookup import (
     lookup_queryable_fields,
     lookup_unique_entries
 )
+
 
 # if somebody does "from somepackage import *", this is what they will
 # be able to access:

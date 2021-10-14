@@ -25,9 +25,19 @@ AUTHORIZE:
   SERVER_ID_PATH : attributes/hise-server
   TOKEN_ENV : TOKEN_GENERATOR
 
+  
+PROJECT_FOLDER: 
+  TAG_FIELD_NAME : availability
+  PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
+  AVAILABLE_TAG : available
+  DELETED_TAG : marked_for_deletion
+  ARCHIVE_TAG : marked_for_archival 
+
+
 
 # hydration endpoints 
 HYDRATION:
+  HYDRATION_NAME : hydration
   FILE_SEARCH_PATH : hydration/analysis/files
   DESCRIPTORS_PATH : hydration/analysis/descriptors
   DOWNLOAD_PATH : hydration/source/server
@@ -45,6 +55,7 @@ LEDGER:
 
 # tracer endpoints 
 TRACER: 
+  TRACER_NAME : tracer 
   TRACER_PATH : tracer/trace
 
 # globals specific for IDE 
