@@ -23,7 +23,7 @@ AUTHORIZE:
 
   
 PROJECT_FOLDER: 
-
+  TAG_FIELD_NAME : availability
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
   AVAILABLE_TAG : available
   DELETED_TAG : marked_for_deletion

@@ -12,6 +12,7 @@ import requests
 import json
 import hisepy.common_utils as cu 
 import urllib.request
+import urllib.parse
 
 
 
@@ -30,9 +31,10 @@ def list_project_folders():
             project_list : list 
                 list of project short-names 
     '''
-    url = 'https://{ser}/{hy}/{pfe}'.format(ser=get_from_metadata_server(server_id_path),
-                         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-                         pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'])
+    url = 'https://{ser}/{hy}/{pfe}'.format(
+        ser=get_from_metadata_server(server_id_path),
+        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'])
     resp = requests.request("GET",
                             url,                            
                             headers = get_bearer_token_header())
@@ -57,10 +59,11 @@ def list_files_in_project_folder(folder_name):
                 data.frame containing fileIds and fileNames 
     '''
     folder = {'folders' : [folder_name]}
-    url = 'https://{ser}/{hy}/{pfe}/{f}'.format(ser=get_from_metadata_server(server_id_path),
-                         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-                         pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-                         f='files')
+    url = 'https://{ser}/{hy}/{pfe}/{f}'.format(
+        ser=get_from_metadata_server(server_id_path),
+        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
+        f='files')
     resp = requests.request("POST", 
                             url,
                             data=json.dumps(folder),
@@ -78,6 +81,18 @@ def list_files_in_project_folder(folder_name):
 
 def download_from_project_folder(folder_name, file_name): 
     '''
+    Downloads a given file onto a users' IDE. The filepath pattern is as follows: 
+    '~/folder_name/file_name'. 
+        NOTE: ~ denotes your home directory 
+
+        Parameters:
+            folder_name : str
+                name of project folder 
+            file_name : str 
+                name of file that you see under 'name' when utilizing list_files_in_project_folder 
+
+        Returns: bool
+            True if download was successful 
     '''
     # create directory 
     try: 
@@ -86,12 +101,13 @@ def download_from_project_folder(folder_name, file_name):
         pass
 
     # create url download 
-    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(ser=get_from_metadata_server(server_id_path),
-                         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-                         pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-                         fol=folder_name,
-                         fil='files',
-                         fn=file_name)
+    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
+        ser=get_from_metadata_server(server_id_path),
+        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
+        fol=folder_name,
+        fil='files',
+        fn=file_name)
     resp= requests.request("GET",
                             url,
                             headers=get_bearer_token_header())
@@ -103,32 +119,106 @@ def download_from_project_folder(folder_name, file_name):
     with open('{}/{}/{}'.format(os.getcwd(), folder_name, truncate_file_name), 'wb') as f:
         f.write(resp.content)
     
-    return 
+    return True 
 
-def upload_to_project_folder(folder_name, file_path): 
+
+def upload_to_project_folder(watchfolder_bucket_url, file_path): 
+    '''
+    Uploads file via watchfolder_bucket_url so that it becomes available in the linked Project Folder 
+
+        Parameters: 
+            watchfolder_bucket_url : str 
+                url link to dedicated watch folder for the Project Folder of interest 
+            file_path : str 
+                path to your file 
+
+        Returns : bool
+            True if file was downloaded 
+    '''
+    
+    # ensure users' file actually exists 
+    '''
+    if ~os.path.exists(file_path): 
+        raise(FileExistsError('submitted path {}, cannot be found'.format(file_path)))
+    '''
+
+    from google.cloud import storage
+    
+    client = storage.Client()
+    #bucket = client.get_bucket('wfpfftaifi-10f58583-1cdf-4f18-8de4-dc1ca94783e2')
+    #import pdb; pdb.set_trace() 
+    bucket = client.bucket('wfpfftaifi-10f58583-1cdf-4f18-8de4-dc1ca94783e2')
+    import pdb; pdb.set_trace() 
+    blob = bucket.blob("/Users/james.harvey/test_dl/I_UPLOADED_FROM_AN_SDK_HOORAY.csv")
+    blob.upload_from_filename("/Users/james.harvey/test_dl/I_UPLOADED_FROM_AN_SDK_HOORAY.csv")
+    pdb.set_trace() 
     return 
 
 
 # file_name = "AIFI-2021-01-21T18:23:40.716745813Z/hooray.tar"
 def archive_file_in_project_folder(folder_name, file_name):
     '''
-    Mark a file in a project folder to be archived
+    Mark a file in a project folder to be archived. This will not actually delete the file, 
+    but will remove it from being seen or downloaded when utilizing any other project folder methods.
+
+    NOTE: you can unarchive a file by using undo_archive_in_project_folder() method 
+
+        Parameters: 
+            folder_name : str
+                name of project folder  
+            file_name : str
+                name of project folder 
+        Returns: 
+            boolean : True if function call was a success
     '''
 
     archive_tag = CONFIG['PROJECT_FOLDER']['ARCHIVE_TAG']
-    json_tag = {'availabilty' : [archive_tag]}
-    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(ser=get_from_metadata_server(server_id_path),
-                         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-                         pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-                         fol=folder_name,
-                         fil='files',
-                         fn=file_name)
+    tag_field = CONFIG['PROJECT_FOLDER']['TAG_FIELD_NAME']
+    json_tag = {tag_field: archive_tag}
+    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
+        ser=get_from_metadata_server(server_id_path),
+        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
+        fol=folder_name,
+        fil='files',
+        fn=file_name)
     resp = requests.request("PUT",
                             url,
                             data=json.dumps(json_tag),
                             headers=get_bearer_token_header())
-    import pdb; pdb.set_trace() 
-    return 
+    if resp.status_code != 200: 
+        raise(SystemError('Request to {} failed with status {}'.format(url, resp.status_code)))
+    return True
+
 
 def undo_archive_in_project_folder(folder_name, file_name): 
-    return 
+    '''
+    Unarchives files. any files that were tagged to be archived will now be visible through list_files_in_project_folder()
+
+        Parameters: 
+            folder_name : str
+                name of project folder 
+            file_name : str 
+                name of project folder that you want unarchived and visible
+        Returns: 
+            boolean : True if function call was a success 
+
+    '''
+
+    available_tag = CONFIG['PROJECT_FOLDER']['AVAILABLE_TAG']
+    tag_field = CONFIG['PROJECT_FOLDER']['TAG_FIELD_NAME']
+    json_tag = {tag_field : available_tag}
+    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
+        ser=get_from_metadata_server(server_id_path),
+        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
+        fol=folder_name,
+        fil='files',
+        fn=file_name)
+    resp = requests.request("PUT", 
+                            url,
+                            data=json.dumps(json_tag), 
+                            headers=get_bearer_token_header())
+    if resp.status_code != 200: 
+        raise(SystemError("Request to {} failed with status {}".format(url, resp.status_code)))
+    return True 

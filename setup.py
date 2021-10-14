@@ -29,7 +29,8 @@ setup(
         'numpy',
         'yaml',
         'anndata',
-        'scipy.sparse'
+        'scipy.sparse',
+        'google-cloud-storage'
     ],
     #   scripts=[''],
     include_package_data=True,
