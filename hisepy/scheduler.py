@@ -14,29 +14,6 @@ is_instance_flag_file = "/%s/.scheduledinstance" % (CONFIG['IDE']['HOME_DIR'])
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
 
 
-''' to be replaced with CONFIG 
-scheduler_path = "toolchain/scheduler"
-
-platform_default = "Notebook"
-platform_louvain = "Louvain"
-
-job_id_field = "id"
-file_ids_field = "fileIds"
-status_field = "status"
-title_field = "title"
-ledger_output_field = "ledger_output"
-
-notebook_name_field = "notebook_name"
-instance_name_field = "instance_name"
-notebook_path_field = "notebook_path"
-input_files_field = "input_files"
-output_files_field = "output_files"
-platform_field = "platform"
-project_field = "project"
-
-job_complete_status = "Completed"
-''' 
-
 def schedule_notebook(output_files = None,
                       input_data = None,
                       platform = None,

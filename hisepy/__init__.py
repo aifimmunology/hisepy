@@ -3,7 +3,8 @@ from .reader import (
     hise_file, 
     read_files, 
     read_subjects, 
-    read_samples
+    read_samples, 
+    query_files
 )
 from .scheduler import (
     notebook_job, 
@@ -18,6 +19,21 @@ from .project_folder import (
     archive_file_in_project_folder,
     undo_archive_in_project_folder,
     upload_to_project_folder
+)
+from .formatter import (
+    descriptors_to_df, 
+    subject_to_df, 
+    sample_to_df
+)
+from .scRNA_utils import (
+    read_obs, 
+    read_mat, 
+    read_genes, 
+    create_AnnData
+) 
+from .lookup import (
+    lookup_queryable_fields,
+    lookup_unique_entries
 )
 
 
