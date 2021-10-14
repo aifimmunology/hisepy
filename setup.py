@@ -32,7 +32,7 @@ setup(
         'anndata',
         'google-cloud-storage'
     ],
-    scripts=['config.yaml'],
+    scripts=['hisepy/config.yaml'],
     include_package_data=True,
     classifiers=[
         'Immunology',
