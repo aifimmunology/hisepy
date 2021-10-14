@@ -145,7 +145,6 @@ def upload_to_project_folder(watchfolder_bucket_url, file_path):
     return True
 
 
-# file_name = "AIFI-2021-01-21T18:23:40.716745813Z/hooray.tar"
 def archive_file_in_project_folder(folder_name, file_name):
     '''
     Mark a file in a project folder to be archived. This will not actually delete the file, 
