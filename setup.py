@@ -27,7 +27,8 @@ setup(
     install_requires=[
         'pandas',
         'numpy',
-        'yaml',
+        'PyYAML',
+        'scipy',
         'anndata',
         'google-cloud-storage'
     ],
