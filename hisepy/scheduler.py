@@ -9,7 +9,8 @@ import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from hisepy.reader import download_files
 
-CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 is_instance_flag_file = "/%s/.scheduledinstance" % (CONFIG['IDE']['HOME_DIR'])
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
 

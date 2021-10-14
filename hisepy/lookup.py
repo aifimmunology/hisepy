@@ -12,10 +12,11 @@ import requests
 import pandas as pd
 import numpy as np 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
-import hisepy.config_utils as cu 
+import hisepy.common_utils as cu 
 
-# config for globals 
-CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
+# setting global config 
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
 def lookup_queryable_fields(field_type): 
