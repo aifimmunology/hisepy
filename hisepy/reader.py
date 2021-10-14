@@ -8,8 +8,10 @@ from hisepy.auth import get_from_metadata_server, get_bearer_token_header, serve
 import hisepy.formatter as hf 
 
 
-CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
+_here = os.path.abspath(os.path.dirname(__file__))
+import pdb; pdb.set_trace()
 
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 class hise_file:
     '''
