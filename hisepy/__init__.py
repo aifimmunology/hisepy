@@ -31,5 +31,8 @@ __all__ = [
     'schedule_notebook',
     'get_notebook_job',
     'clear_notebook_job',
-    'notebook_job'
+    'notebook_job',
+    'descriptors_to_df',
+    'subject_to_df',
+    'sample_to_df'
 ]
