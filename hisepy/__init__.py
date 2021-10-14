@@ -16,7 +16,8 @@ from .project_folder import (
     list_files_in_project_folder, 
     download_from_project_folder, 
     archive_file_in_project_folder,
-    undo_archive_in_project_folder
+    undo_archive_in_project_folder,
+    upload_to_project_folder
 )
 
 

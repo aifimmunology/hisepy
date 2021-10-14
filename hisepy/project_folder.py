@@ -13,9 +13,7 @@ import json
 import hisepy.common_utils as cu 
 import urllib.request
 import urllib.parse
-
-
-
+from google.cloud import storage
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 
 
@@ -137,22 +135,14 @@ def upload_to_project_folder(watchfolder_bucket_url, file_path):
     '''
     
     # ensure users' file actually exists 
-    '''
     if ~os.path.exists(file_path): 
         raise(FileExistsError('submitted path {}, cannot be found'.format(file_path)))
-    '''
 
-    from google.cloud import storage
-    
     client = storage.Client()
-    #bucket = client.get_bucket('wfpfftaifi-10f58583-1cdf-4f18-8de4-dc1ca94783e2')
-    #import pdb; pdb.set_trace() 
-    bucket = client.bucket('wfpfftaifi-10f58583-1cdf-4f18-8de4-dc1ca94783e2')
-    import pdb; pdb.set_trace() 
-    blob = bucket.blob("/Users/james.harvey/test_dl/I_UPLOADED_FROM_AN_SDK_HOORAY.csv")
-    blob.upload_from_filename("/Users/james.harvey/test_dl/I_UPLOADED_FROM_AN_SDK_HOORAY.csv")
-    pdb.set_trace() 
-    return 
+    bucket = client.bucket(watchfolder_bucket_url)
+    blob = bucket.blob(file_path)
+    blob.upload_from_filename(file_path)
+    return True
 
 
 # file_name = "AIFI-2021-01-21T18:23:40.716745813Z/hooray.tar"
