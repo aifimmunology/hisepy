@@ -32,7 +32,7 @@ setup(
         'anndata',
         'google-cloud-storage'
     ],
-    #   scripts=[''],
+    scripts=['config.yaml'],
     include_package_data=True,
     classifiers=[
         'Immunology',
