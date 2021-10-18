@@ -9,6 +9,7 @@ MATERIALIZED_VIEW:
     - sample
     - subject
   EMR: emr 
+  LAB: lab
 
 
 FILETYPES: 

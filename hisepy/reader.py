@@ -94,7 +94,7 @@ def query_files(user_query):
 
 
 
-def read_files(file_list=None, query_id=None, query_dict=None):
+def read_files(file_list=None, query_id=None, query_dict=None, to_df=True):
     '''
     Read the contents of a list of file ids into a hise_file object 
 
@@ -172,8 +172,10 @@ def read_files(file_list=None, query_id=None, query_dict=None):
             continue
         else:
             response.append(cache_and_convert_file_data(f))
-            
-    return response
+    if to_df: 
+        return hf.descriptors_to_df(response)
+    else: 
+        return response
 
 def download_files(file_dict):
     '''

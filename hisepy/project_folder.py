@@ -136,7 +136,7 @@ def upload_to_project_folder(watchfolder_bucket_url, file_path):
     '''
     
     # ensure users' file actually exists 
-    if ~os.path.exists(file_path): 
+    if not os.path.exists(file_path): 
         raise(FileExistsError('submitted path {}, cannot be found'.format(file_path)))
 
     client = storage.Client()
