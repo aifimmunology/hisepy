@@ -83,7 +83,6 @@ def query_files(user_query):
         new_query_dict = user_query.copy() 
         q_df = pd.DataFrame() 
         q_fields = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'].copy() 
-        q_fields.remove('cohort')
         for q in q_fields: 
             q_df = q_df.append(hl.lookup_queryable_fields(q))
         q_df = q_df.loc[~q_df[['field_type','field']].duplicated(),] # drop duplicates 
