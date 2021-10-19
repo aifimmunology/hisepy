@@ -8,6 +8,7 @@ MATERIALIZED_VIEW:
     - file
     - sample
     - subject
+    - cohort
   EMR: emr 
   LAB: lab
 

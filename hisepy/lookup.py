@@ -7,6 +7,7 @@ Contributors: James Harvey
 
 # libraries 
 import os 
+import re 
 import json
 import requests 
 import pandas as pd
@@ -43,12 +44,28 @@ def lookup_queryable_fields(field_type):
                             url,
                             headers=get_bearer_token_header())
     fields = json.loads(resp.text)
+    
+     # filter to just the collection type user requested 
+    user_fields = [name.split('.')[1] for name in fields if ("{}.".format(field_type) in name)]
 
-    user_fields = [name.split('.')[1] for name in fields if "{}.".format(field_type) in name]
+    # find other fields that are viable, but not necesarrily under the collection type 
+    other_fields = []
+    other_queryable_collections = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'].copy()
+    other_queryable_collections.remove(field_type)
+    for of in other_queryable_collections: 
+        other_fields += list(filter(lambda x:'{}.'.format(of) in x, fields))
+    o_df = pd.DataFrame()
+    for i in other_fields: 
+        col = i.split('.')[0]
+        fi =  i.split('.')[1]
+        o_df = o_df.append(pd.DataFrame({'field': [fi], 'field_type':col}))
+        
+    fields_df = pd.DataFrame({'field' : user_fields})
+    fields_df['field_type'] = field_type 
+    fields_df = fields_df.append(o_df)
 
-    fields_df = pd.DataFrame(user_fields, columns=['field'])
-    fields_df['field_type'] = field_type
-
+    # remove cohort, if file_type != cohort 
+    fields_df = fields_df.loc[(fields_df['field'] != 'cohort'),  ]
     return fields_df 
 
 
