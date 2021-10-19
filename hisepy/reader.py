@@ -3,9 +3,11 @@ import json
 import os
 import pathlib
 import uuid
+import pandas as pd
 import hisepy.common_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 import hisepy.formatter as hf 
+import hisepy.lookup as hl 
 
 
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -73,8 +75,31 @@ def query_files(user_query):
                 dictionary where for each key:value pair, the value must be of type list.
                 NOTE: file.fileType must be present in the query 
     '''
+    def _add_prefix_to_query(user_query): 
+        ''' 
+        Takes users' query and adds the appropriate prefix to the field_names 
+        '''
+        # create data.frame of all queryable fields 
+        new_query_dict = user_query.copy() 
+        q_df = pd.DataFrame() 
+        q_fields = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'].copy() 
+        for q in q_fields: 
+            q_df = q_df.append(hl.lookup_queryable_fields(q))
+        q_df = q_df.loc[~q_df[['field_type','field']].duplicated(),] # drop duplicates 
+
+        # go through each key of users' dict and append the field_type as a prefix
+        for k in list(new_query_dict):
+            prefix = q_df.loc[q_df['field'].eq(k), 'field_type'].unique()[0]
+            new_query_dict.update({'{}.{}'.format(prefix, k) : new_query_dict[k]}) 
+
+        # remove old keys 
+        for ok in list(user_query): 
+            new_query_dict.pop(ok)
+        return new_query_dict
+
+    assert 'fileType' in user_query.keys(), "fileType must be in your query dictionary"
     query_dict = user_query.copy() 
-    assert 'file.fileType' in query_dict.keys()
+    query_dict = _add_prefix_to_query(query_dict) 
 
     for d in query_dict.keys(): 
         assert type(query_dict[d]) == list, "key {} has values not in a list".format(d)
@@ -94,7 +119,7 @@ def query_files(user_query):
 
 
 
-def read_files(file_list=None, query_id=None, query_dict=None):
+def read_files(file_list=None, query_id=None, query_dict=None, to_df=True):
     '''
     Read the contents of a list of file ids into a hise_file object 
 
@@ -172,8 +197,10 @@ def read_files(file_list=None, query_id=None, query_dict=None):
             continue
         else:
             response.append(cache_and_convert_file_data(f))
-            
-    return response
+    if to_df: 
+        return hf.descriptors_to_df(response)
+    else: 
+        return response
 
 def download_files(file_dict):
     '''
@@ -245,6 +272,7 @@ def cache_file(url, file_name, file_dir):
         raise(SystemError("Request to get file %s from %s failed with status %d. %s" %
                           (file_name,resp.status_code,resp.text)))
     open(f_path, 'wb').write(resp.content)
+
 
 def read_samples(sample_ids = None, query = None, to_df=True):
     '''
