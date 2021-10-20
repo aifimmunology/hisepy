@@ -20,7 +20,7 @@ _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
-def lookup_queryable_fields(field_type): 
+def lookup_queryable_fields(field_type='all'): 
     '''
     Returns fields users can query on depending on the collection type (i.e file/subject/sample)
     
@@ -34,39 +34,41 @@ def lookup_queryable_fields(field_type):
             fields_df : pd.dataframe 
                 data.frame containing all the field names users could query on 
     '''
-    assert field_type in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
+    assert field_type in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'] + ['all']
 
-    # get a list of searchable fields 
-    url = 'https://{ser}/{led}?field_names=true'.format(
-        ser=get_from_metadata_server(server_id_path),
-        led=CONFIG['LEDGER']['{}_SEARCH_PATH'.format(field_type.upper())])
-    resp = requests.request("POST",
-                            url,
-                            headers=get_bearer_token_header())
-    fields = json.loads(resp.text)
+
     
-     # filter to just the collection type user requested 
-    user_fields = [name.split('.')[1] for name in fields if ("{}.".format(field_type) in name)]
+    collection_fields = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
+    all_fields_df = pd.DataFrame()
+    for cf in collection_fields: 
 
-    # find other fields that are viable, but not necesarrily under the collection type 
-    other_fields = []
-    other_queryable_collections = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'].copy()
-    other_queryable_collections.remove(field_type)
-    for of in other_queryable_collections: 
-        other_fields += list(filter(lambda x:'{}.'.format(of) in x, fields))
-    o_df = pd.DataFrame()
-    for i in other_fields: 
-        col = i.split('.')[0]
-        fi =  i.split('.')[1]
-        o_df = o_df.append(pd.DataFrame({'field': [fi], 'field_type':col}))
-        
-    fields_df = pd.DataFrame({'field' : user_fields})
-    fields_df['field_type'] = field_type 
-    fields_df = fields_df.append(o_df)
+        # get a list of searchable fields 
+        url = 'https://{ser}/{led}?field_names=true'.format(
+            ser=get_from_metadata_server(server_id_path),
+            led=CONFIG['LEDGER']['{}_SEARCH_PATH'.format(cf.upper())])
+        resp = requests.request("POST",
+                                url,
+                                headers=get_bearer_token_header())
+        fields = json.loads(resp.text)
 
-    # remove cohort, if file_type != cohort 
-    fields_df = fields_df.loc[(fields_df['field'] != 'cohort'),  ]
-    return fields_df 
+        # filter to just the collection type user requested 
+        user_fields = list(filter(lambda x: '.' in x, fields)) # keep only the fields that contain a '.'
+        user_fields = [name.split('.')[1] for name in user_fields if (name.split('.')[0] in ["{}".format(cf),'cohort'])]
+        fields_df = pd.DataFrame({'field' : user_fields})
+        fields_df['field_type'] = cf
+
+        # remove cohort, if file_type != cohort
+        # also fix the field_type for cohort_Guid 
+        fields_df = fields_df.loc[(fields_df['field'] != 'cohort'),  ]
+        fields_df.loc[fields_df['field'].eq('cohortGuid'), 'field_type'] = 'cohort'
+        all_fields_df = all_fields_df.append(fields_df)
+
+    if field_type=='all':
+        return all_fields_df
+    else: 
+        return all_fields_df.loc[(all_fields_df['field_type'].eq(field_type)) | 
+                                (all_fields_df['field_type'].eq('cohort')), ].drop_duplicates() 
+
 
 
 def lookup_unique_entries(field): 
