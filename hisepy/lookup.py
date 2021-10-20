@@ -64,10 +64,11 @@ def lookup_queryable_fields(field_type='all'):
         all_fields_df = all_fields_df.append(fields_df)
 
     if field_type=='all':
-        return all_fields_df
+        return all_fields_df.loc[~all_fields_df['field'].eq('id'), ].drop_duplicates()  
     else: 
-        return all_fields_df.loc[(all_fields_df['field_type'].eq(field_type)) | 
-                                (all_fields_df['field_type'].eq('cohort')), ].drop_duplicates() 
+        return all_fields_df.loc[((all_fields_df['field_type'].eq(field_type)) | 
+                                (all_fields_df['field_type'].eq('cohort'))) & 
+                                (~all_fields_df['field'].eq('id')), ].drop_duplicates() 
 
 
 
@@ -82,10 +83,10 @@ def lookup_unique_entries(field):
                 all unique values for a given field that you can pass in when creating a query 
     '''
     # create a data.frame of all searchable fields 
-    all_field_df = pd.DataFrame() 
-    for i in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']: 
-        tmp_fdf = lookup_queryable_fields(i)
-        all_field_df = all_field_df.append(tmp_fdf) 
+    all_field_df = lookup_queryable_fields()
+    
+    # check that user submitted a viable field 
+    assert field in all_field_df['field'].unique().tolist(),  "The field you submitted isn't a viable one. Make sure your requesting one of the following fields - {}".format(all_field_df['field'].unique())
     
     # subset to users' field of interest 
     user_df = all_field_df.loc[all_field_df['field'] == field,]
