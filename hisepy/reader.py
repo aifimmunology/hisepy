@@ -67,15 +67,8 @@ class hise_file:
         self.message = "OK"
 
 
-def query_files(user_query): 
-    '''
-    loads all associated files for a user-submitted query
-        Parameters:
-            query_dict : dict 
-                dictionary where for each key:value pair, the value must be of type list.
-                NOTE: file.fileType must be present in the query 
-    '''
-    def _add_prefix_to_query(user_query): 
+# TODO: refactor and expand logic to some mongo-human query translator class 
+def _add_prefix_to_query(user_query): 
         ''' 
         Takes users' query and adds the appropriate prefix to the field_names 
         '''
@@ -97,6 +90,16 @@ def query_files(user_query):
             new_query_dict.pop(ok)
         return new_query_dict
 
+
+def query_files(user_query): 
+    '''
+    loads all associated files for a user-submitted query
+        Parameters:
+            query_dict : dict 
+                dictionary where for each key:value pair, the value must be of type list.
+                NOTE: file.fileType must be present in the query 
+    '''
+    
     assert 'fileType' in user_query.keys(), "fileType must be in your query dictionary"
     query_dict = user_query.copy() 
     query_dict = _add_prefix_to_query(query_dict) 
@@ -262,6 +265,7 @@ def cache_and_convert_file_data(file_data):
                      file_path = "%s/%s" % (file_dir, file_name),
                      descriptors = file_data["descriptors"])
 
+
 def cache_file(url, file_name, file_dir):
     if not os.path.exists(file_dir):
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
@@ -289,6 +293,8 @@ def read_samples(sample_ids = None, query = None, to_df=True):
             response : a list of samples
 
     '''
+    if query is not None: 
+        query = _add_prefix_to_query(query)
     if sample_ids is not None:
         if type(sample_ids) is not list:
             raise(TypeError("sample_ids must be a list"))
@@ -332,6 +338,8 @@ def read_subjects(subject_ids = None, query = None, to_df=True):
             response : a list of subjects
 
     '''
+    if query is not None: 
+        query = _add_prefix_to_query(query) 
     if subject_ids is not None:
         if type(subject_ids) is not list:
             raise(TypeError("subject_ids must be a list"))

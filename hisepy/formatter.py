@@ -55,7 +55,8 @@ def subject_to_df(list_subject_out):
             subject_df = subject_df.append(tmp_df)
     return subject_df
 
-
+# TODO: this method really demonstrates how useful a class could be... 
+# if the output of read_sample() changes then a lot of troubleshooting is going to be needed... 
 def sample_to_df_worker(sample_out):
     '''
     Takes output from readSamples, and outputs to a data.frame 
@@ -63,7 +64,7 @@ def sample_to_df_worker(sample_out):
             sample_out: dictionary
                 dictionary that contains sample metadata 
         Returns: 
-            dict_df : dictionary of 2 data.frame objects 
+            dict_df : dictionary of 3 data.frame objects ['metadata','specimens','survey']
     '''
     dict_keys = sample_out.keys() 
 
@@ -71,6 +72,7 @@ def sample_to_df_worker(sample_out):
     single_df = pd.DataFrame()
     meta_df = pd.DataFrame()
     spec_df = pd.DataFrame() 
+    surv_df = pd.DataFrame() 
     no_entry_df = pd.DataFrame()
     for dv in dict_keys:
         this_entry = sample_out[dv]
@@ -84,10 +86,26 @@ def sample_to_df_worker(sample_out):
                 no_entry_list = pd.DataFrame(data=[''], columns=[dv]) 
                 no_entry_df = pd.concat([no_entry_df, no_entry_list], axis=1) 
             else: 
-                for i in range(0,len(this_entry)): 
-                    this_entry[i].update((k, [v]) for k,v in this_entry[i].items())                
-                    specimen_tmp = pd.DataFrame.from_dict(this_entry[i])
-                    spec_df = pd.concat([spec_df, specimen_tmp], axis=0)
+                try: 
+                    if dv == 'survey': 
+                        for i in this_entry[0].keys(): 
+                            if type(this_entry[0][i]) == str:
+                                tmp_surv_df = pd.DataFrame([this_entry[0][i]], columns=[i])
+                                surv_df = pd.concat([surv_df, tmp_surv_df], axis=1)
+                            elif type(this_entry[0][i] == dict): 
+                                this_entry[0][i].update((k, [v]) for k,v in this_entry[0][i].items())                
+                                tmp_surv_df = pd.DataFrame.from_dict(this_entry[0][i])
+                                tmp_cols = tmp_surv_df.columns.tolist()
+                                new_cols = ['{}.{}'.format(i, j) for j in tmp_cols]
+                                tmp_surv_df.columns = new_cols 
+                                surv_df = pd.concat([surv_df, tmp_surv_df], axis=1)
+                    elif dv == 'specimens':
+                        for i in range(0,len(this_entry)): 
+                            this_entry[i].update((k, [v]) for k,v in this_entry[i].items())                
+                            specimen_tmp = pd.DataFrame.from_dict(this_entry[i])
+                            spec_df = pd.concat([spec_df, specimen_tmp], axis=0)
+                except: # for entries like batchIdList that aren't always null/emptry 
+                    single_df = pd.concat([single_df, pd.DataFrame(this_entry, columns=[dv])], axis=1)
         elif (type(this_entry) == str):
             single_tmp = pd.DataFrame([this_entry], columns=[dv])
             single_df = pd.concat([single_df,single_tmp], axis=1)
@@ -99,11 +117,14 @@ def sample_to_df_worker(sample_out):
         else: 
             raise ValueError("There's an unexpected entry for collection... {}. please contact dev support!".format(dv))
 
-    # combine everything together         
+    # combine everything together
+    # also ensure all data.frames have an identifier users can merge on  
     dict_df = {'metadata':pd.concat([single_df,meta_df, no_entry_df], axis=1), 
-                'specimens': spec_df}
-
-
+                'specimens': spec_df,
+                'survey' : surv_df}
+    dict_df['specimens']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
+    dict_df['specimens']['sampleKitGuid'] = dict_df['metadata']['sample.sampleKitGuid']
+    dict_df['survey']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
     return dict_df  
 
 
@@ -127,6 +148,7 @@ def sample_to_df(list_of_sample_obj):
             tmp_df_dict = sample_to_df_worker(list_of_sample_obj[i])
             sample_df_dict['metadata'] = sample_df_dict['metadata'].append(tmp_df_dict['metadata'])
             sample_df_dict['specimens'] = sample_df_dict['specimens'].append(tmp_df_dict['specimens'])
+            sample_df_dict['survey'] = sample_df_dict['survey'].append(tmp_df_dict['survey'])
     return(sample_df_dict) 
 
 
