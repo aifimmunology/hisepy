@@ -17,8 +17,7 @@ from .project_folder import (
     list_files_in_project_folder, 
     download_from_project_folder, 
     archive_file_in_project_folder,
-    undo_archive_in_project_folder,
-    upload_to_project_folder
+    undo_archive_in_project_folder
 )
 from .formatter import (
     descriptors_to_df, 
@@ -50,5 +49,12 @@ __all__ = [
     'notebook_job',
     'descriptors_to_df',
     'subject_to_df',
-    'sample_to_df'
+    'sample_to_df',
+    'lookup_queryable_fields',
+    'lookup_unique_entries',
+    'list_project_folders',
+    'list_files_in_project_folder',
+    'download_from_project_folder',
+    'archive_file_in_project_folder',
+    'undo_archive_in_project_folder' 
 ]
