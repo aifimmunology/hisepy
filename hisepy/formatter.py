@@ -89,7 +89,7 @@ def sample_to_df_worker(sample_out):
                 try: 
                     if dv == 'survey': 
                         for i in this_entry[0].keys(): 
-                            if type(this_entry[0][i]) == str:
+                            if (type(this_entry[0][i]) in [str,int]) | (this_entry[0][i] is None):
                                 tmp_surv_df = pd.DataFrame([this_entry[0][i]], columns=[i])
                                 surv_df = pd.concat([surv_df, tmp_surv_df], axis=1)
                             elif type(this_entry[0][i] == dict): 
@@ -105,6 +105,8 @@ def sample_to_df_worker(sample_out):
                             specimen_tmp = pd.DataFrame.from_dict(this_entry[i])
                             spec_df = pd.concat([spec_df, specimen_tmp], axis=0)
                 except: # for entries like batchIdList that aren't always null/emptry 
+                    if dv in ['survey', 'specimens']: 
+                        raise SystemError('{} object was not attached properly')
                     single_df = pd.concat([single_df, pd.DataFrame(this_entry, columns=[dv])], axis=1)
         elif (type(this_entry) == str):
             single_tmp = pd.DataFrame([this_entry], columns=[dv])
@@ -118,7 +120,7 @@ def sample_to_df_worker(sample_out):
             raise ValueError("There's an unexpected entry for collection... {}. please contact dev support!".format(dv))
 
     # combine everything together
-    # also ensure all data.frames have an identifier users can merge on  
+    # also ensure all data.frames have an identifier users can merge on
     dict_df = {'metadata':pd.concat([single_df,meta_df, no_entry_df], axis=1), 
                 'specimens': spec_df,
                 'survey' : surv_df}
