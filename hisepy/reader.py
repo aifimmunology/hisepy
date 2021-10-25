@@ -74,10 +74,7 @@ def _add_prefix_to_query(user_query):
         '''
         # create data.frame of all queryable fields 
         new_query_dict = user_query.copy() 
-        q_df = pd.DataFrame() 
-        q_fields = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'].copy() 
-        for q in q_fields: 
-            q_df = q_df.append(hl.lookup_queryable_fields(q))
+        q_df = hl.lookup_queryable_fields()
         q_df = q_df.loc[~q_df[['field_type','field']].duplicated(),] # drop duplicates 
 
         # go through each key of users' dict and append the field_type as a prefix
@@ -89,6 +86,21 @@ def _add_prefix_to_query(user_query):
         for ok in list(user_query): 
             new_query_dict.pop(ok)
         return new_query_dict
+
+
+# TODO: refactor and inlcude to future mongo query class 
+def _create_mongo_query_in(user_query): 
+    '''
+    Takes a users' dictionary, and converts all entries and.
+    Note: You can think of this as just a bunch of "OR" booleans 
+
+    '''
+    for key in user_query.keys(): 
+        assert type(user_query[key]) == list, "key {} has values not in a list".format(key)
+
+    # take the users' query and reformat it using mongo  query language 
+    user_query.update((k, {'$in' :v}) for k,v in user_query.items())
+    return user_query
 
 
 def query_files(user_query): 
@@ -278,7 +290,7 @@ def cache_file(url, file_name, file_dir):
     open(f_path, 'wb').write(resp.content)
 
 
-def read_samples(sample_ids = None, query = None, to_df=True):
+def read_samples(sample_ids = None, query_dict = None, to_df=True):
     '''
     Read or search the SampleStatus materialized view. 
     User should specify one or the other of sample_ids or query
@@ -293,9 +305,20 @@ def read_samples(sample_ids = None, query = None, to_df=True):
             response : a list of samples
 
     '''
-    if query is not None: 
-        query = _add_prefix_to_query(query)
-    if sample_ids is not None:
+
+
+    if query_dict is not None: 
+        # check that fields are within sample materialized view 
+        sample_fields = hl.lookup_queryable_fields('sample')['field']
+        query_fields = query_dict.keys()
+        field_diff = set(query_fields) - set(sample_fields)
+        assert field_diff == set(), 'the following fields are not part of sample materialized view...{}'.format(field_diff)
+
+        # modify users' query and convert to mongo query language 
+        #qdict = query_dict.copy() 
+        qdict = _add_prefix_to_query(query_dict)
+        query = _create_mongo_query_in(qdict)
+    elif sample_ids is not None:
         if type(sample_ids) is not list:
             raise(TypeError("sample_ids must be a list"))
         query = {"id": {"$in": sample_ids}}
@@ -323,7 +346,7 @@ def read_samples(sample_ids = None, query = None, to_df=True):
         return obj['payload']
 
 
-def read_subjects(subject_ids = None, query = None, to_df=True):
+def read_subjects(subject_ids = None, query_dict = None, to_df=True):
     '''
     Read or search the Subject materialized view. 
     User should specify one or the other of subject_ids or query
@@ -338,9 +361,19 @@ def read_subjects(subject_ids = None, query = None, to_df=True):
             response : a list of subjects
 
     '''
-    if query is not None: 
-        query = _add_prefix_to_query(query) 
-    if subject_ids is not None:
+
+    if query_dict is not None: 
+        # check that fields are within sample materialized view 
+        subject_fields = hl.lookup_queryable_fields('subject')['field']
+        query_fields = query_dict.keys()
+        field_diff = set(query_fields) - set(subject_fields)
+        assert field_diff == set(), 'the following fields are not part of sample materialized view...{}'.format(field_diff)
+
+        # modify users' query and convert to mongo query language 
+        #qdict = query_dict.copy() 
+        qdict = _add_prefix_to_query(query_dict)
+        query = _create_mongo_query_in(qdict)
+    elif subject_ids is not None:
         if type(subject_ids) is not list:
             raise(TypeError("subject_ids must be a list"))
         query = {"id": {"$in": subject_ids}}
