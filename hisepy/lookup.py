@@ -59,7 +59,7 @@ def lookup_queryable_fields(field_type='all'):
 
         # remove cohort, if file_type != cohort
         # also fix the field_type for cohort_Guid 
-        fields_df = fields_df.loc[(fields_df['field'] != 'cohort'),  ]
+        fields_df = fields_df.loc[~(fields_df['field'].isin(['cohort','sampleGuid'])),  ]
         fields_df.loc[fields_df['field'].eq('cohortGuid'), 'field_type'] = 'cohort'
         all_fields_df = all_fields_df.append(fields_df)
 
