@@ -63,6 +63,11 @@ def lookup_queryable_fields(field_type='all'):
         fields_df.loc[fields_df['field'].eq('cohortGuid'), 'field_type'] = 'cohort'
         all_fields_df = all_fields_df.append(fields_df)
 
+        # sample.bridgingControl isn't a part of sample collection, and is instead part of file. 
+        # hard-coding and inserting this field to sample 
+        if cf == 'sample': 
+            all_fields_df = all_fields_df.append(pd.DataFrame({'field':['bridgingControl'], 'field_type':['sample']}))
+
     if field_type=='all':
         return all_fields_df.loc[~all_fields_df['field'].eq('id'), ].drop_duplicates()  
     else: 
