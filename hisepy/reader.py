@@ -298,7 +298,7 @@ def read_samples(sample_ids = None, query_dict = None, to_df=True):
         Parameters:
             sample_ids : list
                a list of UUIDS to retrieve
-            query:
+            query_dict : dict
                a dictionary object containing search parameters using mongo query language
 
         Returns: 
@@ -354,7 +354,7 @@ def read_subjects(subject_ids = None, query_dict = None, to_df=True):
         Parameters:
             subject_ids : list
                a list of UUIDS to retrieve
-            query:
+            query_dict : dict
                a dictionary object containing search parameters using mongo query language
 
         Returns: 
