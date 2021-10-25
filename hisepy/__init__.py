@@ -22,7 +22,8 @@ from .project_folder import (
 from .formatter import (
     descriptors_to_df, 
     subject_to_df, 
-    sample_to_df
+    sample_to_df,
+    _dict_to_df
 )
 from .scRNA_utils import (
     read_obs, 

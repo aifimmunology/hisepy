@@ -6,7 +6,9 @@ Contributors: James Harvey
 '''
 
 # libraries 
-import os 
+import os
+
+from pandas.core.frame import DataFrame 
 import hisepy.common_utils as cu
 import pandas as pd 
 
@@ -54,6 +56,32 @@ def subject_to_df(list_subject_out):
             tmp_df = subject_to_df_worker(list_subject_out[i])
             subject_df = subject_df.append(tmp_df)
     return subject_df
+
+
+def _dict_to_df(input_df, col_name): 
+    '''
+    This function takes a column from a data.frame and converts that column to its 
+    own data.frame object
+    NOTE: the column you specify must have entries that are of type dict 
+
+        Parameters: 
+            input_df : pd.dataframe 
+                pandas dataframe
+            col_name : str 
+                column name that exists in your input_df 
+        Returns: 
+            fin_df : pd.dataframe 
+                pandas data.frame 
+    '''
+    # subset to just the column of interest 
+    this_df = input_df.copy(deep=True)[[col_name]].reset_index(drop=True)
+    fin_df = pd.DataFrame() 
+    for i in range(0,len(this_df)): 
+        this_dict = this_df[col_name].values[i]
+        this_dict.update((k, [v]) for k,v in this_dict.items())
+        fin_df = fin_df.append(pd.DataFrame.from_dict(this_dict))
+    return fin_df 
+
 
 # TODO: this method really demonstrates how useful a class could be... 
 # if the output of read_sample() changes then a lot of troubleshooting is going to be needed... 
@@ -123,7 +151,8 @@ def sample_to_df_worker(sample_out):
     # also ensure all data.frames have an identifier users can merge on
     dict_df = {'metadata':pd.concat([single_df,meta_df, no_entry_df], axis=1), 
                 'specimens': spec_df,
-                'survey' : surv_df}
+                'survey' : surv_df,
+                'labResults' : _dict_to_df(meta_df, 'lab.labResults')} 
     dict_df['specimens']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
     dict_df['specimens']['sampleKitGuid'] = dict_df['metadata']['sample.sampleKitGuid']
     dict_df['survey']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
@@ -151,6 +180,7 @@ def sample_to_df(list_of_sample_obj):
             sample_df_dict['metadata'] = sample_df_dict['metadata'].append(tmp_df_dict['metadata'])
             sample_df_dict['specimens'] = sample_df_dict['specimens'].append(tmp_df_dict['specimens'])
             sample_df_dict['survey'] = sample_df_dict['survey'].append(tmp_df_dict['survey'])
+            sample_df_dict['labResults'] = sample_df_dict['labResults'].append(tmp_df_dict['labResults'])
     return(sample_df_dict) 
 
 
