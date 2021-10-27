@@ -35,9 +35,6 @@ def lookup_queryable_fields(field_type='all'):
                 data.frame containing all the field names users could query on 
     '''
     assert field_type in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'] + ['all']
-
-
-    
     collection_fields = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
     all_fields_df = pd.DataFrame()
     for cf in collection_fields: 
@@ -98,6 +95,9 @@ def lookup_unique_entries(field):
     field_type = user_df['field_type'].values[0]
 
     # create query and POST request 
+    if field in ['pool','panel']: 
+        # suffix ID needs to be added for pool and panel when making a request
+        field = '{}ID'.format(field)
     url = 'https://{ser}/{led}/{ft}?distinct_field={fi}'.format(
         ser=get_from_metadata_server(server_id_path),
         led=CONFIG['LEDGER']['LEDGER_NAME'], 
