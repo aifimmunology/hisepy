@@ -305,17 +305,15 @@ def read_samples(sample_ids = None, query_dict = None, to_df=True):
             response : a list of samples
 
     '''
-
-
     if query_dict is not None: 
         # check that fields are within sample materialized view 
-        sample_fields = hl.lookup_queryable_fields('sample')['field']
+        sample_fields = hl.lookup_queryable_fields('sample')['field'].unique().tolist() + ['subjectGuid']
         query_fields = query_dict.keys()
         field_diff = set(query_fields) - set(sample_fields)
         assert field_diff == set(), 'the following fields are not part of sample materialized view...{}'.format(field_diff)
 
         # modify users' query and convert to mongo query language 
-        #qdict = query_dict.copy() 
+        qdict = query_dict.copy() 
         qdict = _add_prefix_to_query(query_dict)
         query = _create_mongo_query_in(qdict)
     elif sample_ids is not None:
@@ -370,7 +368,7 @@ def read_subjects(subject_ids = None, query_dict = None, to_df=True):
         assert field_diff == set(), 'the following fields are not part of sample materialized view...{}'.format(field_diff)
 
         # modify users' query and convert to mongo query language 
-        #qdict = query_dict.copy() 
+        qdict = query_dict.copy() 
         qdict = _add_prefix_to_query(query_dict)
         query = _create_mongo_query_in(qdict)
     elif subject_ids is not None:
