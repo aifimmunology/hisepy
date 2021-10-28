@@ -152,7 +152,8 @@ def sample_to_df_worker(sample_out):
     dict_df = {'metadata':pd.concat([single_df,meta_df, no_entry_df], axis=1), 
                 'specimens': spec_df,
                 'survey' : surv_df,
-                'labResults' : _dict_to_df(meta_df, 'lab.labResults')} 
+                'labResults' : pd.concat([_dict_to_df(meta_df, 'lab.labResults'),meta_df[['lab.id','lab.revisionHistory','lab.revisionNumber']]], axis=1)
+                } 
     dict_df['specimens']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
     dict_df['specimens']['sampleKitGuid'] = dict_df['metadata']['sample.sampleKitGuid']
     dict_df['survey']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
