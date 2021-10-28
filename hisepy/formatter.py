@@ -152,7 +152,8 @@ def sample_to_df_worker(sample_out):
     dict_df = {'metadata':pd.concat([single_df,meta_df, no_entry_df], axis=1), 
                 'specimens': spec_df,
                 'survey' : surv_df,
-                'labResults' : _dict_to_df(meta_df, 'lab.labResults')} 
+                'labResults' : pd.concat([_dict_to_df(meta_df, 'lab.labResults'),meta_df[['lab.id','lab.revisionHistory','lab.revisionNumber']]], axis=1)
+                } 
     dict_df['specimens']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
     dict_df['specimens']['sampleKitGuid'] = dict_df['metadata']['sample.sampleKitGuid']
     dict_df['survey']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
@@ -226,6 +227,17 @@ def _desc_lab_to_df(this_desc):
     return lab_df
 
 
+def _desc_specimen_to_df(this_desc): 
+    '''
+    '''
+    spec_df = pd.DataFrame() 
+    for i in range(0,len(this_desc)): 
+        this_desc[i].update((k, [v]) for k,v in this_desc[i].items())                
+        specimen_tmp = pd.DataFrame.from_dict(this_desc[i])
+        spec_df = pd.concat([spec_df, specimen_tmp], axis=0)
+    return spec_df 
+
+
 def descriptors_to_df_worker(hise_file): 
     '''
     Takes a hise_file and reformats attached descriptors into a data.frame 
@@ -244,12 +256,13 @@ def descriptors_to_df_worker(hise_file):
     df_desc = pd.DataFrame() 
 
     # go through each object and convert into a data.frame 
-    # lab results has some extra layers to the dictionary, so we'll do that separately    
+    # lab results has some extra layers to the dictionary, so we'll do that separately  
+    # emr shouldn't exist in descriptors (removed in hydration service)  
     for dk in descriptor_keys: 
-        if (dk in ['lab','emr','lastUpdated']) | (this_desc[dk] == None): 
+        if (dk in ['specimens','lab','emr','lastUpdated','labLastModified','surveyLastModified']) | (this_desc[dk] == None): 
             continue 
 
-        # convert dictionary to dataframe 
+        # convert dictionary to dataframe  
         copy_tmp = this_desc[dk].copy() 
         copy_tmp.update((k, [v]) for k,v in copy_tmp.items())
         tmp_df = pd.DataFrame(copy_tmp) 
@@ -261,18 +274,23 @@ def descriptors_to_df_worker(hise_file):
 
         df_desc = pd.concat([df_desc, tmp_df], axis=1)
 
-    # handle lastUpdated - create df then rename column 
-    this_desc['lastUpdated'] = [this_desc['lastUpdated']]
-    updated_df = pd.DataFrame.from_dict(this_desc['lastUpdated']).rename(columns={0:'lastUpdated'})
-    df_desc = pd.concat([df_desc, updated_df], axis=1)
- 
+    # handle lastUpdated, labLastModified, and surveyLastModified - create df then rename column 
+    update_df = pd.DataFrame()
+    for update_col in ['lastUpdated','labLastModified','surveyLastModified']: 
+        this_desc[update_col] = [this_desc[update_col]]
+        update_df = pd.DataFrame.from_dict(this_desc[update_col]).rename(columns={0:update_col})
+        df_desc = pd.concat([df_desc, update_df], axis=1) #column bind 
 
     # now take care of lab results
     lab_df = _desc_lab_to_df(this_desc['lab'])
 
+    # and now handle specimens 
+    spec_df = _desc_specimen_to_df(this_desc['specimens'])
+
     # do some final cleaning and return a dictionary of data.frames 
     dict_df = {'descriptors': df_desc, 
-                'labResults' : lab_df}
+                'labResults' : lab_df,
+                'specimens' : spec_df}
     return(dict_df)
 
 
@@ -297,11 +315,14 @@ def descriptors_to_df(list_of_hise_files):
     # then parse through and append appropriately 
     desc_df = pd.DataFrame() 
     lab_df = pd.DataFrame()
+    spec_df = pd.DataFrame()
     for i in range(0, len(list_dict)): 
         desc_df = desc_df.append(list_dict[i]['descriptors'])
         lab_df = lab_df.append(list_dict[i]['labResults'])
+        spec_df = spec_df.append(list_dict[i]['specimens'])
     final_dict = {'descriptors':desc_df, 
-                  'labResults':lab_df}
+                  'labResults':lab_df,
+                  'specimens':spec_df}
     return(final_dict) 
 
 
