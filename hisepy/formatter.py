@@ -205,18 +205,14 @@ def _desc_lab_to_df(this_desc):
     labr.update((k, [v]) for k,v in labr.items())
     
     # handle revision history     
-    revh = this_desc['revisionHistory']
+    revh = this_desc['revisionHistory'][0]
     revision_df = pd.DataFrame() 
     if (revh != None):  
-
         datah = revh['dataHistory'].copy()
-        for hist in datah.keys(): 
-            datah.update((k,[v]) for k,v in datah.items())
+        datah.update((k,[v]) for k,v in datah.items())
         datah_df = pd.DataFrame(datah) 
-
         revh.pop('dataHistory')
-        for labf in revh.keys(): 
-            revh.update((k,[v]) for k,v in revh.items())
+        revh.update((k,[v]) for k,v in revh.items())
         revision_df = pd.concat([datah_df, pd.DataFrame(revh)], axis=1)
 
     # remove labResult from this entry and convert the rest into a data.frame 
@@ -227,7 +223,7 @@ def _desc_lab_to_df(this_desc):
     return lab_df
 
 
-def _desc_specimen_to_df(this_desc): 
+def _desc_specimen_to_df(this_desc, sample_kit_guid): 
     '''
     '''
     spec_df = pd.DataFrame() 
@@ -235,6 +231,7 @@ def _desc_specimen_to_df(this_desc):
         this_desc[i].update((k, [v]) for k,v in this_desc[i].items())                
         specimen_tmp = pd.DataFrame.from_dict(this_desc[i])
         spec_df = pd.concat([spec_df, specimen_tmp], axis=0)
+    spec_df['sampleKitGuid'] = sample_kit_guid 
     return spec_df 
 
 
@@ -282,10 +279,10 @@ def descriptors_to_df_worker(hise_file):
         df_desc = pd.concat([df_desc, update_df], axis=1) #column bind 
 
     # now take care of lab results
-    lab_df = _desc_lab_to_df(this_desc['lab'])
+    lab_df = _desc_lab_to_df(this_desc['lab'].copy())
 
     # and now handle specimens 
-    spec_df = _desc_specimen_to_df(this_desc['specimens'])
+    spec_df = _desc_specimen_to_df(this_desc['specimens'], this_desc['sample']['sampleKitGuid'])
 
     # do some final cleaning and return a dictionary of data.frames 
     dict_df = {'descriptors': df_desc, 
