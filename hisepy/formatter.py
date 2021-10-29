@@ -205,15 +205,18 @@ def _desc_lab_to_df(this_desc):
     labr.update((k, [v]) for k,v in labr.items())
     
     # handle revision history     
-    revh = this_desc['revisionHistory'][0]
-    revision_df = pd.DataFrame() 
-    if (revh != None):  
-        datah = revh['dataHistory'].copy()
-        datah.update((k,[v]) for k,v in datah.items())
-        datah_df = pd.DataFrame(datah) 
-        revh.pop('dataHistory')
-        revh.update((k,[v]) for k,v in revh.items())
-        revision_df = pd.concat([datah_df, pd.DataFrame(revh)], axis=1)
+    if this_desc['revisionHistory'] is None: 
+        revision_df = pd.DataFrame() 
+    else: 
+        revh = this_desc['revisionHistory'][0]
+        revision_df = pd.DataFrame() 
+        if (revh != None):  
+            datah = revh['dataHistory'].copy()
+            datah.update((k,[v]) for k,v in datah.items())
+            datah_df = pd.DataFrame(datah) 
+            revh.pop('dataHistory')
+            revh.update((k,[v]) for k,v in revh.items())
+            revision_df = pd.concat([datah_df, pd.DataFrame(revh)], axis=1)
 
     # remove labResult from this entry and convert the rest into a data.frame 
     this_desc.pop('labResults')
