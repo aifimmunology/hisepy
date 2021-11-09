@@ -311,10 +311,13 @@ def read_samples(sample_ids = None, query_dict = None, to_df=True):
         query_fields = query_dict.keys()
         field_diff = set(query_fields) - set(sample_fields)
         assert field_diff == set(), 'the following fields are not part of sample materialized view...{}'.format(field_diff)
-
         # modify users' query and convert to mongo query language 
         qdict = query_dict.copy() 
         qdict = _add_prefix_to_query(query_dict)
+        # have to hardcode cohort
+        if "cohort.cohortGuid" in qdict:
+            qdict["subject.cohort"] = qdict["cohort.cohortGuid"]
+            qdict.pop("cohort.cohortGuid")
         query = _create_mongo_query_in(qdict)
     elif sample_ids is not None:
         if type(sample_ids) is not list:

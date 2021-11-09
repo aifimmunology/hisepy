@@ -78,8 +78,9 @@ def _dict_to_df(input_df, col_name):
     fin_df = pd.DataFrame() 
     for i in range(0,len(this_df)): 
         this_dict = this_df[col_name].values[i]
-        this_dict.update((k, [v]) for k,v in this_dict.items())
-        fin_df = fin_df.append(pd.DataFrame.from_dict(this_dict))
+        if this_dict is not None:
+            this_dict.update((k, [v]) for k,v in this_dict.items())
+            fin_df = fin_df.append(pd.DataFrame.from_dict(this_dict))
     return fin_df 
 
 
@@ -150,10 +151,10 @@ def sample_to_df_worker(sample_out):
     # combine everything together
     # also ensure all data.frames have an identifier users can merge on
     dict_df = {'metadata':pd.concat([single_df,meta_df, no_entry_df], axis=1), 
-                'specimens': spec_df,
-                'survey' : surv_df,
-                'labResults' : pd.concat([_dict_to_df(meta_df, 'lab.labResults'),meta_df[['lab.id','lab.revisionHistory','lab.revisionNumber']]], axis=1)
-                } 
+               'specimens': spec_df,
+               'survey' : surv_df,
+               'labResults' : pd.concat([_dict_to_df(meta_df, 'lab.labResults'),meta_df[['lab.id','lab.revisionHistory','lab.revisionNumber']]], axis=1)
+    } 
     dict_df['specimens']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
     dict_df['specimens']['sampleKitGuid'] = dict_df['metadata']['sample.sampleKitGuid']
     dict_df['survey']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
@@ -173,6 +174,9 @@ def sample_to_df(list_of_sample_obj):
                 dictionary with keys ['metadata','specimens'] where each key is mapped to a data.frame 
 
     '''
+    if len(list_of_sample_obj) == 0:
+        return {}
+
     sample_df_dict = sample_to_df_worker(list_of_sample_obj[0])
     if len(list_of_sample_obj) > 1: 
         # loop and append 
