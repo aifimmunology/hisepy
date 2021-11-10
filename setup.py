@@ -27,12 +27,12 @@ setup(
     install_requires=[
         'pandas',
         'numpy',
-        'yaml',
+        'PyYAML',
+        'scipy',
         'anndata',
-        'scipy.sparse',
         'google-cloud-storage'
     ],
-    #   scripts=[''],
+    scripts=['hisepy/config.yaml'],
     include_package_data=True,
     classifiers=[
         'Immunology',

@@ -18,7 +18,8 @@ from hisepy.auth import get_from_metadata_server, get_bearer_token_header, serve
 
 
 # load config for global variables and endpoints 
-CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
 def list_project_folders():
@@ -135,7 +136,7 @@ def upload_to_project_folder(watchfolder_bucket_url, file_path):
     '''
     
     # ensure users' file actually exists 
-    if ~os.path.exists(file_path): 
+    if not os.path.exists(file_path): 
         raise(FileExistsError('submitted path {}, cannot be found'.format(file_path)))
 
     client = storage.Client()

@@ -3,13 +3,15 @@ import json
 import os
 import pathlib
 import uuid
+import pandas as pd
 import hisepy.common_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 import hisepy.formatter as hf 
+import hisepy.lookup as hl 
 
 
-CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
-
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 class hise_file:
     '''
@@ -65,6 +67,42 @@ class hise_file:
         self.message = "OK"
 
 
+# TODO: refactor and expand logic to some mongo-human query translator class 
+def _add_prefix_to_query(user_query): 
+        ''' 
+        Takes users' query and adds the appropriate prefix to the field_names 
+        '''
+        # create data.frame of all queryable fields 
+        new_query_dict = user_query.copy() 
+        q_df = hl.lookup_queryable_fields()
+        q_df = q_df.loc[~q_df[['field_type','field']].duplicated(),] # drop duplicates 
+
+        # go through each key of users' dict and append the field_type as a prefix
+        for k in list(new_query_dict):
+            prefix = q_df.loc[q_df['field'].eq(k), 'field_type'].unique()[0]
+            new_query_dict.update({'{}.{}'.format(prefix, k) : new_query_dict[k]}) 
+
+        # remove old keys 
+        for ok in list(user_query): 
+            new_query_dict.pop(ok)
+        return new_query_dict
+
+
+# TODO: refactor and inlcude to future mongo query class 
+def _create_mongo_query_in(user_query): 
+    '''
+    Takes a users' dictionary, and converts all entries and.
+    Note: You can think of this as just a bunch of "OR" booleans 
+
+    '''
+    for key in user_query.keys(): 
+        assert type(user_query[key]) == list, "key {} has values not in a list".format(key)
+
+    # take the users' query and reformat it using mongo  query language 
+    user_query.update((k, {'$in' :v}) for k,v in user_query.items())
+    return user_query
+
+
 def query_files(user_query): 
     '''
     loads all associated files for a user-submitted query
@@ -73,8 +111,10 @@ def query_files(user_query):
                 dictionary where for each key:value pair, the value must be of type list.
                 NOTE: file.fileType must be present in the query 
     '''
+    
+    assert 'fileType' in user_query.keys(), "fileType must be in your query dictionary"
     query_dict = user_query.copy() 
-    assert 'file.fileType' in query_dict.keys()
+    query_dict = _add_prefix_to_query(query_dict) 
 
     for d in query_dict.keys(): 
         assert type(query_dict[d]) == list, "key {} has values not in a list".format(d)
@@ -94,7 +134,7 @@ def query_files(user_query):
 
 
 
-def read_files(file_list=None, query_id=None, query_dict=None):
+def read_files(file_list=None, query_id=None, query_dict=None, to_df=True):
     '''
     Read the contents of a list of file ids into a hise_file object 
 
@@ -172,8 +212,10 @@ def read_files(file_list=None, query_id=None, query_dict=None):
             continue
         else:
             response.append(cache_and_convert_file_data(f))
-            
-    return response
+    if to_df: 
+        return hf.descriptors_to_df(response)
+    else: 
+        return response
 
 def download_files(file_dict):
     '''
@@ -235,6 +277,7 @@ def cache_and_convert_file_data(file_data):
                      file_path = "%s/%s" % (file_dir, file_name),
                      descriptors = file_data["descriptors"])
 
+
 def cache_file(url, file_name, file_dir):
     if not os.path.exists(file_dir):
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
@@ -246,7 +289,8 @@ def cache_file(url, file_name, file_dir):
                           (file_name,resp.status_code,resp.text)))
     open(f_path, 'wb').write(resp.content)
 
-def read_samples(sample_ids = None, query = None, to_df=True):
+
+def read_samples(sample_ids = None, query_dict = None, to_df=True):
     '''
     Read or search the SampleStatus materialized view. 
     User should specify one or the other of sample_ids or query
@@ -254,14 +298,28 @@ def read_samples(sample_ids = None, query = None, to_df=True):
         Parameters:
             sample_ids : list
                a list of UUIDS to retrieve
-            query:
+            query_dict : dict
                a dictionary object containing search parameters using mongo query language
 
         Returns: 
             response : a list of samples
 
     '''
-    if sample_ids is not None:
+    if query_dict is not None: 
+        # check that fields are within sample materialized view 
+        sample_fields = hl.lookup_queryable_fields('sample')['field'].unique().tolist() + ['subjectGuid']
+        query_fields = query_dict.keys()
+        field_diff = set(query_fields) - set(sample_fields)
+        assert field_diff == set(), 'the following fields are not part of sample materialized view...{}'.format(field_diff)
+        # modify users' query and convert to mongo query language 
+        qdict = query_dict.copy() 
+        qdict = _add_prefix_to_query(query_dict)
+        # have to hardcode cohort
+        if "cohort.cohortGuid" in qdict:
+            qdict["subject.cohort"] = qdict["cohort.cohortGuid"]
+            qdict.pop("cohort.cohortGuid")
+        query = _create_mongo_query_in(qdict)
+    elif sample_ids is not None:
         if type(sample_ids) is not list:
             raise(TypeError("sample_ids must be a list"))
         query = {"id": {"$in": sample_ids}}
@@ -289,7 +347,7 @@ def read_samples(sample_ids = None, query = None, to_df=True):
         return obj['payload']
 
 
-def read_subjects(subject_ids = None, query = None, to_df=True):
+def read_subjects(subject_ids = None, query_dict = None, to_df=True):
     '''
     Read or search the Subject materialized view. 
     User should specify one or the other of subject_ids or query
@@ -297,14 +355,26 @@ def read_subjects(subject_ids = None, query = None, to_df=True):
         Parameters:
             subject_ids : list
                a list of UUIDS to retrieve
-            query:
+            query_dict : dict
                a dictionary object containing search parameters using mongo query language
 
         Returns: 
             response : a list of subjects
 
     '''
-    if subject_ids is not None:
+
+    if query_dict is not None: 
+        # check that fields are within sample materialized view 
+        subject_fields = hl.lookup_queryable_fields('subject')['field']
+        query_fields = query_dict.keys()
+        field_diff = set(query_fields) - set(subject_fields)
+        assert field_diff == set(), 'the following fields are not part of sample materialized view...{}'.format(field_diff)
+
+        # modify users' query and convert to mongo query language 
+        qdict = query_dict.copy() 
+        qdict = _add_prefix_to_query(query_dict)
+        query = _create_mongo_query_in(qdict)
+    elif subject_ids is not None:
         if type(subject_ids) is not list:
             raise(TypeError("subject_ids must be a list"))
         query = {"id": {"$in": subject_ids}}
