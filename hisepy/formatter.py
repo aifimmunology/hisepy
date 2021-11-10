@@ -158,6 +158,10 @@ def sample_to_df_worker(sample_out):
     dict_df['specimens']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
     dict_df['specimens']['sampleKitGuid'] = dict_df['metadata']['sample.sampleKitGuid']
     dict_df['survey']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
+    dict_df['labResults']['sampleGuid'] = dict_df['metadata']['sample.sampleGuid']
+    dict_df['labResults']['sampleKitGuid'] = dict_df['metadata']['sample.sampleKitGuid']
+    dict_df['labResults']['subjectGuid'] = dict_df['metadata']['subject.subjectGuid']
+    
     return dict_df  
 
 
