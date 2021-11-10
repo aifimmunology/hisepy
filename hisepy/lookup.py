@@ -7,18 +7,20 @@ Contributors: James Harvey
 
 # libraries 
 import os 
+import re 
 import json
 import requests 
 import pandas as pd
 import numpy as np 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
-import hisepy.config_utils as cu 
+import hisepy.common_utils as cu 
 
-# config for globals 
-CONFIG = cu.read_yaml('{}/hisepy/config.yaml'.format(os.getcwd()))
+# setting global config 
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
-def lookup_queryable_fields(field_type): 
+def lookup_queryable_fields(field_type='all'): 
     '''
     Returns fields users can query on depending on the collection type (i.e file/subject/sample)
     
@@ -32,23 +34,44 @@ def lookup_queryable_fields(field_type):
             fields_df : pd.dataframe 
                 data.frame containing all the field names users could query on 
     '''
-    assert field_type in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
+    assert field_type in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'] + ['all']
+    collection_fields = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
+    all_fields_df = pd.DataFrame()
+    for cf in collection_fields: 
 
-    # get a list of searchable fields 
-    url = 'https://{ser}/{led}?field_names=true'.format(
-        ser=get_from_metadata_server(server_id_path),
-        led=CONFIG['LEDGER']['{}_SEARCH_PATH'.format(field_type.upper())])
-    resp = requests.request("POST",
-                            url,
-                            headers=get_bearer_token_header())
-    fields = json.loads(resp.text)
+        # get a list of searchable fields 
+        url = 'https://{ser}/{led}?field_names=true'.format(
+            ser=get_from_metadata_server(server_id_path),
+            led=CONFIG['LEDGER']['{}_SEARCH_PATH'.format(cf.upper())])
+        resp = requests.request("POST",
+                                url,
+                                headers=get_bearer_token_header())
+        fields = json.loads(resp.text)
 
-    user_fields = [name.split('.')[1] for name in fields if "{}.".format(field_type) in name]
+        # filter to just the collection type user requested 
+        user_fields = list(filter(lambda x: '.' in x, fields)) # keep only the fields that contain a '.'
+        user_fields = [name.split('.')[1] for name in user_fields if (name.split('.')[0] in ["{}".format(cf),'cohort'])]
+        fields_df = pd.DataFrame({'field' : user_fields})
+        fields_df['field_type'] = cf
 
-    fields_df = pd.DataFrame(user_fields, columns=['field'])
-    fields_df['field_type'] = field_type
+        # remove cohort, if file_type != cohort
+        # also fix the field_type for cohort_Guid 
+        fields_df = fields_df.loc[~(fields_df['field'].isin(['cohort','sampleGuid'])),  ]
+        fields_df.loc[fields_df['field'].eq('cohortGuid'), 'field_type'] = 'cohort'
+        all_fields_df = all_fields_df.append(fields_df)
 
-    return fields_df 
+        # sample.bridgingControl isn't a part of sample collection, and is instead part of file. 
+        # hard-coding and inserting this field to sample 
+        if cf == 'sample': 
+            all_fields_df = all_fields_df.append(pd.DataFrame({'field':['bridgingControl'], 'field_type':['sample']}))
+
+    if field_type=='all':
+        return all_fields_df.loc[~all_fields_df['field'].eq('id'), ].drop_duplicates()  
+    else: 
+        return all_fields_df.loc[((all_fields_df['field_type'].eq(field_type)) | 
+                                (all_fields_df['field_type'].eq('cohort'))) & 
+                                (~all_fields_df['field'].eq('id')), ].drop_duplicates() 
+
 
 
 def lookup_unique_entries(field): 
@@ -62,16 +85,19 @@ def lookup_unique_entries(field):
                 all unique values for a given field that you can pass in when creating a query 
     '''
     # create a data.frame of all searchable fields 
-    all_field_df = pd.DataFrame() 
-    for i in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']: 
-        tmp_fdf = lookup_queryable_fields(i)
-        all_field_df = all_field_df.append(tmp_fdf) 
+    all_field_df = lookup_queryable_fields()
+    
+    # check that user submitted a viable field 
+    assert field in all_field_df['field'].unique().tolist(),  "The field you submitted isn't a viable one. Make sure your requesting one of the following fields - {}".format(all_field_df['field'].unique())
     
     # subset to users' field of interest 
     user_df = all_field_df.loc[all_field_df['field'] == field,]
     field_type = user_df['field_type'].values[0]
 
     # create query and POST request 
+    if field in ['pool','panel']: 
+        # suffix ID needs to be added for pool and panel when making a request
+        field = '{}ID'.format(field)
     url = 'https://{ser}/{led}/{ft}?distinct_field={fi}'.format(
         ser=get_from_metadata_server(server_id_path),
         led=CONFIG['LEDGER']['LEDGER_NAME'], 

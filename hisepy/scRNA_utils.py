@@ -6,7 +6,7 @@ Contributors: Lucas Greybuck, James Harvey
 
 # libraries 
 import pandas as pd 
-import scipy.sparse as scs # TODO: what do I do with libraries not already installed? 
+import scipy.sparse as scs 
 import anndata
 
 
