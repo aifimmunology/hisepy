@@ -106,7 +106,7 @@ def save_visualization(pl_obj,
     
     v_data = parse_hise_response(
         requests.request("POST",
-                         hise_url("toolchain", "visualization_path", args = args),
+                         hise_url("toolchain", "visualization_path", "json", args = args),
                          headers = get_bearer_token_header(),
                          files = vis_dict))
     return trace_id

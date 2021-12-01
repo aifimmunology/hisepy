@@ -429,18 +429,20 @@ def hise_url(service,
 
 def parse_hise_response(resp):
     obj = None
-    errmsg = None
+    msg = None
     try:
         obj = json.loads(resp.text)
         if "Errors" in obj and len(obj["Errors"]) > 0:
-            errmsg = obj["Errors"][0]["Message"]
+            msg = obj["Errors"][0]["Message"]
+        else:
+            msg = resp.reason
     except:
-        errmsg = resp.text
+        msg = resp.reason
         
     if resp.status_code != 200:
         raise(SystemError("%s request to %s returned with status %d. %s" %
                               (resp.request.method,
                                resp.url,
                                resp.status_code,
-                               errmsg)))
+                               msg)))
     return obj
