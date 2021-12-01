@@ -1,4 +1,5 @@
 import requests
+import urllib
 import json
 import os
 import pathlib
@@ -401,3 +402,45 @@ def read_subjects(subject_ids = None, query_dict = None, to_df=True):
         return hf.subject_to_df(obj["payload"])
     else: 
         return obj["payload"]
+
+
+def hise_url(service,
+             config_path,
+             resource = None,
+             args = None):
+    if service.upper() not in CONFIG:
+        raise(ValueError("%s is not a known HISE service" % (service)))
+    if config_path.upper() not in CONFIG[service.upper()]:
+        raise(ValueError("%s is not a known path in %s service" % (config_path, service)))
+              
+    url = "https://%s/%s" % (get_from_metadata_server(server_id_path),
+                              CONFIG[service.upper()][config_path.upper()])
+    if resource is not None:
+        if type(resource) is not str:
+            raise(ValueError("resource argument was a %s, not a string" % (type(resource))))
+        url += "/%s" % (resource)
+        
+    if args is not None:
+        if type(args) is not dict:
+            raise(ValueError("query string argument was a %s, not a dict" % (type(args))))
+        url += "?%s" % (urllib.parse.urlencode(args))
+        
+    return url
+
+def parse_hise_response(resp):
+    obj = None
+    errmsg = None
+    try:
+        obj = json.loads(resp.text)
+        if "Errors" in obj and len(obj["Errors"]) > 0:
+            errmsg = obj["Errors"][0]["Message"]
+    except:
+        errmsg = resp.text
+        
+    if resp.status_code != 200:
+        raise(SystemError("%s request to %s returned with status %d. %s" %
+                              (resp.request.method,
+                               resp.url,
+                               resp.status_code,
+                               errmsg)))
+    return obj

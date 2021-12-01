@@ -58,7 +58,8 @@ LEDGER:
 TRACER: 
   TRACER_NAME : tracer 
   TRACER_PATH : tracer/trace
-
+  STUDY_SPACE_PATH: tracer/studyspace
+  
 # globals specific for IDE 
 IDE: 
   CACHE_DIR : cache
@@ -67,7 +68,9 @@ IDE:
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
   SCHEDULER_PATH : toolchain/scheduler
-
+  VISUALIZATION_PATH: toolchain/visualization
+  UPLOAD_FILE_PATH: toolchain/file
+  
 # scheduler endpoints and global... 
 SCHEDULER: 
   PLATFORM_DEFAULT : Notebook
