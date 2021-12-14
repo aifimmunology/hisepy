@@ -35,7 +35,17 @@ from .lookup import (
     lookup_queryable_fields,
     lookup_unique_entries
 )
-
+from .upload import (
+    upload_files,
+    save_visualization,
+    load_visualization,
+    load_visualization_layout,
+    load_visualization_data,    
+    get_trace,
+    get_study_spaces,
+    get_files_for_query,
+    freeze_dash_app
+)
 
 # if somebody does "from somepackage import *", this is what they will
 # be able to access:
@@ -57,5 +67,14 @@ __all__ = [
     'list_files_in_project_folder',
     'download_from_project_folder',
     'archive_file_in_project_folder',
-    'undo_archive_in_project_folder' 
+    'undo_archive_in_project_folder',
+    'upload_files',
+    'freeze_dash_app',
+    'save_visualization',
+    'load_visualization',
+    'load_visualization_layout',
+    'load_visualization_data',
+    'get_study_spaces',
+    'get_trace',
+    'get_files_for_query',
 ]
