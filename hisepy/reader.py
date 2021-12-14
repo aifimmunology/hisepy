@@ -423,7 +423,7 @@ def hise_url(service,
     if args is not None:
         if type(args) is not dict:
             raise(ValueError("query string argument was a %s, not a dict" % (type(args))))
-        url += "?%s" % (urllib.parse.urlencode(args))
+        url += "?%s" % (urllib.parse.urlencode(args, doseq = True))
         
     return url
 

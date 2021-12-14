@@ -46,3 +46,6 @@ def get_bearer_token_header():
             "InstanceAccountGuid": "%s" % (get_from_metadata_server("%s" % (account_guid_path)))}
     return headers
 
+#use the presence of the token gen env as a proxy for debug env
+def debug():
+    return os.getenv(token_env) is not None
