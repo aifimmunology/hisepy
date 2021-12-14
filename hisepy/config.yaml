@@ -43,8 +43,7 @@ HYDRATION:
   DESCRIPTORS_PATH : hydration/analysis/descriptors
   DOWNLOAD_PATH : hydration/source/server
   QUERY_SEARCH_PATH : hydration/analysis/query
-
-
+  WEBSOCKET_PATH: hydration/source/stream/open
 
 # ledger endpoints 
 LEDGER: 
