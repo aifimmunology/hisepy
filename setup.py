@@ -30,7 +30,10 @@ setup(
         'PyYAML',
         'scipy',
         'anndata',
-        'google-cloud-storage'
+        'google-cloud-storage',
+        'importlib',
+        'plotly',
+        'dash'
     ],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
