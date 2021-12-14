@@ -57,34 +57,47 @@ def upload_files(files,
                  title = None,
                  input_file_ids = [],
                  input_sample_ids = []):
+    if type(files) is not list or len(files) == 0:
+        raise(ValueError("No files specified for upload"))
+    
     trace_id = None
     study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
-
+    i = 0
     for f in files:
+        if not os.path.exists(f):
+            raise(ValueError("%s is not a valid file." % (f)))
+        
         file_dict = {'file':
                      (f, open(f, 'rb'),
                       'application/json', {'Expires': '0'})}
         qargs = None
         if trace_id is not None:
-            qargs = {"traceId": trace_id}
+            qargs = {"traceId": trace_id,
+                     "fileType": get_file_type(f)}
         else:
             qargs = {"studySpaceId": study_space_id,
                      "title": title,
-                     "fileType": f.split(".")[-1],
+                     "fileType": get_file_type(f),
                      "saveIDE": True,
                      "instanceId": get_from_metadata_server(instance_name_path),
                      "inputFileIds": input_file_ids,
                      "sampleIds": input_sample_ids,
                      "notebook": current_notebook()}
+        url = hise_url("toolchain", "upload_file_path", args = qargs)
+        headers = get_bearer_token_header()
+        if debug():
+            url = url.replace("https", "http")
+            url = url.replace("dev.allenimmunology.org","localhost:2082")
+            headers["hise_invoker_token"] = headers["Authorization"].split(" ")[-1]
+            headers.pop("Authorization")
+            
         df_data = parse_hise_response(
-            requests.request("POST", 
-                             hise_url("toolchain", "upload_file_path", args = qargs),
-                             headers = get_bearer_token_header(),
-                             files = file_dict))
+            requests.request("POST", url, headers = headers, files = file_dict))
         if "TraceId" not in df_data:
             raise(SystemError("Trace was not found in response to file upload. Cannot continue"))
         trace_id = df_data["TraceId"]
-
+        i = i + 1
+        print("Did %d" % (i))
     return trace_id
 
 def save_visualization(pl_obj,
@@ -133,12 +146,14 @@ def freeze_dash_app(app,
                     input_file_ids = [],
                     input_sample_ids = []):
     study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
-
+    build_dir = "%s/build" % (app.server.root_path)
     dash_path_tokens = os.path.abspath(dash.__file__).split("/")
     dash_path = "/".join(dash_path_tokens[0:-1])
     mod_versions = {}
-
-    freezer = Freezer(app.server)        
+    app.server.config.setdefault('FREEZER_DEFAULT_MIMETYPE',
+                                 'application/json')
+    freezer = Freezer(app.server)
+    
     @freezer.register_generator
     def componentSuites():
         for p in app.registered_paths["dash"]:
@@ -159,7 +174,7 @@ def freeze_dash_app(app,
                     pack_vers = mod_versions[dash_import]
                 else:
                     try:
-                        p = importlib.import_package(dash_import)
+                        p = importlib.import_module(dash_import)
                         pack_vers = p.__version__
                     except Exception as e:
                         if debug():
@@ -177,16 +192,16 @@ def freeze_dash_app(app,
         yield "/<path:path>", {"path": "index.html"} 
 
     freezer.freeze()
-    filenames = recursive_dir_walk("./build")
-    print(filenames)
+    filenames = recursive_dir_walk(build_dir)
     tr = upload_files(filenames,
                       study_space_id,
                       title,
                       input_file_ids,
                       input_sample_ids)
+    
     for f in filenames:
         os.remove(f)
-    os.rmdir("./build")
+    os.rmdir(build_dir)
     return tr
     
 def validate_upload_data(study_space_id, title, input_file_ids):
@@ -241,7 +256,14 @@ def load_visualization_data(file_id):
 def recursive_dir_walk(start):
     found = []
     for root, dirs, files in os.walk(start):
-        found += files
+        for f in files:
+            found.append("%s/%s" % (root, f))
         for d in dirs:
             found += recursive_dir_walk("%s/%s" % (root,d))
     return found
+
+def get_file_type(filename):
+    if "." in filename:
+        return filename.split(".")[-1]
+    else:
+        return "json"
