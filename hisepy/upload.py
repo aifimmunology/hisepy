@@ -13,6 +13,15 @@ from hisepy.auth import get_from_metadata_server, get_bearer_token_header, insta
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
 
+#NB: Javascript-generated visualizations have data and layout fields that aren't recognized
+#by Python. If you run into errors loading visualizations from the UI, add unknown elements here
+#Format is list of field names, or dictionaries and subfields
+#  e.g. data["xField"] is invalid, as are
+#       data["marker"]["color"] and
+#       data["marker"]["size"]
+unknown_data_fields = ["xField","yField",{"marker": ["color","size"]}]
+unknown_layout_fields = [{"layout": ["margin", "autocolorscale"]}]
+
 def get_study_spaces():
     return parse_hise_response(
         requests.request("GET",
@@ -237,15 +246,17 @@ def load_visualization(trace_id):
                 ValueError("Visualization data for trace %s is a %s, not a list. Cannot render" %
                            (trace_id, type(data))))
         for d in data:
+            clean_vis_data(d, unknown_data_fields)
             obj.add_trace(d)
     return obj        
 
 def load_visualization_layout(trace_id):
-    return go.Figure(
-        parse_hise_response(
-            requests.request("GET",
-                             hise_url("toolchain", "visualization_path", trace_id),
-                             headers = get_bearer_token_header())))
+    fig = parse_hise_response(
+        requests.request("GET",
+                         hise_url("toolchain", "visualization_path", trace_id),
+                         headers = get_bearer_token_header()))
+    clean_vis_data(fig, unknown_layout_fields)
+    return go.Figure(fig)
 
 def load_visualization_data(file_id):
     return parse_hise_response(
@@ -267,3 +278,20 @@ def get_file_type(filename):
         return filename.split(".")[-1]
     else:
         return "json"
+
+def clean_vis_data(vis_data, fields_to_clean):
+    if type(vis_data) is not dict:
+        #your code is bad -- you tried to clean a thing that's not a dictionary
+        raise(ValueError("Cannot clean visualization of type %s" % (type(vis_data))))
+    elif type(fields_to_clean) is not list:
+        #your code is bad -- somewhere you've got a thing that's not a list
+        raise(ValueError("Cannot use a %s as list of visualization fields to clean" %
+                         (type(vis_data))))
+
+    for f in fields_to_clean:
+        if type(f) is str and f in vis_data:
+            vis_data.pop(f)
+        elif type(f) is dict:
+            for k in f.keys():
+                if k in vis_data:
+                    clean_vis_data(vis_data[k], f[k])
