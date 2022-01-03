@@ -38,7 +38,7 @@ def get_files_for_query(query_id):
 def get_trace(trace_id):
     trace = parse_hise_response(
         requests.request("GET",
-                         hise_url("tracer","tracer_path", trace_id),
+                         hise_url("tracer","trace_path", trace_id),
                          headers = get_bearer_token_header()))
     if len(trace) == 0:
         raise(Exception("Trace id %s is invalid" % (trace_id)))

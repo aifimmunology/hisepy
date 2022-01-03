@@ -56,7 +56,7 @@ LEDGER:
 # tracer endpoints 
 TRACER: 
   TRACER_NAME : tracer 
-  TRACER_PATH : tracer/trace
+  TRACE_PATH : tracer/trace
   STUDY_SPACE_PATH: tracer/studyspace
   
 # globals specific for IDE 
