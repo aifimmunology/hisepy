@@ -37,6 +37,7 @@ from .lookup import (
 )
 from .upload import (
     upload_files,
+    save_static_image,
     save_visualization,
     load_visualization,
     load_visualization_layout,
@@ -70,6 +71,7 @@ __all__ = [
     'undo_archive_in_project_folder',
     'upload_files',
     'freeze_dash_app',
+    'save_static_image',
     'save_visualization',
     'load_visualization',
     'load_visualization_layout',
