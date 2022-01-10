@@ -229,9 +229,10 @@ def _desc_lab_to_df(this_desc):
     # remove labResult from this entry and convert the rest into a data.frame 
     this_desc.pop('labResults')
     this_desc.update((k, [v]) for k,v in this_desc.items())
-
+    
     lab_df = pd.concat([pd.DataFrame(labr), pd.DataFrame(this_desc), revision_df], axis=1)
-    return lab_df
+    #de-dupe
+    return lab_df.loc[:,~lab_df.columns.duplicated()]
 
 
 def _desc_specimen_to_df(this_desc, sample_kit_guid): 
