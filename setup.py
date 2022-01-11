@@ -33,7 +33,8 @@ setup(
         'google-cloud-storage',
         'importlib',
         'plotly',
-        'dash'
+        'dash',
+        'Frozen-Flask'
     ],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
