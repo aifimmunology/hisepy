@@ -34,7 +34,8 @@ setup(
         'importlib',
         'plotly',
         'dash',
-        'Frozen-Flask'
+        'Frozen-Flask',
+        'kaleido'
     ],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
