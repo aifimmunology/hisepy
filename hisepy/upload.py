@@ -71,7 +71,6 @@ def upload_files(files,
     
     trace_id = None
     study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
-    i = 0
     for f in files:
         if not os.path.exists(f):
             raise(ValueError("%s is not a valid file." % (f)))
@@ -94,19 +93,11 @@ def upload_files(files,
                      "notebook": current_notebook()}
         url = hise_url("toolchain", "upload_file_path", args = qargs)
         headers = get_bearer_token_header()
-        if debug():
-            url = url.replace("https", "http")
-            url = url.replace("dev.allenimmunology.org","localhost:2082")
-            headers["hise_invoker_token"] = headers["Authorization"].split(" ")[-1]
-            headers.pop("Authorization")
-            
         df_data = parse_hise_response(
             requests.request("POST", url, headers = headers, files = file_dict))
         if "TraceId" not in df_data:
             raise(SystemError("Trace was not found in response to file upload. Cannot continue"))
         trace_id = df_data["TraceId"]
-        i = i + 1
-        print("Did %d" % (i))
     return trace_id
 
 def save_visualization(pl_obj,
@@ -161,8 +152,8 @@ def save_static_image(image,
                       title = None):
     if not os.path.exists(image):
         raise(ValueError("%s is not a valid file." % (image)))
-
-    img_dict = {'bytes': open(image, 'rb')}
+    
+    img_dict = {'bytes': (image, open(image, 'rb'), "image/%s" % (get_file_type(image)))}
     study_space_id = validate_upload_data(study_space_id, title, ["not a file"])
     args = {"studySpaceId": study_space_id,
             "title": title}
