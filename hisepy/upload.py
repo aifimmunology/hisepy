@@ -22,6 +22,8 @@ from hisepy.scheduler import current_notebook
 unknown_data_fields = ["xField","yField",{"marker": ["color","size"]}]
 unknown_layout_fields = [{"layout": ["margin", "autocolorscale"]}]
 
+dataframe_file_type = "Visualization-dataframe"
+
 def get_study_spaces():
     return parse_hise_response(
         requests.request("GET",
@@ -63,15 +65,16 @@ def default_study_space(must = True):
     
 def upload_files(files,
                  study_space_id = None,
-                 title = None,
+                 title = None,                 
                  input_file_ids = [],
-                 input_sample_ids = []):
+                 input_sample_ids = [],
+                 file_types = []):
     if type(files) is not list or len(files) == 0:
         raise(ValueError("No files specified for upload"))
     
     trace_id = None
     study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
-    for f in files:
+    for i, f in enumerate(files):
         if not os.path.exists(f):
             raise(ValueError("%s is not a valid file." % (f)))
         
@@ -79,13 +82,16 @@ def upload_files(files,
                      (f, open(f, 'rb'),
                       'application/json', {'Expires': '0'})}
         qargs = None
+        file_type = get_file_type(f)
+        if type(file_types) is list and len(file_types) > i:
+            file_type = file_types[i]
         if trace_id is not None:
             qargs = {"traceId": trace_id,
-                     "fileType": get_file_type(f)}
+                     "fileType": file_type}
         else:
             qargs = {"studySpaceId": study_space_id,
                      "title": title,
-                     "fileType": get_file_type(f),
+                     "fileType": file_type,
                      "saveIDE": True,
                      "instanceId": get_from_metadata_server(instance_name_path),
                      "inputFileIds": input_file_ids,
@@ -121,10 +127,11 @@ def save_visualization(pl_obj,
     f.close()
 
     trace_id = upload_files([tmp_data_file],
-                           study_space_id,
+                            study_space_id,
                             title,
-                           input_file_ids,
-                           input_sample_ids)
+                            input_file_ids,
+                            input_sample_ids,
+                            [dataframe_file_type])
     args = {"traceId": trace_id,
             "images": img_data["id"]}
     
