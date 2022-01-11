@@ -117,6 +117,12 @@ def save_visualization(pl_obj,
 
     tmp_data_file = "/tmp/plotly_data.json"
     tmp_plotly_file = "/tmp/plotly.json"
+    tmp_img_file = "/tmp/plotly.png"
+
+    pl_obj.write_image(tmp_img_file)
+    img_data = save_static_image(tmp_img_file, study_space_id, title)
+    os.remove(tmp_img_file)
+    
     exp_obj = json.loads(pl_obj.to_json())
 
     f = open(tmp_data_file, "w")
@@ -128,8 +134,9 @@ def save_visualization(pl_obj,
                             title,
                            input_file_ids,
                            input_sample_ids)
-    args = {"traceId": trace_id}
-
+    args = {"traceId": trace_id,
+            "images": img_data["id"]}
+    
     #now null out the data and save the plotly without it
     exp_obj["data"] = []
     f = open(tmp_plotly_file, "w")
@@ -149,6 +156,22 @@ def save_visualization(pl_obj,
     os.remove(tmp_plotly_file)
     return trace_id
 
+def save_static_image(image,
+                      study_space_id = None,
+                      title = None):
+    if not os.path.exists(image):
+        raise(ValueError("%s is not a valid file." % (image)))
+
+    img_dict = {'bytes': open(image, 'rb')}
+    study_space_id = validate_upload_data(study_space_id, title, ["not a file"])
+    args = {"studySpaceId": study_space_id,
+            "title": title}
+    return parse_hise_response(
+        requests.request("POST",
+                         hise_url("hydration", "upload_path", args = args),
+                         headers = get_bearer_token_header(),
+                         files = img_dict))
+    
 def freeze_dash_app(app,
                     study_space_id = None,
                     title = None,
