@@ -13,15 +13,6 @@ from hisepy.auth import get_from_metadata_server, get_bearer_token_header, insta
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
 
-#NB: Javascript-generated visualizations have data and layout fields that aren't recognized
-#by Python. If you run into errors loading visualizations from the UI, add unknown elements here
-#Format is list of field names, or dictionaries and subfields
-#  e.g. data["xField"] is invalid, as are
-#       data["marker"]["color"] and
-#       data["marker"]["size"]
-unknown_data_fields = ["xField","yField",{"marker": ["color","size"]}]
-unknown_layout_fields = [{"layout": ["margin", "autocolorscale"]}]
-
 dataframe_file_type = "Visualization-dataframe"
 
 def get_study_spaces():
@@ -74,6 +65,7 @@ def upload_files(files,
     
     trace_id = None
     study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
+    uploaded = []
     for i, f in enumerate(files):
         if not os.path.exists(f):
             raise(ValueError("%s is not a valid file." % (f)))
@@ -104,7 +96,8 @@ def upload_files(files,
         if "TraceId" not in df_data:
             raise(SystemError("Trace was not found in response to file upload. Cannot continue"))
         trace_id = df_data["TraceId"]
-    return trace_id
+        uploaded.push(df_data["FileId"])
+    return {"trace_id": trace_id, "files": uploaded}
 
 def save_visualization(pl_obj,
                        study_space_id = None,
@@ -126,13 +119,13 @@ def save_visualization(pl_obj,
     f.write(json.dumps(exp_obj["data"]))
     f.close()
 
-    trace_id = upload_files([tmp_data_file],
-                            study_space_id,
-                            title,
-                            input_file_ids,
-                            input_sample_ids,
-                            [dataframe_file_type])
-    args = {"traceId": trace_id,
+    up_res = upload_files([tmp_data_file],
+                          study_space_id,
+                          title,
+                          input_file_ids,
+                          input_sample_ids,
+                          [dataframe_file_type])
+    args = {"traceId": up_res["trace_id"],
             "images": img_data["id"]}
     
     #now null out the data and save the plotly without it
@@ -253,37 +246,25 @@ def load_visualization(trace_id):
         try:
             datauuid = uuid.UUID(ref)
             if datauuid != uuid.UUID(int = 0):
-                data = load_visualization_data(format(datauuid))
+                data = parse_hise_response(
+                    requests.request("GET",
+                                     hise_url("hydration",
+                                              "download_path",
+                                              format(datauuid)),
+                                     headers = get_bearer_token_header()))
             else:
                 #dataReference was empty UUID. Ignore
                 pass
         except Exception as e:
             print("Failed to load data reference %s: %s" % (ref, format(e)))
     
-    obj = load_visualization_layout(trace_id)
-    if data is not None:
-        if type(data) is not list:
-            raise(
-                ValueError("Visualization data for trace %s is a %s, not a list. Cannot render" %
-                           (trace_id, type(data))))
-        for d in data:
-            clean_vis_data(d, unknown_data_fields)
-            obj.add_trace(d)
-    return obj        
-
-def load_visualization_layout(trace_id):
-    fig = parse_hise_response(
+    obj = parse_hise_response(
         requests.request("GET",
                          hise_url("toolchain", "visualization_path", trace_id),
                          headers = get_bearer_token_header()))
-    clean_vis_data(fig, unknown_layout_fields)
-    return go.Figure(fig)
-
-def load_visualization_data(file_id):
-    return parse_hise_response(
-        requests.request("GET",
-                         hise_url("hydration", "download_path", file_id),
-                         headers = get_bearer_token_header()))
+    if data is not None:
+        obj["data"] = data
+    return go.Figure(obj, skip_invalid = True)        
 
 def recursive_dir_walk(start):
     found = []
@@ -300,19 +281,3 @@ def get_file_type(filename):
     else:
         return "json"
 
-def clean_vis_data(vis_data, fields_to_clean):
-    if type(vis_data) is not dict:
-        #your code is bad -- you tried to clean a thing that's not a dictionary
-        raise(ValueError("Cannot clean visualization of type %s" % (type(vis_data))))
-    elif type(fields_to_clean) is not list:
-        #your code is bad -- somewhere you've got a thing that's not a list
-        raise(ValueError("Cannot use a %s as list of visualization fields to clean" %
-                         (type(vis_data))))
-
-    for f in fields_to_clean:
-        if type(f) is str and f in vis_data:
-            vis_data.pop(f)
-        elif type(f) is dict:
-            for k in f.keys():
-                if k in vis_data:
-                    clean_vis_data(vis_data[k], f[k])
