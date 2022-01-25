@@ -40,8 +40,6 @@ from .upload import (
     save_static_image,
     save_visualization,
     load_visualization,
-    load_visualization_layout,
-    load_visualization_data,    
     get_trace,
     get_study_spaces,
     get_files_for_query,
