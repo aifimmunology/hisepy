@@ -96,7 +96,7 @@ def upload_files(files,
         if "TraceId" not in df_data:
             raise(SystemError("Trace was not found in response to file upload. Cannot continue"))
         trace_id = df_data["TraceId"]
-        uploaded.push(df_data["FileId"])
+        uploaded.append(df_data["FileId"])
     return {"trace_id": trace_id, "files": uploaded}
 
 def save_visualization(pl_obj,
