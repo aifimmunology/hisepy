@@ -145,7 +145,7 @@ def save_visualization(pl_obj,
                          files = vis_dict))
     os.remove(tmp_data_file)
     os.remove(tmp_plotly_file)
-    return trace_id
+    return up_res["trace_id"]
 
 def save_static_image(image,
                       study_space_id = None,
