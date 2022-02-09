@@ -70,6 +70,7 @@ TOOLCHAIN:
   SCHEDULER_PATH : toolchain/scheduler
   VISUALIZATION_PATH: toolchain/visualization
   UPLOAD_FILE_PATH: toolchain/file
+  SAVE_DASH_APP_PATH: toolchain/visualization/dash
   
 # scheduler endpoints and global... 
 SCHEDULER: 
