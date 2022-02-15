@@ -53,13 +53,27 @@ def default_study_space(must = True):
             print("%s: %s" % (s["id"], s["name"]))
         raise(ValueError("User belongs to multiple study spaces. Please specify with the study_space_id parameter"))
     return sspaces[0]
-    
-def upload_files(files,
-                 study_space_id = None,
-                 title = None,                 
-                 input_file_ids = [],
-                 input_sample_ids = [],
-                 file_types = []):
+
+def upload_files(files : list,
+                 study_space_id : str = None,
+                 title : str = None,                 
+                 input_file_ids : list = [],
+                 input_sample_ids : list = [],
+                 file_types : list = []):
+
+    def _user_prompt_upload(input_file_ids : list): 
+        '''
+        '''
+        print('you are trying to upload file_ids... {}. Do you truly want to proceed?'.format(input_file_ids))
+        user_input = input('(y/n)')
+        while user_input.lower() not in ['y','n']: 
+            print('please enter either "n" for no, or "y" for yes.')
+            user_input = input('(y/n)')
+        if (user_input.lower() == 'y'): 
+                return True
+        elif (user_input.lower() == 'n'): 
+                return False   
+
     if type(files) is not list or len(files) == 0:
         raise(ValueError("No files specified for upload"))
     
@@ -91,12 +105,16 @@ def upload_files(files,
                      "notebook": current_notebook()}
         url = hise_url("toolchain", "upload_file_path", args = qargs)
         headers = get_bearer_token_header()
-        df_data = parse_hise_response(
-            requests.request("POST", url, headers = headers, files = file_dict))
-        if "TraceId" not in df_data:
-            raise(SystemError("Trace was not found in response to file upload. Cannot continue"))
-        trace_id = df_data["TraceId"]
-        uploaded.append(df_data["FileId"])
+        if (_user_prompt_upload(input_file_ids = input_file_ids)): 
+            df_data = parse_hise_response(
+                requests.request("POST", url, headers = headers, files = file_dict))
+            if "TraceId" not in df_data:
+                raise(SystemError("Trace was not found in response to file upload. Cannot continue"))
+            trace_id = df_data["TraceId"]
+            uploaded.append(df_data["FileId"])
+        else: 
+            print('Uploading canceled.')
+            break
     return {"trace_id": trace_id, "files": uploaded}
 
 def save_visualization(pl_obj,
@@ -109,6 +127,13 @@ def save_visualization(pl_obj,
     tmp_plotly_file = "/tmp/plotly.json"
     tmp_img_file = "/tmp/plotly.png"
 
+    up_res = upload_files([tmp_data_file],
+                          study_space_id,
+                          title,
+                          input_file_ids,
+                          input_sample_ids,
+                          [dataframe_file_type])
+    
     pl_obj.write_image(tmp_img_file)
     img_data = save_static_image(tmp_img_file, study_space_id, title)
     os.remove(tmp_img_file)
@@ -119,12 +144,6 @@ def save_visualization(pl_obj,
     f.write(json.dumps(exp_obj["data"]))
     f.close()
 
-    up_res = upload_files([tmp_data_file],
-                          study_space_id,
-                          title,
-                          input_file_ids,
-                          input_sample_ids,
-                          [dataframe_file_type])
     args = {"traceId": up_res["trace_id"],
             "images": img_data["id"]}
     
