@@ -78,7 +78,7 @@ def list_files_in_project_folder(folder_name):
     return df 
 
 
-def download_from_project_folder(folder_name, file_name): 
+def download_from_project_folder(folder_name, file_name='', subdir=''): 
     '''
     Downloads a given file onto a users' IDE. The filepath pattern is as follows: 
     '~/folder_name/file_name'. 
@@ -93,31 +93,55 @@ def download_from_project_folder(folder_name, file_name):
         Returns: bool
             True if download was successful 
     '''
+    def _submit_url_download(url : str, foldern : str, filen: str):
+        '''
+        '''
+        resp= requests.request("GET",
+                                url,
+                                headers=get_bearer_token_header())
+        if resp.status_code != 200: 
+            raise(SystemError("Request to {} failed with status {}".format(url, resp.status_code)))
+        
+        # remove time-stamp info from file_name which is assumed to be the first string before the first '/' character
+        truncate_file_name = filen.split('/', maxsplit=1)[1]
+
+        with open('{}/{}/{}'.format(os.getcwd(), foldern, truncate_file_name), 'wb') as f:
+            f.write(resp.content)
     # create directory 
     try: 
         os.mkdir('{}/{}'.format(os.getcwd(), folder_name)) 
     except: # directory already exists, but we don't want to error out 
         pass
 
-    # create url download 
-    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-        ser=get_from_metadata_server(server_id_path),
-        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-        fol=folder_name,
-        fil='files',
-        fn=file_name)
-    resp= requests.request("GET",
-                            url,
-                            headers=get_bearer_token_header())
-    if resp.status_code != 200: 
-        raise(SystemError("Request to {} failed with status {}".format(url, resp.status_code)))
-    
-    # remove time-stamp info from file_name which is assumed to be the first string before the first '/' character
-    truncate_file_name = file_name.split('/', maxsplit=1)[1]
-    with open('{}/{}/{}'.format(os.getcwd(), folder_name, truncate_file_name), 'wb') as f:
-        f.write(resp.content)
-    
+    # case where user wants to download all files within a subdir they uploaded 
+    if ((file_name == '') & (subdir != '')): 
+        # find all files that has that subfolder in name 
+        list_files = list_files_in_project_folder(folder_name)['name'].unique().tolist() 
+        
+        # subset to entries with '/<subdir>/' in name
+        subdir_files = [x for x in list_files if '/{}/'.format(subdir) in x]
+
+        # create urls for each file in subset 
+        url_list = []
+        for i in subdir_files:
+            this_url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
+                ser=get_from_metadata_server(server_id_path),
+                hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+                pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
+                fol=folder_name,
+                fil='files',
+                fn=i)
+            _submit_url_download(this_url, folder_name, i)
+    else: 
+        # create url download 
+        url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
+            ser=get_from_metadata_server(server_id_path),
+            hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+            pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
+            fol=folder_name,
+            fil='files',
+            fn=file_name)
+        _submit_url_download(url, folder_name, file_name) 
     return True 
 
 
