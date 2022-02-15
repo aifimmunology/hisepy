@@ -54,7 +54,7 @@ def subject_to_df(list_subject_out):
     if len(list_subject_out) > 1:
         for i in range(1, len(list_subject_out)): 
             tmp_df = subject_to_df_worker(list_subject_out[i])
-            subject_df = subject_df.append(tmp_df)
+            subject_df = pd.concat([subject_df, tmp_df], ignore_index=True) 
     return subject_df
 
 
@@ -80,7 +80,7 @@ def _dict_to_df(input_df, col_name):
         this_dict = this_df[col_name].values[i]
         if this_dict is not None:
             this_dict.update((k, [v]) for k,v in this_dict.items())
-            fin_df = fin_df.append(pd.DataFrame.from_dict(this_dict))
+            fin_df = pd.concat([fin_df, pd.DataFrame.from_dict(this_dict)], ignore_index=True)
     return fin_df 
 
 
@@ -192,10 +192,10 @@ def sample_to_df(list_of_sample_obj):
         # loop and append 
         for i in range(1, len(list_of_sample_obj)): 
             tmp_df_dict = sample_to_df_worker(list_of_sample_obj[i])
-            sample_df_dict['metadata'] = sample_df_dict['metadata'].append(tmp_df_dict['metadata'])
-            sample_df_dict['specimens'] = sample_df_dict['specimens'].append(tmp_df_dict['specimens'])
-            sample_df_dict['survey'] = sample_df_dict['survey'].append(tmp_df_dict['survey'])
-            sample_df_dict['labResults'] = sample_df_dict['labResults'].append(tmp_df_dict['labResults'])
+            sample_df_dict['metadata'] = pd.concat([sample_df_dict['metadata'], tmp_df_dict['metadata']], ignore_index=True)
+            sample_df_dict['specimens'] = pd.concat([sample_df_dict['specimens'],tmp_df_dict['specimens']], ignore_index=True)
+            sample_df_dict['survey'] = pd.concat([sample_df_dict['survey'],tmp_df_dict['survey']], ignore_index=True)
+            sample_df_dict['labResults'] = pd.concat([sample_df_dict['labResults'], tmp_df_dict['labResults']], ignore_index=True)
     return(sample_df_dict) 
 
 
@@ -332,9 +332,9 @@ def descriptors_to_df(list_of_hise_files):
     lab_df = pd.DataFrame()
     spec_df = pd.DataFrame()
     for i in range(0, len(list_dict)): 
-        desc_df = desc_df.append(list_dict[i]['descriptors'])
-        lab_df = lab_df.append(list_dict[i]['labResults'])
-        spec_df = spec_df.append(list_dict[i]['specimens'])
+        desc_df = pd.concat([desc_df, list_dict[i]['descriptors']], ignore_index=True)
+        lab_df = pd.concat([lab_df, list_dict[i]['labResults']], ignore_index=True)
+        spec_df = pd.concat([spec_df, list_dict[i]['specimens']], ignore_index=True)
     final_dict = {'descriptors':desc_df, 
                   'labResults':lab_df,
                   'specimens':spec_df}
