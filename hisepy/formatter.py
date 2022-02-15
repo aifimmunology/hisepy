@@ -101,8 +101,8 @@ def sample_to_df_worker(sample_out):
     single_df = pd.DataFrame()
     meta_df = pd.DataFrame()
     spec_df = pd.DataFrame() 
-    surv_df = pd.DataFrame() 
     no_entry_df = pd.DataFrame()
+    surv_df = pd.DataFrame() 
     for dv in dict_keys:
         this_entry = sample_out[dv]
 
@@ -116,18 +116,24 @@ def sample_to_df_worker(sample_out):
                 no_entry_df = pd.concat([no_entry_df, no_entry_list], axis=1) 
             else: 
                 try: 
-                    if dv == 'survey': 
-                        for i in this_entry[0].keys(): 
-                            if (type(this_entry[0][i]) in [str,int]) | (this_entry[0][i] is None):
-                                tmp_surv_df = pd.DataFrame([this_entry[0][i]], columns=[i])
-                                surv_df = pd.concat([surv_df, tmp_surv_df], axis=1)
-                            elif type(this_entry[0][i] == dict): 
-                                this_entry[0][i].update((k, [v]) for k,v in this_entry[0][i].items())                
-                                tmp_surv_df = pd.DataFrame.from_dict(this_entry[0][i])
-                                tmp_cols = tmp_surv_df.columns.tolist()
-                                new_cols = ['{}.{}'.format(i, j) for j in tmp_cols]
-                                tmp_surv_df.columns = new_cols 
-                                surv_df = pd.concat([surv_df, tmp_surv_df], axis=1)
+                    if dv == 'survey':
+                        for i in list(range(0,len(this_entry))): 
+                            this_surv_df = pd.DataFrame() 
+                            for j in this_entry[i].keys(): 
+                                survey_entry = this_entry[i][j]
+                                if (type(survey_entry) in [str,int]) | (survey_entry is None):
+                                    tmp_surv_df = pd.DataFrame([survey_entry], columns=[j])
+                                    this_surv_df = pd.concat([this_surv_df, tmp_surv_df], axis=1)
+                                elif ((type(survey_entry) == dict) | (j == 'revisionHistory')): 
+                                    if (j == 'revisionHistory'): 
+                                        survey_entry = survey_entry[0]
+                                    survey_entry.update((k, [v]) for k,v in survey_entry.items())                
+                                    tmp_surv_df = pd.DataFrame.from_dict(survey_entry)
+                                    tmp_cols = tmp_surv_df.columns.tolist()
+                                    new_cols = ['{}.{}'.format(j, k) for k in tmp_cols]
+                                    tmp_surv_df.columns = new_cols 
+                                    this_surv_df = pd.concat([this_surv_df, tmp_surv_df], axis=1)
+                            surv_df = pd.concat([surv_df, this_surv_df], axis=0)
                     elif dv == 'specimens':
                         for i in range(0,len(this_entry)): 
                             this_entry[i].update((k, [v]) for k,v in this_entry[i].items())                
