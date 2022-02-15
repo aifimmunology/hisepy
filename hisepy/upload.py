@@ -6,6 +6,7 @@ import os
 import importlib
 import plotly.graph_objects as go
 import dash
+from shutil import rmtree
 from flask_frozen import Freezer
 from dash.fingerprint import build_fingerprint
 
@@ -189,6 +190,7 @@ def freeze_dash_app(app,
                     input_sample_ids = []):
     study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
     build_dir = "%s/build" % (app.server.root_path)
+    rmtree(build_dir)
     dash_path_tokens = os.path.abspath(dash.__file__).split("/")
     dash_path = "/".join(dash_path_tokens[0:-1])
     mod_versions = {}
@@ -234,17 +236,20 @@ def freeze_dash_app(app,
         yield "/<path:path>", {"path": "index.html"} 
 
     freezer.freeze()
-    filenames = recursive_dir_walk(build_dir)
-    tr = upload_files(filenames,
-                      study_space_id,
-                      title,
-                      input_file_ids,
-                      input_sample_ids)
     
-    for f in filenames:
-        os.remove(f)
-    os.rmdir(build_dir)
-    return tr
+    qargs = {"studySpaceId": study_space_id,
+             "title": title,
+             "saveIDE": True,
+             "instanceId": get_from_metadata_server(instance_name_path),
+             "inputFileIds": input_file_ids,
+             "sampleIds": input_sample_ids,
+             "notebook": current_notebook(),
+             "buildDirectory": build_dir}
+    url = hise_url("toolchain", "save_dash_app_path", args = qargs)
+    headers = get_bearer_token_header()
+    ret = parse_hise_response(requests.request("POST", url, headers = headers))
+    rmtree(build_dir)
+    return ret
     
 def validate_upload_data(study_space_id, title, input_file_ids):
     if study_space_id is None:
@@ -284,15 +289,6 @@ def load_visualization(trace_id):
     if data is not None:
         obj["data"] = data
     return go.Figure(obj, skip_invalid = True)        
-
-def recursive_dir_walk(start):
-    found = []
-    for root, dirs, files in os.walk(start):
-        for f in files:
-            found.append("%s/%s" % (root, f))
-        for d in dirs:
-            found += recursive_dir_walk("%s/%s" % (root,d))
-    return found
 
 def get_file_type(filename):
     if "." in filename:
