@@ -249,7 +249,6 @@ def freeze_dash_app(app,
     url = hise_url("toolchain", "save_dash_app_path", args = qargs)
     headers = get_bearer_token_header()
     ret = parse_hise_response(requests.request("POST", url, headers = headers))
-    rmtree(build_dir)
     return ret
     
 def validate_upload_data(study_space_id, title, input_file_ids):
