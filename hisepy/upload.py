@@ -190,7 +190,7 @@ def freeze_dash_app(app,
                     input_sample_ids = []):
     study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
     build_dir = "%s/build" % (app.server.root_path)
-    if os.path.is_dir(build_dir):
+    if os.path.isdir(build_dir):
         rmtree(build_dir)
     dash_path_tokens = os.path.abspath(dash.__file__).split("/")
     dash_path = "/".join(dash_path_tokens[0:-1])
