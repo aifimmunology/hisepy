@@ -128,13 +128,6 @@ def save_visualization(pl_obj,
     tmp_plotly_file = "/tmp/plotly.json"
     tmp_img_file = "/tmp/plotly.png"
 
-    up_res = upload_files([tmp_data_file],
-                          study_space_id,
-                          title,
-                          input_file_ids,
-                          input_sample_ids,
-                          [dataframe_file_type])
-    
     pl_obj.write_image(tmp_img_file)
     img_data = save_static_image(tmp_img_file, study_space_id, title)
     os.remove(tmp_img_file)
@@ -144,7 +137,14 @@ def save_visualization(pl_obj,
     f = open(tmp_data_file, "w")
     f.write(json.dumps(exp_obj["data"]))
     f.close()
-
+    
+    up_res = upload_files([tmp_data_file],
+                          study_space_id,
+                          title,
+                          input_file_ids,
+                          input_sample_ids,
+                          [dataframe_file_type])
+    
     args = {"traceId": up_res["trace_id"],
             "images": img_data["id"]}
     
@@ -190,7 +190,8 @@ def freeze_dash_app(app,
                     input_sample_ids = []):
     study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
     build_dir = "%s/build" % (app.server.root_path)
-    rmtree(build_dir)
+    if os.path.is_dir(build_dir):
+        rmtree(build_dir)
     dash_path_tokens = os.path.abspath(dash.__file__).split("/")
     dash_path = "/".join(dash_path_tokens[0:-1])
     mod_versions = {}
