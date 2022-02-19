@@ -345,6 +345,8 @@ def descriptors_to_df(list_of_hise_files):
         tmp_df = descriptors_to_df_worker([list_of_hise_files[i]])
         list_dict += [tmp_df]
         if filetype == 'csv': 
+            # attach file_name 
+            list_of_hise_files[i].data_values['filename'] = list_of_hise_files[i].descriptors['file']['name']
             values_df = pd.concat([values_df, list_of_hise_files[i].data_values], ignore_index=True)
         elif filetype == 'h5':
             values_list.append(list_of_hise_files[i].data_values)
