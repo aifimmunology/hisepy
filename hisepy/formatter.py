@@ -344,6 +344,8 @@ def descriptors_to_df(list_of_hise_files):
     for i in range(0,len(list_of_hise_files)): 
         tmp_df = descriptors_to_df_worker([list_of_hise_files[i]])
         list_dict += [tmp_df]
+
+        # create an object of data values for a given data type 
         if filetype == 'csv': 
             # attach file_name 
             list_of_hise_files[i].data_values['filename'] = list_of_hise_files[i].descriptors['file']['name']
