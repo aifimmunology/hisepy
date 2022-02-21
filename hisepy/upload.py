@@ -10,9 +10,11 @@ from shutil import rmtree
 from flask_frozen import Freezer
 from dash.fingerprint import build_fingerprint
 
+import hisepy.common_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path, debug
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
+
 
 dataframe_file_type = "Visualization-dataframe"
 
@@ -89,7 +91,7 @@ def upload_files(files : list,
                      (f, open(f, 'rb'),
                       'application/json', {'Expires': '0'})}
         qargs = None
-        file_type = get_file_type(f)
+        file_type = cu.get_filetype(f)
         if type(file_types) is list and len(file_types) > i:
             file_type = file_types[i]
         if trace_id is not None:
@@ -173,7 +175,7 @@ def save_static_image(image,
     if not os.path.exists(image):
         raise(ValueError("%s is not a valid file." % (image)))
     
-    img_dict = {'bytes': (image, open(image, 'rb'), "image/%s" % (get_file_type(image)))}
+    img_dict = {'bytes': (image, open(image, 'rb'), "image/%s" % (cu.get_filetype(image)))}
     study_space_id = validate_upload_data(study_space_id, title, ["not a file"])
     args = {"studySpaceId": study_space_id,
             "title": title}
