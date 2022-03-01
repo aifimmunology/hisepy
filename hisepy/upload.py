@@ -6,6 +6,7 @@ import os
 import importlib
 import plotly.graph_objects as go
 import dash
+import warnings
 from shutil import rmtree
 from flask_frozen import Freezer
 from dash.fingerprint import build_fingerprint
@@ -17,6 +18,7 @@ from hisepy.scheduler import current_notebook
 
 
 dataframe_file_type = "Visualization-dataframe"
+freezer_ignore_endpoints = {"shutdown": None}
 
 def get_study_spaces():
     return parse_hise_response(
@@ -167,7 +169,7 @@ def save_visualization(pl_obj,
                          files = vis_dict))
     os.remove(tmp_data_file)
     os.remove(tmp_plotly_file)
-    return up_res["trace_id"]
+    return up_res
 
 def save_static_image(image,
                       study_space_id = None,
@@ -197,12 +199,12 @@ def freeze_dash_app(app,
     dash_path_tokens = os.path.abspath(dash.__file__).split("/")
     dash_path = "/".join(dash_path_tokens[0:-1])
     mod_versions = {}
-    app.server.config.setdefault('FREEZER_DEFAULT_MIMETYPE',
-                                 'application/json')
-    freezer = Freezer(app.server)
-    
+    app.server.config.setdefault('FREEZER_DEFAULT_MIMETYPE', 'application/json')
+    freezer = Freezer(app = app.server,
+                      with_no_argument_rules = False)
+        
     @freezer.register_generator
-    def componentSuites():
+    def component_suites():
         for p in app.registered_paths["dash"]:
             fpath = "%s/%s" % (dash_path, p)
             if not os.path.exists(fpath):
@@ -238,7 +240,27 @@ def freeze_dash_app(app,
     def default():
         yield "/<path:path>", {"path": "index.html"} 
 
-    freezer.freeze()
+    @freezer.register_generator
+    def no_arg_generator():
+        #replace the build-in no-arg generator with one that ignores the "shutdown" endpoint.
+        #which, like, why would you try to freeze that? 
+        for rule in app.server.url_map.iter_rules():
+            if rule.endpoint in freezer_ignore_endpoints:
+                continue
+            if not rule.arguments and 'GET' in rule.methods:
+                yield rule.endpoint, {}
+
+    #NB on my local server I observed that registered_paths were empty when with_no_argument_rules was set to False
+    #After tracing some code I figured out that they aren't generated until somebody asks for them,
+    #and that the order in which things are asked for matters.
+    #So I explicitly ask for the main index page before freezing the app to make sure all the other paths are set.
+    #tl;dr: this next line is important, don't remove it
+    app.index()
+                
+    with warnings.catch_warnings():
+        if not debug():
+            warnings.simplefilter("ignore")
+        freezer.freeze()
     
     qargs = {"studySpaceId": study_space_id,
              "title": title,
