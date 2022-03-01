@@ -1,5 +1,4 @@
 import json
-import types
 import requests
 import urllib
 import uuid
