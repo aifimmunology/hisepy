@@ -166,11 +166,16 @@ def get_file_descriptors(file_list : list = None,
     # do parsing 
     hise_file_list = []
     for f in obj: 
+        batch_id = "unknown"
+        if "batchID" in f['descriptors']['file'] and f['descriptors']['file']["batchID"] != "":
+            batch_id = f['descriptors']['file']["batchID"]
+        file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
+        file_name = f['descriptors']['file']["name"].split("/")[-1]
+        filetype = cu.get_filetype(file_name)
         hise_file_list += [hise_file(file_id = f['descriptors']['file']['id'],
-                                    file_path = "/Users/james.harvey/workplace",
+                                    file_path = file_dir,
                                     descriptors = f["descriptors"],
-                                    file_type = 'test',
-                                    data_values = 'no_val'
+                                    file_type = filetype
         )]
     desc_df = hf.descriptors_to_df(hise_file_list)
     return desc_df 
