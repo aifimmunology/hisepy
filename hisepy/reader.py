@@ -139,15 +139,28 @@ def query_files(user_query : dict):
     return obj["payload"]
 
 
-# all this is going to do is do a POST, and parse the response 
-# bench marking the read_files() command: 
-    ## 1.18 seconds to POST 
-    ## 4.54 seconds to convert and download file 
+
 def get_file_descriptors(file_list : list = None, 
                          query_id : str = None,
                          query_dict : dict = None): # TBD on actual name of this 
-    ''' an addition to readFiles, where a user can specifiy whether or not they want to download the data. 
-        If not, use this method to retrieve metadata/descriptors for each requested file 
+    ''' Load all file descriptors (file/sample/subject metadata) and return a dict of data.frames 
+        Parameters: 
+            file_list : list
+                - list of file_ids
+            query_id : str
+                - query_id obtained from HISE's Advanced Search
+            query_dict : dict 
+                - dictionary that contains query parameters  
+        Output: 
+            desc_df : list
+                - dictionary of data.frame objects
+        
+        Examples: 
+            df_dict = get_file_descriptors(file_list) 
+            df_dict.keys() # print keys of dict
+            df_dict['descriptors'] # to view descriptors 
+            df_dict['labResults'] # lab results 
+            df_dict['specimens'] # specimen df 
     '''
     obj = post_query(file_list, query_id, query_dict)
 
@@ -168,7 +181,6 @@ def post_query(file_list : list = None,
                query_dict : dict = None): 
     '''
     '''
-    start = time.perf_counter()
     # make sure users only use 1 parameter 
     if file_list is not None: 
         assert (query_id is None) & (query_dict is None)
@@ -332,7 +344,6 @@ def cache_and_convert_file_data(file_data : dict):
 def cache_file(url : str,
                file_name : str,
                file_dir : str):
-    start = time.perf_counter()
     if not os.path.exists(file_dir):
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
     
@@ -341,7 +352,6 @@ def cache_file(url : str,
     if resp.status_code != 200:
         raise(SystemError("Request to get file %s from %s failed with status %d. %s" %
                           (file_name,resp.status_code,resp.text)))
-    print(f"completed execeution of caching in {time.perf_counter() - start} seconds")
     open(f_path, 'wb').write(resp.content)
 
 
