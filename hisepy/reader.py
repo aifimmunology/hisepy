@@ -175,7 +175,6 @@ def read_files(file_list=None, query_id=None, query_dict=None, to_df=True):
     if (query_dict is not None): 
         payload = query_files(query_dict)
         file_list = []
-        import pdb; pdb.set_trace()
         for i in range(0,len(payload)): 
             file_list += [payload[i]['file']['id']]
 
