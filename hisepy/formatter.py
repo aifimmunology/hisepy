@@ -11,10 +11,27 @@ import os
 from pandas.core.frame import DataFrame 
 import hisepy.common_utils as cu
 import pandas as pd 
+import h5py
 
 # setting global config 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+
+
+
+def convert_data_values(filepath : str, filetype : str): 
+    ''' 
+    '''
+    try: 
+        if filetype == 'csv':
+            return(pd.read_csv(filepath))
+        elif filetype == 'h5':
+            return(h5py.File(filepath, mode='r'))
+        else: 
+            return None  
+    except:
+        raise(Exception("Uh-oh, the file wasn't downloaded into the /cache directory")) 
+
 
 # there's another layer/dict under emr.patientData. is leaving a dict under this column okay?
 # Do we want to expand this and create a df? maybe have a parameter asking what users want?  
@@ -264,48 +281,66 @@ def descriptors_to_df_worker(hise_file):
             dict_df : dictionary with keys where values are data.frames 
     '''
 
-    # grab all keys from descriptor object 
-    descriptor_keys = hise_file[0].descriptors.keys() 
-    this_desc = hise_file[0].descriptors.copy()  
-    desc_labs = this_desc['lab'].copy() 
-    df_desc = pd.DataFrame() 
+    # grab all keys from descriptor object
+    dict_df = {'descriptors' : pd.DataFrame(), 
+                'labResults' : pd.DataFrame(),
+                'specimens' : pd.DataFrame()
+                }
 
-    # go through each object and convert into a data.frame 
-    # lab results has some extra layers to the dictionary, so we'll do that separately  
-    # emr shouldn't exist in descriptors (removed in hydration service)  
-    for dk in descriptor_keys: 
-        if (dk in ['specimens','lab','emr','lastUpdated','labLastModified','surveyLastModified']) | (this_desc[dk] == None): 
-            continue 
+    # calculate length of descriptors iff the type is a list 
+    if type(hise_file[0].descriptors) == dict: 
+        desc_len = 1 # otherwise, just iterate once 
+    elif type(hise_file[0].descriptors) == list: 
+        desc_len = len(hise_file[0].descriptors)
 
-        # convert dictionary to dataframe  
-        copy_tmp = this_desc[dk].copy() 
-        copy_tmp.update((k, [v]) for k,v in copy_tmp.items())
-        tmp_df = pd.DataFrame(copy_tmp) 
+    for i in list(range(0,desc_len)):
+        
+        # most cases, we should just have a single descriptor we're working with
+        try: 
+            descriptor_keys = hise_file[0].descriptors.keys() 
+            this_desc = hise_file[0].descriptors.copy()  
+        except: 
+            descriptor_keys = hise_file[0].descriptors[i].keys() 
+            this_desc = hise_file[0].descriptors[i].copy()  
+        
+        df_desc = pd.DataFrame() 
 
-        # rename columns by adding a prefix (i.e lab.<col>, file.<col>, etc)
-        tmp_df_cols = tmp_df.columns.tolist()
-        new_cols = ['{}.{}'.format(dk, i) for i in tmp_df_cols]
-        tmp_df.columns = new_cols 
+        # go through each object and convert into a data.frame 
+        # lab results has some extra layers to the dictionary, so we'll do that separately  
+        # emr shouldn't exist in descriptors (removed in hydration service)  
+        for dk in descriptor_keys: 
+            if (dk in ['specimens','lab','emr','lastUpdated','labLastModified','surveyLastModified']) | (this_desc[dk] == None): 
+                continue 
 
-        df_desc = pd.concat([df_desc, tmp_df], axis=1)
+            # convert dictionary to dataframe  
+            copy_tmp = this_desc[dk].copy() 
+            copy_tmp.update((k, [v]) for k,v in copy_tmp.items())
+            tmp_df = pd.DataFrame(copy_tmp) 
 
-    # handle lastUpdated, labLastModified, and surveyLastModified - create df then rename column 
-    update_df = pd.DataFrame()
-    for update_col in ['lastUpdated','labLastModified','surveyLastModified']: 
-        this_desc[update_col] = [this_desc[update_col]]
-        update_df = pd.DataFrame.from_dict(this_desc[update_col]).rename(columns={0:update_col})
-        df_desc = pd.concat([df_desc, update_df], axis=1) #column bind 
+            # rename columns by adding a prefix (i.e lab.<col>, file.<col>, etc)
+            tmp_df_cols = tmp_df.columns.tolist()
+            new_cols = ['{}.{}'.format(dk, i) for i in tmp_df_cols]
+            tmp_df.columns = new_cols 
 
-    # now take care of lab results
-    lab_df = _desc_lab_to_df(this_desc['lab'].copy())
+            df_desc = pd.concat([df_desc, tmp_df], axis=1)
 
-    # and now handle specimens 
-    spec_df = _desc_specimen_to_df(this_desc['specimens'], this_desc['sample']['sampleKitGuid'])
+        # handle lastUpdated, labLastModified, and surveyLastModified - create df then rename column 
+        update_df = pd.DataFrame()
+        for update_col in ['lastUpdated','labLastModified','surveyLastModified']: 
+            this_desc[update_col] = [this_desc[update_col]]
+            update_df = pd.DataFrame.from_dict(this_desc[update_col]).rename(columns={0:update_col})
+            df_desc = pd.concat([df_desc, update_df], axis=1) #column bind 
 
-    # do some final cleaning and return a dictionary of data.frames 
-    dict_df = {'descriptors': df_desc, 
-                'labResults' : lab_df,
-                'specimens' : spec_df}
+        # now take care of lab results
+        lab_df = _desc_lab_to_df(this_desc['lab'].copy())
+
+        # and now handle specimens 
+        spec_df = _desc_specimen_to_df(this_desc['specimens'], this_desc['sample']['sampleKitGuid'])
+
+        # do some final cleaning and return a dictionary of data.frames 
+        dict_df['descriptors'] = dict_df['descriptors'].append(df_desc) 
+        dict_df['labResults'] = dict_df['labResults'].append(lab_df)
+        dict_df['specimens'] = dict_df['specimens'].append(spec_df)
     return(dict_df)
 
 
@@ -318,13 +353,26 @@ def descriptors_to_df(list_of_hise_files):
                 a list of hise_file objects  
 
         Returns: 
-            final_dict : dictionary with keys {'descriptors',labResults'} that both contain appended data.frames 
+            final_dict : dictionary with keys {'descriptors',labResults', 'specimens', 'values'} which are all data.frame objects. 
+            except for values, which depends on the filetype the user passes in. 
     '''
-
+    filetype = list_of_hise_files[0].filetype
     list_dict = []
+    values_df = pd.DataFrame()
+    values_list = []
     for i in range(0,len(list_of_hise_files)): 
+        # does the descriptor object in a hise_file object contain a single dictionary, or a list of descriptors? 
         tmp_df = descriptors_to_df_worker([list_of_hise_files[i]])
         list_dict += [tmp_df]
+
+        # create an object of data values for a given data type 
+        # TODO: switch cases for file_types all within HISE 
+        if filetype == 'csv': 
+            # attach file_name 
+            list_of_hise_files[i].data_values['filename'] = list_of_hise_files[i].descriptors['file']['name']
+            values_df = pd.concat([values_df, list_of_hise_files[i].data_values], ignore_index=True)
+        elif filetype == 'h5':
+            values_list.append(list_of_hise_files[i].data_values)
 
     # go through all results from read_files() output, and create a master dictionary 
     # then parse through and append appropriately 
@@ -335,9 +383,17 @@ def descriptors_to_df(list_of_hise_files):
         desc_df = pd.concat([desc_df, list_dict[i]['descriptors']], ignore_index=True)
         lab_df = pd.concat([lab_df, list_dict[i]['labResults']], ignore_index=True)
         spec_df = pd.concat([spec_df, list_dict[i]['specimens']], ignore_index=True)
+    
+    if filetype =='csv': 
+        data_values = values_df 
+    elif filetype == 'h5': 
+        data_values = values_list
+    else: # don't return anything useful under values 
+        data_values = [] 
     final_dict = {'descriptors':desc_df, 
                   'labResults':lab_df,
-                  'specimens':spec_df}
+                  'specimens':spec_df,
+                  'values' : data_values}
     return(final_dict) 
 
 
