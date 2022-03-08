@@ -33,7 +33,7 @@ class hise_file:
         attaches fields like path or descriptors to hise_file object 
     '''
 
-    def __init__(self, file_id, file_path = None, descriptors = None):
+    def __init__(self, file_id, file_path = None, file_type = None, descriptors = None, data_values=None):
         if type(file_id) is uuid.UUID:
             self.id = file_id
         else:
@@ -49,9 +49,13 @@ class hise_file:
             self.path = file_path
             self.status = True
             self.message = "OK"
+            self.filetype = cu.get_filetype(file_path)
+            self.data_values = data_values
         else:
             self.descriptors = None
             self.path = None
+            self.filetype = None 
+            self.data_values = None 
             
     def load(self):
         if self.path is not None and os.path.exists(self.path):
@@ -171,6 +175,7 @@ def read_files(file_list=None, query_id=None, query_dict=None, to_df=True):
     if (query_dict is not None): 
         payload = query_files(query_dict)
         file_list = []
+        import pdb; pdb.set_trace()
         for i in range(0,len(payload)): 
             file_list += [payload[i]['file']['id']]
 
@@ -254,6 +259,8 @@ def download_files(file_dict):
 
     return response
 
+
+
 def cache_and_convert_file_data(file_data):
     '''
     Helper function to convert files into a hise_file object 
@@ -264,19 +271,29 @@ def cache_and_convert_file_data(file_data):
         raise(Exception("Descriptors not found in file data %s" % (file_data)))
     elif "url" not in file_data:
         raise(Exception("No download url found in file data %s" % (file_data)))
+    # always working with a single file-id at this point. but there may be multiple descriptor objects 
+    try:
+        f_desc = file_data["descriptors"]["file"]
+    except:
+        # TODO: loop through this object and ensure all file_ids are the same  
+        f_desc = file_data['descriptors'][0]['file']
 
-    f_desc = file_data["descriptors"]["file"]
     batch_id = "unknown"
     if "batchID" in f_desc and f_desc["batchID"] != "":
         batch_id = f_desc["batchID"]
     file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
     file_name = f_desc["name"].split("/")[-1]
+    this_filetype = cu.get_filetype(file_name)
     cache_file(file_data["url"],
                file_name,
                file_dir)
+    this_file_values = hf.convert_data_values('{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id = f_desc["id"],
                      file_path = "%s/%s" % (file_dir, file_name),
-                     descriptors = file_data["descriptors"])
+                     descriptors = file_data["descriptors"],
+                     file_type = this_filetype,
+                     data_values = this_file_values
+                     )
 
 
 def cache_file(url, file_name, file_dir):
