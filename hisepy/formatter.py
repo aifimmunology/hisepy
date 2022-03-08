@@ -292,6 +292,8 @@ def descriptors_to_df_worker(hise_file):
     elif type(hise_file[0].descriptors) == list: 
         desc_len = len(hise_file[0].descriptors)
 
+    # the only time we should be utilizing this loop (i.e i > 1), 
+    # will be when a file_id is associated with multiple files 
     for i in list(range(0,desc_len)):
         
         # most cases, we should just have a single descriptor we're working with
@@ -360,7 +362,6 @@ def descriptors_to_df(list_of_hise_files):
     values_df = pd.DataFrame()
     values_list = []
     for i in range(0,len(list_of_hise_files)): 
-        # does the descriptor object in a hise_file object contain a single dictionary, or a list of descriptors? 
         tmp_df = descriptors_to_df_worker([list_of_hise_files[i]])
         list_dict += [tmp_df]
 
