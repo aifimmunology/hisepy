@@ -10,7 +10,6 @@ from hisepy.auth import get_from_metadata_server, get_bearer_token_header, serve
 import hisepy.formatter as hf 
 import hisepy.lookup as hl 
 
-import time
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
