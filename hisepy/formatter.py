@@ -18,10 +18,6 @@ _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
-<<<<<<< HEAD
-
-=======
->>>>>>> development
 def convert_data_values(filepath : str, filetype : str): 
     ''' 
     '''
@@ -369,10 +365,6 @@ def descriptors_to_df(list_of_hise_files):
         list_dict += [tmp_df]
 
         # create an object of data values for a given data type 
-<<<<<<< HEAD
-        # TODO: switch cases for file_types all within HISE 
-=======
->>>>>>> development
         if filetype == 'csv': 
             # attach file_name 
             list_of_hise_files[i].data_values['filename'] = list_of_hise_files[i].descriptors['file']['name']
