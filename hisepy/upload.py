@@ -6,15 +6,19 @@ import os
 import importlib
 import plotly.graph_objects as go
 import dash
+import warnings
 from shutil import rmtree
 from flask_frozen import Freezer
 from dash.fingerprint import build_fingerprint
 
+import hisepy.common_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path, debug
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
 
+
 dataframe_file_type = "Visualization-dataframe"
+freezer_ignore_endpoints = {"shutdown": None}
 
 def get_study_spaces():
     return parse_hise_response(
@@ -89,7 +93,7 @@ def upload_files(files : list,
                      (f, open(f, 'rb'),
                       'application/json', {'Expires': '0'})}
         qargs = None
-        file_type = get_file_type(f)
+        file_type = cu.get_filetype(f)
         if type(file_types) is list and len(file_types) > i:
             file_type = file_types[i]
         if trace_id is not None:
@@ -165,7 +169,7 @@ def save_visualization(pl_obj,
                          files = vis_dict))
     os.remove(tmp_data_file)
     os.remove(tmp_plotly_file)
-    return up_res["trace_id"]
+    return up_res
 
 def save_static_image(image,
                       study_space_id = None,
@@ -173,7 +177,7 @@ def save_static_image(image,
     if not os.path.exists(image):
         raise(ValueError("%s is not a valid file." % (image)))
     
-    img_dict = {'bytes': (image, open(image, 'rb'), "image/%s" % (get_file_type(image)))}
+    img_dict = {'bytes': (image, open(image, 'rb'), "image/%s" % (cu.get_filetype(image)))}
     study_space_id = validate_upload_data(study_space_id, title, ["not a file"])
     args = {"studySpaceId": study_space_id,
             "title": title}
@@ -195,12 +199,12 @@ def freeze_dash_app(app,
     dash_path_tokens = os.path.abspath(dash.__file__).split("/")
     dash_path = "/".join(dash_path_tokens[0:-1])
     mod_versions = {}
-    app.server.config.setdefault('FREEZER_DEFAULT_MIMETYPE',
-                                 'application/json')
-    freezer = Freezer(app.server)
-    
+    app.server.config.setdefault('FREEZER_DEFAULT_MIMETYPE', 'application/json')
+    freezer = Freezer(app = app.server,
+                      with_no_argument_rules = False)
+        
     @freezer.register_generator
-    def componentSuites():
+    def component_suites():
         for p in app.registered_paths["dash"]:
             fpath = "%s/%s" % (dash_path, p)
             if not os.path.exists(fpath):
@@ -236,7 +240,27 @@ def freeze_dash_app(app,
     def default():
         yield "/<path:path>", {"path": "index.html"} 
 
-    freezer.freeze()
+    @freezer.register_generator
+    def no_arg_generator():
+        #replace the build-in no-arg generator with one that ignores the "shutdown" endpoint.
+        #which, like, why would you try to freeze that? 
+        for rule in app.server.url_map.iter_rules():
+            if rule.endpoint in freezer_ignore_endpoints:
+                continue
+            if not rule.arguments and 'GET' in rule.methods:
+                yield rule.endpoint, {}
+
+    #NB on my local server I observed that registered_paths were empty when with_no_argument_rules was set to False
+    #After tracing some code I figured out that they aren't generated until somebody asks for them,
+    #and that the order in which things are asked for matters.
+    #So I explicitly ask for the main index page before freezing the app to make sure all the other paths are set.
+    #tl;dr: this next line is important, don't remove it
+    app.index()
+                
+    with warnings.catch_warnings():
+        if not debug():
+            warnings.simplefilter("ignore")
+        freezer.freeze()
     
     qargs = {"studySpaceId": study_space_id,
              "title": title,
