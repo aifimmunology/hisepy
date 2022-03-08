@@ -4,7 +4,8 @@ from .reader import (
     read_files, 
     read_subjects, 
     read_samples, 
-    query_files
+    query_files,
+    get_file_descriptors
 )
 from .scheduler import (
     notebook_job, 
