@@ -10,6 +10,7 @@ from hisepy.auth import get_from_metadata_server, get_bearer_token_header, serve
 import hisepy.formatter as hf 
 import hisepy.lookup as hl 
 
+import time
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -73,7 +74,7 @@ class hise_file:
 
 
 # TODO: refactor and expand logic to some mongo-human query translator class 
-def _add_prefix_to_query(user_query): 
+def _add_prefix_to_query(user_query : dict): 
         ''' 
         Takes users' query and adds the appropriate prefix to the field_names 
         '''
@@ -94,7 +95,7 @@ def _add_prefix_to_query(user_query):
 
 
 # TODO: refactor and inlcude to future mongo query class 
-def _create_mongo_query_in(user_query): 
+def _create_mongo_query_in(user_query : dict): 
     '''
     Takes a users' dictionary, and converts all entries and.
     Note: You can think of this as just a bunch of "OR" booleans 
@@ -108,7 +109,7 @@ def _create_mongo_query_in(user_query):
     return user_query
 
 
-def query_files(user_query): 
+def query_files(user_query : dict): 
     '''
     loads all associated files for a user-submitted query
         Parameters:
@@ -138,27 +139,36 @@ def query_files(user_query):
     return obj["payload"]
 
 
-
-def read_files(file_list=None, query_id=None, query_dict=None, to_df=True):
+# all this is going to do is do a POST, and parse the response 
+# bench marking the read_files() command: 
+    ## 1.18 seconds to POST 
+    ## 4.54 seconds to convert and download file 
+def get_file_descriptors(file_list : list = None, 
+                         query_id : str = None,
+                         query_dict : dict = None): # TBD on actual name of this 
+    ''' an addition to readFiles, where a user can specifiy whether or not they want to download the data. 
+        If not, use this method to retrieve metadata/descriptors for each requested file 
     '''
-    Read the contents of a list of file ids into a hise_file object 
+    obj = post_query(file_list, query_id, query_dict)
 
-    NOTE: users should only use 1 parameter per function call
+    # do parsing 
+    hise_file_list = []
+    for f in obj: 
+        hise_file_list += [hise_file(file_id = f['descriptors']['file']['id'],
+                                    file_path = "/Users/james.harvey/workplace",
+                                    descriptors = f["descriptors"],
+                                    file_type = 'test',
+                                    data_values = 'no_val'
+        )]
+    desc_df = hf.descriptors_to_df(hise_file_list)
+    return desc_df 
 
-        Parameters:
-            file_list : list 
-                a list of UUIDS to retrieve
-            query_id : str
-                string value of queryID from Advanced Search
-            query_dict : dict
-                dictionary that allows users to submit a query. 
-                NOTE: for each key:value pair, the value must be of type list 
-    
-        Returns: 
-            response : a list of hise_file objects 
-
+def post_query(file_list : list = None,
+               query_id : str = None,
+               query_dict : dict = None): 
     '''
-
+    '''
+    start = time.perf_counter()
     # make sure users only use 1 parameter 
     if file_list is not None: 
         assert (query_id is None) & (query_dict is None)
@@ -202,10 +212,35 @@ def read_files(file_list=None, query_id=None, query_dict=None, to_df=True):
     obj = json.loads(resp.text)
     if type(obj) is not list:
         raise(TypeError("Response %s is not a list, it is a %s." % (resp.text, type(obj))))
+    return obj 
+
+
+def read_files(file_list : list = None, 
+               query_id : str = None, 
+               query_dict : dict = None,
+               to_df : bool = True):
+    '''
+    Read the contents of a list of file ids into a hise_file object 
+
+    NOTE: users should only use 1 parameter per function call
+
+        Parameters:
+            file_list : list 
+                a list of UUIDS to retrieve
+            query_id : str
+                string value of queryID from Advanced Search
+            query_dict : dict
+                dictionary that allows users to submit a query. 
+                NOTE: for each key:value pair, the value must be of type list 
+    
+        Returns: 
+            response : a list of hise_file objects 
+
+    '''
+    obj = post_query(file_list, query_id, query_dict)
     
     #each object should be a set of descriptors and a url to download a file
     response = []
-    
     for f in obj:
         if "id" not in f:
             f["id"] = uuid.UUID(int = 0)
@@ -222,7 +257,7 @@ def read_files(file_list=None, query_id=None, query_dict=None, to_df=True):
     else: 
         return response
 
-def download_files(file_dict):
+def download_files(file_dict : dict):
     '''
     Read the contents of a dictionary of non-result file ids into hise_file objects
     These files will contain NULL descriptors (since they are not result files)
@@ -260,7 +295,7 @@ def download_files(file_dict):
 
 
 
-def cache_and_convert_file_data(file_data):
+def cache_and_convert_file_data(file_data : dict):
     '''
     Helper function to convert files into a hise_file object 
     '''
@@ -289,7 +324,10 @@ def cache_and_convert_file_data(file_data):
                      )
 
 
-def cache_file(url, file_name, file_dir):
+def cache_file(url : str,
+               file_name : str,
+               file_dir : str):
+    start = time.perf_counter()
     if not os.path.exists(file_dir):
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
     
@@ -298,6 +336,7 @@ def cache_file(url, file_name, file_dir):
     if resp.status_code != 200:
         raise(SystemError("Request to get file %s from %s failed with status %d. %s" %
                           (file_name,resp.status_code,resp.text)))
+    print(f"completed execeution of caching in {time.perf_counter() - start} seconds")
     open(f_path, 'wb').write(resp.content)
 
 
@@ -358,7 +397,9 @@ def read_samples(sample_ids = None, query_dict = None, to_df=True):
         return obj['payload']
 
 
-def read_subjects(subject_ids = None, query_dict = None, to_df=True):
+def read_subjects(subject_ids : str = None,
+                  query_dict : dict = None,
+                  to_df : bool =True):
     '''
     Read or search the Subject materialized view. 
     User should specify one or the other of subject_ids or query
@@ -414,10 +455,10 @@ def read_subjects(subject_ids = None, query_dict = None, to_df=True):
         return obj["payload"]
 
 
-def hise_url(service,
-             config_path,
-             resource = None,
-             args = None):
+def hise_url(service : str,
+             config_path : str,
+             resource : str = None,
+             args : dict = None):
     if service.upper() not in CONFIG:
         raise(ValueError("%s is not a known HISE service" % (service)))
     if config_path.upper() not in CONFIG[service.upper()]:
