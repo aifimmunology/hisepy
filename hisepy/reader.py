@@ -274,7 +274,6 @@ def cache_and_convert_file_data(file_data):
     try:
         f_desc = file_data["descriptors"]["file"]
     except:
-        # TODO: loop through this object and ensure all file_ids are the same  
         f_desc = file_data['descriptors'][0]['file']
 
     batch_id = "unknown"
