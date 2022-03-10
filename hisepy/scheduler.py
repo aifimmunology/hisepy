@@ -11,7 +11,7 @@ from hisepy.reader import download_files
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
-is_instance_flag_file = "/%s/.scheduledinstance" % (CONFIG['IDE']['HOME_DIR'])
+derived_instance_flag_file = "/tmp/.derivedinstance"
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
 
 
@@ -49,7 +49,7 @@ def schedule_notebook(output_files = None,
         print("To clear this job and schedule another job from this IDE instance, run:")
         print("hisepy.clear_notebook_job()")
         return job
-    elif os.path.exists(is_instance_flag_file):
+    elif is_derived_instance():
         #we're on a scheduled instance, so return an empty job
         return notebook_job()
 
@@ -69,6 +69,11 @@ def schedule_notebook(output_files = None,
     job = notebook_job(obj = json.loads(resp.text))
     print("Scheduled.")    
     return job
+
+#are we running on an instance that's purpose-built for the task we're already doing?
+#e.g. notebook scheduler, dash app?
+def is_derived_instance():
+    return os.path.exists(derived_instance_flag_file)
 
 def validate_schedule_input(output_files, input_data, platform, project):
     notebook = current_notebook()

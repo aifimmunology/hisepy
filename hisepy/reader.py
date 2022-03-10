@@ -422,9 +422,10 @@ def hise_url(service,
         raise(ValueError("%s is not a known HISE service" % (service)))
     if config_path.upper() not in CONFIG[service.upper()]:
         raise(ValueError("%s is not a known path in %s service" % (config_path, service)))
-              
-    url = "https://%s/%s" % (get_from_metadata_server(server_id_path),
-                              CONFIG[service.upper()][config_path.upper()])
+
+    server = get_from_metadata_server(server_id_path)
+    protocol = "http" if "localhost" in server else "https"
+    url = "%s://%s/%s" % (protocol, server, CONFIG[service.upper()][config_path.upper()])
     if resource is not None:
         if type(resource) is not str:
             raise(ValueError("resource argument was a %s, not a string" % (type(resource))))
