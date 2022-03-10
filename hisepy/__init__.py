@@ -43,7 +43,8 @@ from .upload import (
     get_trace,
     get_study_spaces,
     get_files_for_query,
-    freeze_dash_app
+    freeze_dash_app,
+    save_dash_app
 )
 
 # if somebody does "from somepackage import *", this is what they will
