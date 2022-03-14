@@ -10,9 +10,9 @@ server_id_path = "attributes/hise-server"
 token_env = "TOKEN_GENERATOR"
 
 default_metadata = {
-    instance_name_path: "local-testing-instance",
+    instance_name_path: os.getenv("TEST_INSTANCE_NAME") or "local-testing-instance",
     client_id_path: "938455265122-t3ovcfjsbdlrv628abnt0qpl36m23k6j.apps.googleusercontent.com",
-    server_id_path: "dev.allenimmunology.org"
+    server_id_path: os.getenv("TEST_SERVER_NAME") or "dev.allenimmunology.org"
 }
 
 # dev primecollective
@@ -49,3 +49,4 @@ def get_bearer_token_header():
 #use the presence of the token gen env as a proxy for debug env
 def debug():
     return os.getenv(token_env) is not None
+
