@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+import pandas
 import plotly.express as px
 import hisepy as hp
 import dash

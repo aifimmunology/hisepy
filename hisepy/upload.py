@@ -6,6 +6,7 @@ import os
 import importlib
 import plotly.graph_objects as go
 import dash
+import dill
 import warnings
 from shutil import rmtree
 from flask_frozen import Freezer
@@ -13,8 +14,8 @@ from dash.fingerprint import build_fingerprint
 
 import hisepy.common_utils as cu 
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path, debug
-from hisepy.reader import parse_hise_response, hise_url
-from hisepy.scheduler import current_notebook
+from hisepy.reader import parse_hise_response, hise_url, CONFIG
+from hisepy.scheduler import current_notebook, is_derived_instance
 
 
 dataframe_file_type = "Visualization-dataframe"
@@ -186,7 +187,10 @@ def save_static_image(image,
                          hise_url("hydration", "upload_path", args = args),
                          headers = get_bearer_token_header(),
                          files = img_dict))
-    
+
+#NB (03/07/22): Freeze Dash App attempts to use Flask Freeze
+#to turn a Dash app into a static website. It is probably insufficient for our purposes.
+#Compare with save_dash_app below will initiate a container build
 def freeze_dash_app(app,
                     study_space_id = None,
                     title = None,
@@ -200,6 +204,8 @@ def freeze_dash_app(app,
     dash_path = "/".join(dash_path_tokens[0:-1])
     mod_versions = {}
     app.server.config.setdefault('FREEZER_DEFAULT_MIMETYPE', 'application/json')
+    app.css.config.serve_locally = True
+    app.scripts.config.serve_locally = True
     freezer = Freezer(app = app.server,
                       with_no_argument_rules = False)
         
@@ -274,7 +280,30 @@ def freeze_dash_app(app,
     headers = get_bearer_token_header()
     ret = parse_hise_response(requests.request("POST", url, headers = headers))
     return ret
-    
+
+#See notes about freeze_dash_app above
+def save_dash_app(app,
+                  study_space_id = None,
+                  title = None,
+                  input_file_ids = [],
+                  input_sample_ids = []):
+    if is_derived_instance():
+        #we're the running instance, so no-op
+        return {}
+    study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
+    qargs = {"studySpaceId": study_space_id,
+             "title": title,
+             "saveIDE": True,
+             "instanceId": get_from_metadata_server(instance_name_path),
+             "inputFileIds": input_file_ids,
+             "sampleIds": input_sample_ids,
+             "notebook": current_notebook(),
+             "buildContainer": True}
+    url = hise_url("toolchain", "save_dash_app_path", args = qargs)
+    headers = get_bearer_token_header()
+    ret = parse_hise_response(requests.request("POST", url, headers = headers))
+    return ret
+
 def validate_upload_data(study_space_id, title, input_file_ids):
     if study_space_id is None:
         study_space_id = default_study_space_id()

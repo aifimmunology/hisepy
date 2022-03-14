@@ -181,8 +181,8 @@ def update_graph(bar_mode_name):
     return fig, splom_fig
 
 ss = hp.get_study_spaces()
-save_dash_app_result = hp.freeze_dash_app(app, 
-                                          study_space_id=ss[0]['id'], 
-                                          title="Why iz I sads", 
-                                          input_file_ids=file_list)
+save_dash_app_result = hp.save_dash_app(app, 
+                                        study_space_id=ss[0]['id'], 
+                                        title="Work, I Beseech Thee", 
+                                        input_file_ids=file_list)
 print(save_dash_app_result)
