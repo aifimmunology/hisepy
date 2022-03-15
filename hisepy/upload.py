@@ -65,12 +65,12 @@ def upload_files(files : list,
                  title : str = None,                 
                  input_file_ids : list = [],
                  input_sample_ids : list = [],
-                 file_types : list = []):
-
-    def _user_prompt_upload(input_file_ids : list): 
+                 file_types : list = [],
+                 do_prompt: bool = True):
+    def _user_prompt_upload(files : list): 
         '''
         '''
-        print('you are trying to upload file_ids... {}. Do you truly want to proceed?'.format(input_file_ids))
+        print('you are trying to upload file_ids... {}. Do you truly want to proceed?'.format(files))
         user_input = input('(y/n)')
         while user_input.lower() not in ['y','n']: 
             print('please enter either "n" for no, or "y" for yes.')
@@ -111,7 +111,7 @@ def upload_files(files : list,
                      "notebook": current_notebook()}
         url = hise_url("toolchain", "upload_file_path", args = qargs)
         headers = get_bearer_token_header()
-        if (_user_prompt_upload(input_file_ids = input_file_ids)): 
+        if (not do_prompt or _user_prompt_upload(files = files)):
             df_data = parse_hise_response(
                 requests.request("POST", url, headers = headers, files = file_dict))
             if "TraceId" not in df_data:
@@ -143,12 +143,13 @@ def save_visualization(pl_obj,
     f.write(json.dumps(exp_obj["data"]))
     f.close()
     
-    up_res = upload_files([tmp_data_file],
-                          study_space_id,
-                          title,
-                          input_file_ids,
-                          input_sample_ids,
-                          [dataframe_file_type])
+    up_res = upload_files(files = [tmp_data_file],
+                          study_space_id = study_space_id,
+                          title = title,
+                          input_file_ids = input_file_ids,
+                          input_sample_ids = input_sample_ids,
+                          file_types = [dataframe_file_type],
+                          do_prompt = False)
     
     args = {"traceId": up_res["trace_id"],
             "images": img_data["id"]}
