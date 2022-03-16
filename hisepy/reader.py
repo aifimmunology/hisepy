@@ -183,7 +183,17 @@ def get_file_descriptors(file_list : list = None,
 def post_query(file_list : list = None,
                query_id : str = None,
                query_dict : dict = None): 
-    '''
+    ''' creates a response object from POST request to a Hydration endpoint 
+        Parameters: 
+            file_list : list
+                - list of file_ids
+            query_id : str
+                - query_id obtained from HISE's Advanced Search
+            query_dict : dict 
+                - dictionary that contains query parameters  
+        Output: 
+            obj : dict
+                - JSON output from POST request 
     '''
     # make sure users only use 1 parameter 
     if file_list is not None: 
