@@ -270,7 +270,12 @@ def cache_and_convert_file_data(file_data):
         raise(Exception("Descriptors not found in file data %s" % (file_data)))
     elif "url" not in file_data:
         raise(Exception("No download url found in file data %s" % (file_data)))
-    f_desc = file_data["descriptors"]["file"]
+    # always working with a single file-id at this point. but there may be multiple descriptor objects 
+    try:
+        f_desc = file_data["descriptors"]["file"]
+    except:
+        f_desc = file_data['descriptors'][0]['file']
+
     batch_id = "unknown"
     if "batchID" in f_desc and f_desc["batchID"] != "":
         batch_id = f_desc["batchID"]
