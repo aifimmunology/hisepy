@@ -6,6 +6,6 @@
 build
 dist
 hisepy.egg-info
-hisepy/__pycache__
+__pycache__
 cache
 *.ipynb
