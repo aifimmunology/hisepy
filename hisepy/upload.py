@@ -109,6 +109,7 @@ def upload_files(files : list,
                      "inputFileIds": input_file_ids,
                      "sampleIds": input_sample_ids,
                      "notebook": current_notebook()}
+            
         url = hise_url("toolchain", "upload_file_path", args = qargs)
         headers = get_bearer_token_header()
         if (not do_prompt or _user_prompt_upload(files = files)):
@@ -117,6 +118,8 @@ def upload_files(files : list,
             if "TraceId" not in df_data:
                 raise(SystemError("Trace was not found in response to file upload. Cannot continue"))
             trace_id = df_data["TraceId"]
+            #don't verify with the user more than once
+            do_prompt = False
             uploaded.append(df_data["FileId"])
         else: 
             print('Uploading canceled.')
