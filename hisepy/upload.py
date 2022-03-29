@@ -7,6 +7,7 @@ import importlib
 import plotly.graph_objects as go
 import dash
 import dill
+import subprocess
 import warnings
 from shutil import rmtree
 from flask_frozen import Freezer
@@ -59,6 +60,91 @@ def default_study_space(must = True):
             print("%s: %s" % (s["id"], s["name"]))
         raise(ValueError("User belongs to multiple study spaces. Please specify with the study_space_id parameter"))
     return sspaces[0]
+
+
+def gen_dash_static_image(app_filepath : str,
+                          filenames : list, 
+                          plotly_objects : list, 
+                          create_requirements : bool, 
+                          study_space_id,
+                          title,
+                          input_file_ids) -> bool: 
+    ''' Given a filepath to an app.py file, validate input files for the app exists, require a requirements.txt also exists,
+    create static images of plotly objects, tar/zip everything together and upload the file utilizing uploadFiles() 
+
+    Parameters:
+
+    Returns:
+
+    Examples: 
+
+    NOTE: requirements.txt file also needs to exist in the same directory as app_filepath you pass in 
+    '''
+
+    # check app_filepath exists 
+    if not os.path.exists(app_filepath): 
+        raise(ValueError("%s is not a valid file" % (app_filepath)))
+
+    # get dir of app 
+    app_dir = os.path.dirname(app_filepath)
+
+    # list all files in that directory 
+    paths_and_dirs = os.listdir(app_dir) 
+    
+    # check all filenames exists before moving on 
+    assert set(filenames) - set(paths_and_dirs) == set(), 'not all files listed under filenames were found. Please make sure...'
+
+    # now walk down this app_dir and find those files
+    fpaths_list = []  
+    for (root, dir, file) in os.walk(app_dir): 
+        [fpaths_list.append('{}/{}'.format(root, f)) for f in file if f in filenames]
+    
+    # move everything to a temporary dir 
+    try: 
+        os.mkdir('{}/dash_tmp'.format(app_dir))
+    except: 
+        pass 
+    fpaths_list.append(app_filepath)
+    for this_file in fpaths_list: 
+        os.popen('cp {src} {des}/dash_tmp'.format(src=this_file, des=app_dir))
+    
+    if not create_requirements: 
+        # TODO; more sound test here. I could have a random requirements.txt, (for whatever reason), file anywhere
+        assert 'requirements.txt' in paths_and_dirs, '''requirements.txt is needed in order to deploy your dash app. This file lists all your app dependencies. \n
+                                                        Please try again with create_requirements set to True.'''
+    else: 
+        # create the thing 
+        subprocess.call("pip3 freeze > {}/dash_tmp/requirements.txt".format(app_dir), shell=True)
+
+    # handle images users want to show up in their study space. 
+    # 2 scenarios here. users should be using 1 or the other, and not both 
+    # 1. list of plotly objects. 
+    # 2. list of .png images in their working dir 
+    plot_type = type(plotly_objects[0])
+    if plot_type == 'str': 
+        for this_plot in plotly_objects:
+            assert type(this_plot) == str & cu.get_filetype(this_plot) == '.png', 'image must be a PNG'
+
+            # move all to tmp dir
+            os.popen('cp {src} {des}/dash_tmp'.format(src=this_plot, des=app_dir))
+    else: 
+        # this should handle if a plotly object is passed in. 
+        pass
+        #  take each object, convert to .png
+        # 
+     
+    # test stuff below 
+    # tar it up; upload; and clean up 
+    cu.tardir('{}/dash_tmp/{}_test.tar.gz'.format(app_dir, title), '{}/dash_tmp'.format(app_dir))
+
+
+    upload_files(files= ['{}/dash_tmp/{}_test.tar.gz'.format(app_dir, title)], 
+                 study_space_id= study_space_id,
+                 title= title,
+                 input_file_ids=input_file_ids)
+
+    print('dash image was successfully uploaded!')
+    return True
 
 def upload_files(files : list,
                  study_space_id : str = None,

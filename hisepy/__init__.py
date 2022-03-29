@@ -45,7 +45,8 @@ from .upload import (
     get_study_spaces,
     get_files_for_query,
     freeze_dash_app,
-    save_dash_app
+    save_dash_app,
+    gen_dash_static_image
 )
 
 # if somebody does "from somepackage import *", this is what they will
