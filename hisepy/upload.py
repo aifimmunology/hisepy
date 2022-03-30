@@ -180,7 +180,7 @@ def save_visualization(pl_obj,
     return up_res
 
 
-def gen_dash_static_image(app_filepath : str,
+def save_dash_app(app_filepath : str,
                           filenames : list, 
                           plotly_objects : list, 
                           create_requirements : bool, 
@@ -213,7 +213,7 @@ def gen_dash_static_image(app_filepath : str,
         True if upload was succesful, False if submission failed 
     
     Examples: 
-        hp.gen_dash_static_image('/Users/james.harvey/workplace/dash_test/app.py', 
+        hp.save_dash_app('/Users/james.harvey/workplace/dash_test/app.py', 
                                 ['inputdash1.csv', 'inputdash2.csv'], 
                                 ['pic1.png'], 
                                 True, 
@@ -283,7 +283,8 @@ def gen_dash_static_image(app_filepath : str,
                     study_space_id= study_space_id,
                     title= title,
                     input_file_ids=input_file_ids,
-                    input_sample_ids = input_sample_ids)
+                    input_sample_ids = input_sample_ids,
+                    do_prompt=False)
         os.popen("rm -r {des}/dash_tmp".format(desc=app_dir)) # clean up 
     except: 
         # if anything fails, remove any temporary directory stuff 
@@ -405,6 +406,8 @@ def freeze_dash_app(app,
     ret = parse_hise_response(requests.request("POST", url, headers = headers))
     return ret
 
+
+""" to be replaced...? 
 #See notes about freeze_dash_app above
 def save_dash_app(app,
                   study_space_id = None,
@@ -427,6 +430,7 @@ def save_dash_app(app,
     headers = get_bearer_token_header()
     ret = parse_hise_response(requests.request("POST", url, headers = headers))
     return ret
+"""
 
 def validate_upload_data(study_space_id, title, input_file_ids):
     if study_space_id is None:
