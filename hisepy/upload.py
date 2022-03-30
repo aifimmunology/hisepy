@@ -222,6 +222,7 @@ def gen_dash_static_image(app_filepath : str,
                                 ['9f6d7ab5-1c7b-4709-9455-3d8ff3fbb6c8']
         )
     '''
+    accepted_filetypes = ['csv', 'pkl']
 
     # check app_filepath exists 
     assert app_filepath.split('/')[-1] == 'app.py', 'filename of your dash app must be app.py. Please rename your file and try again.'
@@ -231,8 +232,10 @@ def gen_dash_static_image(app_filepath : str,
     # get dir of app 
     app_dir = os.path.dirname(app_filepath)
     
-    # check all filenames exists before moving on 
+    # check all filenames exists before moving on; assert files are appropriate types 
     paths_and_dirs = os.listdir(app_dir) 
+    ok_files = [cu.get_filetype(f) in accepted_filetypes for f in filenames]
+    assert (all(ok_files)), 'Not all filenames listed are of the appropriate type. Please ensure all files listed are one and the same of the following types: {}'.format(accepted_filetypes)
     assert set(filenames) - set(paths_and_dirs) == set(), 'not all files listed under filenames were found. Please make sure the files listed exist in the same directory as your app.py file'
 
     # now walk down this app_dir and find those files
@@ -283,6 +286,7 @@ def gen_dash_static_image(app_filepath : str,
                     input_sample_ids = input_sample_ids)
         os.popen("rm -r {des}/dash_tmp".format(desc=app_dir)) # clean up 
     except: 
+        # if anything fails, remove any temporary directory stuff 
         print('uploading Dash app failed. Removing temp directory...')
         os.popen("rm -r {des}/dash_tmp".format(desc=app_dir)) # clean up 
         return False 
