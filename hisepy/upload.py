@@ -246,7 +246,7 @@ class DashAppImg:
         '''
         plot_type = type(self.plotly_objects[0])
         if plot_type == str: # NOTE: might not want this 
-            plotly_list = cu.find_files(self.app_filepath, self.plotly_objects)
+            plotly_list = cu.find_files(self.get_app_dir(), self.plotly_objects)
             for this_plot in plotly_list:
                 assert (type(this_plot) == str) and (cu.get_filetype(this_plot) == 'png'), "image must be a PNG if you're trying to submit snapshots of visualizations"
 
