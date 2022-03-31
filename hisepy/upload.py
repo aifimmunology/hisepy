@@ -285,6 +285,7 @@ class DashAppImg:
         '''
         upload_files(files= ['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)], 
                      study_space_id= self.study_space_id,
+                     title='dash_app_upload',
                      input_file_ids=self.input_file_ids,
                      input_sample_ids = self.input_sample_ids,
                      do_prompt=False)
