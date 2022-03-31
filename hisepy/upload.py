@@ -7,8 +7,10 @@ import importlib
 import plotly.graph_objects as go
 import dash
 import dill
+import shutil 
 import subprocess
 import warnings
+import tempfile
 from shutil import rmtree
 from flask_frozen import Freezer
 from dash.fingerprint import build_fingerprint
@@ -180,13 +182,124 @@ def save_visualization(pl_obj,
     return up_res
 
 
+class DashAppImg: 
+    ''' Class representing a Dash App Object 
+    '''
+    # accepted_filetypes = ['csv', 'pkl']
+    dash_app_name = 'app.py'
+
+    def __init__(self, 
+                 app_fpath : str, 
+                 list_fnames : list,
+                 plty_objs : list,
+                 my_study_id : str,
+                 my_file_ids : list, 
+                 style_sheet : str,
+                 my_sample_ids : str = []): 
+
+        if self.verify_app_path(app_fpath):
+            self.app_filepath= app_fpath
+        if self.verify_filenames(list_fnames): 
+            self.filenames = list_fnames
+        self.plotly_objects = plty_objs
+        self.study_space_id = my_study_id
+        self.input_file_ids = my_file_ids
+        self.input_sample_ids = my_sample_ids
+        self.style_sheet = style_sheet
+        self.work_dir = tempfile.mkdtemp()
+
+
+    def get_app_dir(self): 
+        ''' Sets working directory of dash app 
+        '''
+        return os.path.dirname(self.app_filepath)
+      
+
+    def verify_app_path(self, path): 
+        ''' Verifies that user-submitted path is appropriate and actually exists
+        '''
+        assert path.split('/')[-1] == 'app.py', 'filename of your dash app must be app.py. Please rename your file and try again.'
+        if not os.path.exists(path): 
+            raise(ValueError("%s is not a valid file" % (path)))
+        return True 
+
+
+    def verify_filenames(self, filenames): 
+        ''' Verifies that submitted input files are of appropriate type, and exists within the working directory 
+
+        TODO: force just a single filetype per submission 
+        '''
+        paths_and_dirs = cu.list_files_and_dirs(self.get_app_dir())
+        assert set(filenames) - set(paths_and_dirs) == set(), 'not all files listed under filenames were found. Please make sure the files listed exist in the same directory as your app.py file'
+
+        return True 
+
+
+    def create_req_txt(self):
+        '''
+        '''
+        subprocess.run("pip3 freeze > {wd}/requirements.txt".format(wd=self.work_dir), shell=True)
+    
+
+    def export_plotly_objs(self): 
+        '''
+        '''
+        plot_type = type(self.plotly_objects[0])
+        if plot_type == str: # NOTE: might not want this 
+            plotly_list = cu.find_files(self.app_filepath, self.plotly_objects)
+            for this_plot in plotly_list:
+                assert (type(this_plot) == str) and (cu.get_filetype(this_plot) == 'png'), "image must be a PNG if you're trying to submit snapshots of visualizations"
+
+                # move all to tmp dir
+                shutil.copy(this_plot, self.work_dir)
+        else: 
+            # assume plotly objects are being passed through 
+            for plo in self.plotly_objects: 
+                save_visualization(plo,
+                                study_space_id = self.study_space_id,
+                                input_file_ids = self.input_file_ids,
+                                input_sample_ids = self.input_sample_ids)
+
+
+    def create_dash_image(self): 
+        ''' Creates image by bundling all required objects
+        '''
+        # create temp directory 
+        cu.tardir('{wd}/dash_app.tar.gz'.format(wd=self.work_dir),
+                    '{wd}'.format(wd=self.work_dir))
+        return True 
+
+
+
+    def archive_style_sheet(self): 
+        ''' Requests submitted style sheet, and saves 
+        '''
+        # TODO: does user submit this style sheet? what if user doesn't submit one? 
+        resp = requests.request("GET", "https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css")
+        import pdb; pdb.set_trace() 
+        return resp.text
+
+
+    def export_dash_image(self): 
+        ''' Exports dash image to users' study space 
+        '''
+        upload_files(files= ['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)], 
+                     study_space_id= self.study_space_id,
+                     input_file_ids=self.input_file_ids,
+                     input_sample_ids = self.input_sample_ids,
+                     do_prompt=False)
+        return True 
+
+
+
+
 def save_dash_app(app_filepath : str,
                           filenames : list, 
                           plotly_objects : list, 
                           create_requirements : bool, 
                           study_space_id,
-                          title,
                           input_file_ids : list,
+                          custom_style_sheet : str,
                           input_sample_ids : list = []) -> bool: 
     ''' Given a filepath to an app.py file, validate input files for the app exists, require a requirements.txt also exists,
     create static images of plotly objects, tar/zip everything together and upload the file utilizing uploadFiles() 
@@ -202,8 +315,6 @@ def save_dash_app(app_filepath : str,
             whether or not to create a requirements.txt file. NOTE: this should only be false if you created this file yourself 
         study_space_id : str 
             unique identifier for study space 
-        title : str 
-            prefix title of exported dash app filename
         input_file_ids : list 
             list of unique HISE files used to generate results 
         input_sample_ids : list 
@@ -218,78 +329,41 @@ def save_dash_app(app_filepath : str,
                                 ['pic1.png'], 
                                 True, 
                                 'f2f03ecb-5a1d-4995-8db9-56bd18a36aba', 
-                                'testdash_yaya', 
-                                ['9f6d7ab5-1c7b-4709-9455-3d8ff3fbb6c8']
+                                ['9f6d7ab5-1c7b-4709-9455-3d8ff3fbb6c8'],
+                                'custom.css'
         )
     '''
-    accepted_filetypes = ['csv', 'pkl']
-
-    # check app_filepath exists 
-    assert app_filepath.split('/')[-1] == 'app.py', 'filename of your dash app must be app.py. Please rename your file and try again.'
-    if not os.path.exists(app_filepath): 
-        raise(ValueError("%s is not a valid file" % (app_filepath)))
-     
-    # get dir of app 
-    app_dir = os.path.dirname(app_filepath)
-    
-    # check all filenames exists before moving on; assert files are appropriate types 
-    paths_and_dirs = os.listdir(app_dir) 
-    ok_files = [cu.get_filetype(f) in accepted_filetypes for f in filenames]
-    assert (all(ok_files)), 'Not all filenames listed are of the appropriate type. Please ensure all files listed are one and the same of the following types: {}'.format(accepted_filetypes)
-    assert set(filenames) - set(paths_and_dirs) == set(), 'not all files listed under filenames were found. Please make sure the files listed exist in the same directory as your app.py file'
+    # create static dash image 
+    Dobj = DashAppImg(app_filepath, filenames, plotly_objects, study_space_id, input_file_ids, custom_style_sheet)
 
     # now walk down this app_dir and find those files
-    fpaths_list = []  
-    for (root, dir, file) in os.walk(app_dir): 
-        [fpaths_list.append('{}/{}'.format(root, f)) for f in file if f in filenames]
+    fpaths_list = cu.find_files(Dobj.get_app_dir(), Dobj.filenames + ['app.py'])
     
     # move everything to a temporary dir 
-    if os.path.isdir('{}/dash_tmp'.format(app_dir)): 
-        pass
-    else: 
-        os.mkdir('{}/dash_tmp'.format(app_dir))
-    fpaths_list.append(app_filepath)
     for this_file in fpaths_list: 
-        os.popen('cp {src} {des}/dash_tmp'.format(src=this_file, des=app_dir))
+        shutil.copy(this_file, Dobj.work_dir)
     
     try: 
+        paths_and_dirs = cu.list_files_and_dirs(Dobj.get_app_dir())
         if not create_requirements: 
-            assert 'requirements.txt' in paths_and_dirs, '''requirements.txt is needed in order to deploy your dash app. This file lists all your app dependencies. \n
+            assert 'requirements.txt' in paths_and_dirs, '''requirements.txt is needed in order to deploy your dash app. This file lists all your app dependencie.\n
                                                             Please try again with create_requirements set to True.'''
         else: 
             # create the thing 
-            subprocess.run("pip3 freeze > {}/dash_tmp/requirements.txt".format(app_dir), shell=True)
+            Dobj.create_req_txt()
 
         # handle images users want to show up in their study space. 
-        plot_type = type(plotly_objects[0])
-        if plot_type == 'str': # NOTE: might not want this 
-            for this_plot in plotly_objects:
-                assert type(this_plot) == str & cu.get_filetype(this_plot) == '.png', "image must be a PNG if you're trying to submit snapshots of visualizations"
-
-                # move all to tmp dir
-                os.popen('cp {src} {des}/dash_tmp'.format(src=this_plot, des=app_dir))
-        else: 
-            # assume plotly objects are being passed through 
-            for plo in plotly_objects: 
-                save_visualization(plo,
-                                study_space_id = study_space_id,
-                                title = title,
-                                input_file_ids = input_file_ids,
-                                input_sample_ids = input_sample_ids)
+        Dobj.export_plotly_objs()
         
         # tar it up; upload; and clean up 
-        cu.tardir('{}/dash_tmp/{}_dash_app.tar.gz'.format(app_dir, title), '{}/dash_tmp'.format(app_dir))
-        upload_files(files= ['{}/dash_tmp/{}_dash_app.tar.gz'.format(app_dir, title)], 
-                    study_space_id= study_space_id,
-                    title= title,
-                    input_file_ids=input_file_ids,
-                    input_sample_ids = input_sample_ids,
-                    do_prompt=False)
-        os.popen("rm -r {des}/dash_tmp".format(desc=app_dir)) # clean up 
+        Dobj.create_dash_image()
+        Dobj.export_dash_image() 
+        cu.remove_dir(Dobj.work_dir)
+
     except: 
         # if anything fails, remove any temporary directory stuff 
         print('uploading Dash app failed. Removing temp directory...')
-        os.popen("rm -r {des}/dash_tmp".format(desc=app_dir)) # clean up 
+        cu.remove_dir(Dobj.work_dir)
         return False 
     
     # now upload the images 

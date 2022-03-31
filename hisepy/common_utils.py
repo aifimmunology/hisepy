@@ -11,6 +11,7 @@ Contributors: James Harvey
 import yaml 
 import tarfile 
 import os 
+import shutil 
 
 
 def read_yaml(file_path):
@@ -30,3 +31,24 @@ def tardir(output_filename, source_dir):
     '''
     with tarfile.open(output_filename, "w:gz") as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir))
+
+
+def list_files_and_dirs(directory):
+    ''' Lists all files and directories in a given path 
+    '''
+    return os.listdir(directory) 
+
+
+def find_files(directory, filenames): 
+    ''' Given a directory, find all files in a given list
+    '''
+    files_list = [] 
+    for (root, dir, file) in os.walk(directory): 
+        [files_list.append('{}/{}'.format(root, f)) for f in file if f in filenames]
+    return files_list 
+
+def remove_dir(directory): 
+    ''' Removes entire directory, including any child files 
+    '''
+    shutil.rmtree(directory)
+    return True 
