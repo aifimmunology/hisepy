@@ -27,7 +27,7 @@ def get_filetype(this_filename):
         return "json"
 
 def tardir(output_filename, source_dir):
-    ''' Utility function that will create a tar file for an entire directory and its' children 
+    ''' Utility function that will create a tar file for an entire directory and its children
     '''
     with tarfile.open(output_filename, "w:gz") as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir))
