@@ -1,7 +1,4 @@
-
-
-
-# help with interacting with materialized view for emr/subject/file etc 
+# help with interacting with materialized view for emr/subject/file etc
 # can this just be a list of values...? 
 MATERIALIZED_VIEW: 
   QUERYABLE_FIELDS : 
@@ -11,11 +8,9 @@ MATERIALIZED_VIEW:
   EMR: emr 
   LAB: lab
 
-
 FILETYPES: 
   SCRNA_RESULT : scRNA-seq-labeled 
 
-  
 # Authorization config
 AUTHORIZE: 
   METADATA_SERVER_ROOT : http://metadata.google.internal/computeMetadata/v1/instance
@@ -25,16 +20,13 @@ AUTHORIZE:
   IDENTITY_PATH : service-accounts/default/identity
   SERVER_ID_PATH : attributes/hise-server
   TOKEN_ENV : TOKEN_GENERATOR
-
   
 PROJECT_FOLDER: 
   TAG_FIELD_NAME : availability
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
   AVAILABLE_TAG : available
   DELETED_TAG : marked_for_deletion
-  ARCHIVE_TAG : marked_for_archival 
-
-
+  ARCHIVE_TAG : marked_for_archival
 
 # hydration endpoints 
 HYDRATION:
