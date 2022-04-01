@@ -40,7 +40,11 @@ def get_bearer_token_header():
     client_id = get_from_metadata_server(client_id_path)
     token_gen = os.getenv(token_env)
     if token_gen is not None:
-        headers = {"Authorization": "Bearer %s" % os.popen(token_gen).read().rstrip(), "InstanceAccountGuid": defaultLocalAccountGuid}
+        token = os.popen(token_gen).read().rstrip()
+        if os.getenv("TEST_SERVER_NAME") is None:
+            headers = {"Authorization": "Bearer %s" % token, "InstanceAccountGuid": defaultLocalAccountGuid}
+        else:
+            headers = {"hise_invoker_token": "%s" % token, "InstanceAccountGuid": defaultLocalAccountGuid}
     else:
         headers = {"Authorization": "Bearer %s" % (get_from_metadata_server("%s?format=full&audience=%s" % (identity_path, client_id))),
             "InstanceAccountGuid": "%s" % (get_from_metadata_server("%s" % (account_guid_path)))}
