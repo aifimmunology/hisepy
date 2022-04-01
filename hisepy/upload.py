@@ -1,25 +1,24 @@
-import json
-import requests
-import urllib
-import uuid
-import os
 import importlib
-import plotly.graph_objects as go
-import dash
-import dill
-import shutil 
+import json
+import os
+import shutil
 import subprocess
-import warnings
+import tarfile
 import tempfile
+import uuid
+import warnings
 from shutil import rmtree
-from flask_frozen import Freezer
+
+import dash
+import plotly.graph_objects as go
+import requests
 from dash.fingerprint import build_fingerprint
+from flask_frozen import Freezer
 
-import hisepy.common_utils as cu 
+import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path, debug
-from hisepy.reader import parse_hise_response, hise_url, CONFIG
-from hisepy.scheduler import current_notebook, is_derived_instance
-
+from hisepy.reader import parse_hise_response, hise_url
+from hisepy.scheduler import current_notebook
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
@@ -195,7 +194,7 @@ class DashAppImg:
                  my_study_id : str,
                  my_file_ids : list, 
                  style_sheet : str,
-                 my_sample_ids : str = []): 
+                 my_sample_ids : list = []):
 
         if self.verify_app_path(app_fpath):
             self.app_filepath= app_fpath
@@ -261,13 +260,12 @@ class DashAppImg:
                                 input_sample_ids = self.input_sample_ids)
 
 
-    def create_dash_image(self): 
-        ''' Creates image by bundling all required objects
-        '''
-        # create temp directory 
-        cu.tardir('{wd}/dash_app.tar.gz'.format(wd=self.work_dir),
-                    '{wd}'.format(wd=self.work_dir))
-        return True 
+    def create_dash_image(self):
+        """Creates image by bundling all required objects"""
+        source_dir = '{wd}'.format(wd=self.work_dir)
+        with tarfile.open('{wd}/dash_app.tar.gz'.format(wd=self.work_dir), "w:gz") as tar:
+            tar.add(source_dir, arcname="")
+        return True
 
 
 
@@ -283,15 +281,22 @@ class DashAppImg:
     def export_dash_image(self): 
         ''' Exports dash image to users' study space 
         '''
-        upload_files(files= ['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)], 
-                     study_space_id= self.study_space_id,
-                     title='dash_app_upload',
-                     input_file_ids=self.input_file_ids,
-                     input_sample_ids = self.input_sample_ids,
-                     do_prompt=False)
-        return True 
-
-
+        upload_resp = upload_files(files=['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)],
+                             study_space_id=self.study_space_id, title='dash_app_upload',
+                             input_file_ids=self.input_file_ids, input_sample_ids=self.input_sample_ids,
+                             do_prompt=False)
+        trace_id = upload_resp['trace_id']
+        qargs = {"studySpaceId": self.study_space_id,
+                 "title": 'Andrew hardcoded placeholder title',
+                 "instanceId": get_from_metadata_server(instance_name_path),
+                 "inputFileIds": self.input_file_ids,
+                 "sampleIds": self.input_sample_ids,
+                 "notebook": current_notebook(),
+                 "traceId": trace_id}
+        url = hise_url("toolchain", "save_dash_app_path", args = qargs)
+        headers = get_bearer_token_header()
+        ret = parse_hise_response(requests.request("POST", url, headers = headers))
+        return ret
 
 
 def save_dash_app(app_filepath : str,
@@ -301,7 +306,7 @@ def save_dash_app(app_filepath : str,
                           study_space_id,
                           input_file_ids : list,
                           custom_style_sheet : str,
-                          input_sample_ids : list = []) -> bool: 
+                          input_sample_ids : list = []):
     ''' Given a filepath to an app.py file, validate input files for the app exists, require a requirements.txt also exists,
     create static images of plotly objects, tar/zip everything together and upload the file utilizing uploadFiles() 
 
@@ -343,8 +348,8 @@ def save_dash_app(app_filepath : str,
     # move everything to a temporary dir 
     for this_file in fpaths_list: 
         shutil.copy(this_file, Dobj.work_dir)
-    
-    try: 
+
+    try:
         paths_and_dirs = cu.list_files_and_dirs(Dobj.get_app_dir())
         if not create_requirements: 
             assert 'requirements.txt' in paths_and_dirs, '''requirements.txt is needed in order to deploy your dash app. This file lists all your app dependencie.\n
@@ -358,18 +363,17 @@ def save_dash_app(app_filepath : str,
         
         # tar it up; upload; and clean up 
         Dobj.create_dash_image()
-        Dobj.export_dash_image() 
+        resp = Dobj.export_dash_image()
         cu.remove_dir(Dobj.work_dir)
-
-    except: 
+    except:
         # if anything fails, remove any temporary directory stuff 
         print('uploading Dash app failed. Removing temp directory...')
         cu.remove_dir(Dobj.work_dir)
-        return False 
+        return "error"
     
     # now upload the images 
     print('dash image was successfully uploaded!')
-    return True
+    return resp
 
 
 def save_static_image(image,
