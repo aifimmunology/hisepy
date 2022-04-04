@@ -194,6 +194,8 @@ class DashAppImg:
                  my_study_id : str,
                  my_file_ids : list, 
                  style_sheet : str,
+                 title : str = None, 
+                 description : str = None,
                  my_sample_ids : list = []):
 
         if self.verify_app_path(app_fpath):
@@ -204,8 +206,11 @@ class DashAppImg:
         self.study_space_id = my_study_id
         self.input_file_ids = my_file_ids
         self.input_sample_ids = my_sample_ids
+        self.title = title
+        self.description = description 
         self.style_sheet = style_sheet
         self.work_dir = tempfile.mkdtemp()
+
 
 
     def get_app_dir(self): 
@@ -282,12 +287,12 @@ class DashAppImg:
         ''' Exports dash image to users' study space 
         '''
         upload_resp = upload_files(files=['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)],
-                             study_space_id=self.study_space_id, title='dash_app_upload',
+                             study_space_id=self.study_space_id, title=self.title,
                              input_file_ids=self.input_file_ids, input_sample_ids=self.input_sample_ids,
                              do_prompt=False)
         trace_id = upload_resp['trace_id']
         qargs = {"studySpaceId": self.study_space_id,
-                 "title": 'Andrew hardcoded placeholder title',
+                 "title": self.description,
                  "instanceId": get_from_metadata_server(instance_name_path),
                  "inputFileIds": self.input_file_ids,
                  "sampleIds": self.input_sample_ids,
@@ -306,6 +311,8 @@ def save_dash_app(app_filepath : str,
                           study_space_id,
                           input_file_ids : list,
                           custom_style_sheet : str,
+                          title : str = None, 
+                          description : str = None, 
                           input_sample_ids : list = []):
     ''' Given a filepath to an app.py file, validate input files for the app exists, require a requirements.txt also exists,
     create static images of plotly objects, tar/zip everything together and upload the file utilizing uploadFiles() 
@@ -340,8 +347,14 @@ def save_dash_app(app_filepath : str,
         )
     '''
     # create static dash image 
-    Dobj = DashAppImg(app_filepath, filenames, plotly_objects, study_space_id, input_file_ids, custom_style_sheet)
-
+    Dobj = DashAppImg(app_fpath=app_filepath, list_fnames=filenames, plty_objs=plotly_objects, 
+                      my_study_id= study_space_id,
+                      my_file_ids= input_file_ids, 
+                      style_sheet = custom_style_sheet, 
+                      title = title, 
+                      description = description, 
+                      my_sample_ids= input_sample_ids)
+    import pdb; pdb.set_trace() 
     # now walk down this app_dir and find those files
     fpaths_list = cu.find_files(Dobj.get_app_dir(), Dobj.filenames + ['app.py'])
     
