@@ -276,11 +276,31 @@ class DashAppImg:
 
     def archive_style_sheet(self): 
         ''' Requests submitted style sheet, and saves 
+
+        NOTE: looking for both styles.css (custom style classes), and custom.css (external style sheet)
         '''
-        # TODO: does user submit this style sheet? what if user doesn't submit one? 
-        resp = requests.request("GET", "https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css")
-        import pdb; pdb.set_trace() 
-        return resp.text
+
+        # create temporary directory for assets
+        os.mkdir('{}/assets'.format(self.work_dir))
+
+        # assert /assets dir exists in users' instance  
+        assert os.path.isdir('{app}/assets'.format(app=self.app_filepath)), 'assets/ directory was not found. Please make sure to have all styling sheets in a directory named assets.'
+
+        # if it does, look for custom and style sheets and copy them over 
+        if os.path.isfile('{app}/assets/custom.css'.format(app=self.work_dir)): 
+            shutil.copy('{app}/assets/custom.css'.format(app=self.work_dir),
+                        '{wd}/assets/custom.css'.format(wd=self.work_dir))
+        else: 
+            # do we insert a default file here?
+            pass 
+        if os.path.isfile('{app}/assets/styles.css'.format(app=self.app_filepath)): 
+            shutil.copy('{app}/assets/styles.css'.format(app=self.app_filepath),
+                        '{wd}/assets/styles.css'.format(wd=self.work_dir))
+        else: 
+            # do we insert a default style sheet here? 
+            pass
+
+        return True
 
 
     def export_dash_image(self): 
