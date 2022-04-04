@@ -292,7 +292,7 @@ class DashAppImg:
                              do_prompt=False)
         trace_id = upload_resp['trace_id']
         qargs = {"studySpaceId": self.study_space_id,
-                 "title": self.description,
+                 "title": self.title,
                  "instanceId": get_from_metadata_server(instance_name_path),
                  "inputFileIds": self.input_file_ids,
                  "sampleIds": self.input_sample_ids,
@@ -343,7 +343,10 @@ def save_dash_app(app_filepath : str,
                                 True, 
                                 'f2f03ecb-5a1d-4995-8db9-56bd18a36aba', 
                                 ['9f6d7ab5-1c7b-4709-9455-3d8ff3fbb6c8'],
-                                'custom.css'
+                                'custom.css',
+                                'my app title', 
+                                'this is a description', 
+                                []
         )
     '''
     # create static dash image 
@@ -355,6 +358,7 @@ def save_dash_app(app_filepath : str,
                       description = description, 
                       my_sample_ids= input_sample_ids)
     import pdb; pdb.set_trace() 
+
     # now walk down this app_dir and find those files
     fpaths_list = cu.find_files(Dobj.get_app_dir(), Dobj.filenames + ['app.py'])
     
