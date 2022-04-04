@@ -25,22 +25,14 @@ setup(
     url='https://github.com/aifimmunology/hisepy',
     packages=['hisepy'],
     install_requires=[
-        'pandas',
-        'numpy',
-        'PyYAML',
-        'scipy',
-        'anndata',
-        'google-cloud-storage',
-        'importlib',
-        'plotly',
-        'dash',
-        'Frozen-Flask',
-        'kaleido'
+        'pandas', 'numpy', 'PyYAML', 'scipy', 'anndata',
+        'google-cloud-storage', 'importlib', 'plotly', 'dash', 'Frozen-Flask',
+        'kaleido', 'requests', 'h5py', 'google'
     ],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
     classifiers=[
-        'Immunology',
-        'Statistical Regression',
-        'Programming Language :: Python :: 3.7'],
+        'Immunology', 'Statistical Regression',
+        'Programming Language :: Python :: 3.7'
+    ],
 )
