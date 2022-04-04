@@ -1,9 +1,8 @@
 import dash
-import plotly.express as px
 import pandas as pd
+import plotly.express as px
+
 import hisepy
-import flask
-import pathlib
 
 app = dash.Dash(__name__)
 
@@ -28,32 +27,22 @@ trace_id = "ff974deb-0b13-40f8-8e61-47fe82652f5d"
 
 app.layout = dash.html.Div(children=[
     dash.html.H1(children='Hello Dash'),
-
     dash.html.Div(children='''
         Dash: A web application framework for your data.
     '''),
-
-    dash.dcc.Graph(
-        id='example-graph',
-        figure=fig
-    ),
-
+    dash.dcc.Graph(id='example-graph', figure=fig),
     dash.html.Div(children='''
         HISE: All yr base r belong to us
     '''),
-    
-    dash.dcc.Graph(
-        id='hise-graph',
-        figure=hisepy.load_visualization(trace_id)),
-
+    dash.dcc.Graph(id='hise-graph', figure=hisepy.load_visualization(
+        trace_id)),
 ])
 
 if __name__ == '__main__':
     spaces = hisepy.get_study_spaces()
     trace = hisepy.get_trace(trace_id)
     hisepy.freeze_dash_app(app,
-                           study_space_id = spaces[0]["id"],
-                           title = "Freezer Demo",
-                           input_file_ids = [trace["steps"]["dataReference"]])
+                           study_space_id=spaces[0]["id"],
+                           title="Freezer Demo",
+                           input_file_ids=[trace["steps"]["dataReference"]])
     app.run_server(debug=True)
-
