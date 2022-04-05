@@ -1,4 +1,3 @@
-import importlib
 import json
 import os
 import shutil
@@ -6,17 +5,12 @@ import subprocess
 import tarfile
 import tempfile
 import uuid
-import warnings
-from shutil import rmtree
 
-import dash
 import plotly.graph_objects as go
 import requests
-from dash.fingerprint import build_fingerprint
-from flask_frozen import Freezer
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path, debug
+from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
 
@@ -432,133 +426,6 @@ def save_static_image(image, study_space_id=None, title=None):
                          files=img_dict))
 
 
-#NB (03/07/22): Freeze Dash App attempts to use Flask Freeze
-#to turn a Dash app into a static website. It is probably insufficient for our purposes.
-#Compare with save_dash_app below will initiate a container build
-def freeze_dash_app(app,
-                    study_space_id=None,
-                    title=None,
-                    input_file_ids=[],
-                    input_sample_ids=[]):
-    study_space_id = validate_upload_data(study_space_id, title,
-                                          input_file_ids)
-    build_dir = "%s/build" % (app.server.root_path)
-    if os.path.isdir(build_dir):
-        rmtree(build_dir)
-    dash_path_tokens = os.path.abspath(dash.__file__).split("/")
-    dash_path = "/".join(dash_path_tokens[0:-1])
-    mod_versions = {}
-    app.server.config.setdefault('FREEZER_DEFAULT_MIMETYPE',
-                                 'application/json')
-    app.css.config.serve_locally = True
-    app.scripts.config.serve_locally = True
-    freezer = Freezer(app=app.server, with_no_argument_rules=False)
-
-    @freezer.register_generator
-    def component_suites():
-        for p in app.registered_paths["dash"]:
-            fpath = "%s/%s" % (dash_path, p)
-            if not os.path.exists(fpath):
-                continue
-            ptokens = p.split("/")
-            path = "/".join(ptokens[1:])
-            y = {
-                "package_name": "dash/%s" % (ptokens[0]),
-                "fingerprinted_path": path
-            }
-            yield "/_dash-component-suites/<string:package_name>/<path:fingerprinted_path>", y
-            if ".map" not in path:
-                #also yield the fingerprinted version
-                dash_import = "dash.%s" % (ptokens[0])
-
-                pack_vers = None
-                if dash_import in mod_versions:
-                    pack_vers = mod_versions[dash_import]
-                else:
-                    try:
-                        p = importlib.import_module(dash_import)
-                        pack_vers = p.__version__
-                    except Exception as e:
-                        if debug():
-                            print(
-                                "Can't load %s. %s. Defaulting dash version" %
-                                (dash_import, format(e)))
-                        pack_vers = dash.__version__
-                    mod_versions[dash_import] = pack_vers
-
-                mod = int(os.stat(fpath).st_mtime)
-                y["fingerprinted_path"] = build_fingerprint(
-                    path, pack_vers, mod)
-                yield "/_dash-component-suites/<string:package_name>/<path:fingerprinted_path>", y
-
-    @freezer.register_generator
-    def default():
-        yield "/<path:path>", {"path": "index.html"}
-
-    @freezer.register_generator
-    def no_arg_generator():
-        #replace the build-in no-arg generator with one that ignores the "shutdown" endpoint.
-        #which, like, why would you try to freeze that?
-        for rule in app.server.url_map.iter_rules():
-            if rule.endpoint in freezer_ignore_endpoints:
-                continue
-            if not rule.arguments and 'GET' in rule.methods:
-                yield rule.endpoint, {}
-
-    #NB on my local server I observed that registered_paths were empty when with_no_argument_rules was set to False
-    #After tracing some code I figured out that they aren't generated until somebody asks for them,
-    #and that the order in which things are asked for matters.
-    #So I explicitly ask for the main index page before freezing the app to make sure all the other paths are set.
-    #tl;dr: this next line is important, don't remove it
-    app.index()
-
-    with warnings.catch_warnings():
-        if not debug():
-            warnings.simplefilter("ignore")
-        freezer.freeze()
-
-    qargs = {
-        "studySpaceId": study_space_id,
-        "title": title,
-        "saveIDE": True,
-        "instanceId": get_from_metadata_server(instance_name_path),
-        "inputFileIds": input_file_ids,
-        "sampleIds": input_sample_ids,
-        "notebook": current_notebook(),
-        "buildDirectory": build_dir
-    }
-    url = hise_url("toolchain", "save_dash_app_path", args=qargs)
-    headers = get_bearer_token_header()
-    ret = parse_hise_response(requests.request("POST", url, headers=headers))
-    return ret
-
-
-""" to be replaced...? 
-#See notes about freeze_dash_app above
-def save_dash_app(app,
-                  study_space_id = None,
-                  title = None,
-                  input_file_ids = [],
-                  input_sample_ids = []):
-    if is_derived_instance():
-        #we're the running instance, so no-op
-        return {}
-    study_space_id = validate_upload_data(study_space_id, title, input_file_ids)
-    qargs = {"studySpaceId": study_space_id,
-             "title": title,
-             "saveIDE": True,
-             "instanceId": get_from_metadata_server(instance_name_path),
-             "inputFileIds": input_file_ids,
-             "sampleIds": input_sample_ids,
-             "notebook": current_notebook(),
-             "buildContainer": True}
-    url = hise_url("toolchain", "save_dash_app_path", args = qargs)
-    headers = get_bearer_token_header()
-    ret = parse_hise_response(requests.request("POST", url, headers = headers))
-    return ret
-"""
-
-
 def validate_upload_data(study_space_id, title, input_file_ids):
     if study_space_id is None:
         study_space_id = default_study_space_id()
@@ -597,10 +464,3 @@ def load_visualization(trace_id):
     if data is not None:
         obj["data"] = data
     return go.Figure(obj, skip_invalid=True)
-
-
-def get_file_type(filename):
-    if "." in filename:
-        return filename.split(".")[-1]
-    else:
-        return "json"
