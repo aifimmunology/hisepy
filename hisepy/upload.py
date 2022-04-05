@@ -214,6 +214,7 @@ class DashAppImg:
                  my_study_id: str,
                  my_file_ids: list,
                  style_sheet: str,
+                 work_dir: tempfile.TemporaryDirectory,
                  title: str = None,
                  description: str = None,
                  my_sample_ids: list = []):
@@ -229,7 +230,7 @@ class DashAppImg:
         self.title = title
         self.description = description
         self.style_sheet = style_sheet
-        self.work_dir = tempfile.mkdtemp()
+        self.work_dir = work_dir
 
     def get_app_dir(self):
         """ Sets working directory of dash app """
@@ -368,30 +369,31 @@ def save_dash_app(app_filepath: str,
                                 []
         )
     """
-    # create static dash image
-    Dobj = DashAppImg(app_fpath=app_filepath,
-                      list_fnames=filenames,
-                      plty_objs=plotly_objects,
-                      my_study_id=study_space_id,
-                      my_file_ids=input_file_ids,
-                      style_sheet=custom_style_sheet,
-                      title=title,
-                      description=description,
-                      my_sample_ids=input_sample_ids)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # create static dash image
+        Dobj = DashAppImg(app_fpath=app_filepath,
+                          list_fnames=filenames,
+                          plty_objs=plotly_objects,
+                          my_study_id=study_space_id,
+                          my_file_ids=input_file_ids,
+                          style_sheet=custom_style_sheet,
+                          work_dir=tmpdirname,
+                          title=title,
+                          description=description,
+                          my_sample_ids=input_sample_ids)
 
-    # now walk down this app_dir and find those files
-    fpaths_list = cu.find_files(Dobj.get_app_dir(),
-                                Dobj.filenames + ['app.py'])
+        # now walk down this app_dir and find those files
+        fpaths_list = cu.find_files(Dobj.get_app_dir(),
+                                    Dobj.filenames + ['app.py'])
 
-    # move everything to a temporary dir
-    for this_file in fpaths_list:
-        shutil.copy(this_file, Dobj.work_dir)
+        # move everything to a temporary dir
+        for this_file in fpaths_list:
+            shutil.copy(this_file, tmpdirname)
 
-    try:
         paths_and_dirs = cu.list_files_and_dirs(Dobj.get_app_dir())
         if not create_requirements:
-            assert 'requirements.txt' in paths_and_dirs, '''requirements.txt is needed in order to deploy your dash app. This file lists all your app dependencie.\n
-                                                            Please try again with create_requirements set to True.'''
+            assert 'requirements.txt' in paths_and_dirs, '''requirements.txt is needed in order to deploy your dash app.
+             This file lists all your app dependencies. Please try again with create_requirements set to True.'''
         else:
             # create the thing
             Dobj.create_req_txt()
@@ -402,16 +404,10 @@ def save_dash_app(app_filepath: str,
         # tar it up; upload; and clean up
         Dobj.create_dash_image()
         resp = Dobj.export_dash_image()
-        cu.remove_dir(Dobj.work_dir)
-    except:
-        # if anything fails, remove any temporary directory stuff
-        print('uploading Dash app failed. Removing temp directory...')
-        cu.remove_dir(Dobj.work_dir)
-        return "error"
 
-    # now upload the images
-    print('dash image was successfully uploaded!')
-    return resp
+        # now upload the images
+        print('dash image was successfully uploaded!')
+        return resp
 
 
 def save_static_image(image, study_space_id=None, title=None):
