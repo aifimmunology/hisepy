@@ -34,8 +34,8 @@ def list_project_folders():
         pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'])
     resp = requests.request("GET", url, headers=get_bearer_token_header())
     if resp.status_code != 200:
-        raise (SystemError("Request to {} failed with status {}".format(
-            url, resp.status_code)))
+        raise SystemError("Request to {} failed with status {}".format(
+            url, resp.status_code))
     project_list = json.loads(resp.text)['folders']
 
     if len(project_list) == 0:
@@ -67,8 +67,8 @@ def list_files_in_project_folder(folder_name):
                             data=json.dumps(folder),
                             headers=get_bearer_token_header())
     if resp.status_code != 200:
-        raise (SystemError("Request to {} failed with status {}".format(
-            url, resp.status_code)))
+        raise SystemError("Request to {} failed with status {}".format(
+            url, resp.status_code))
     obj = json.loads(
         resp.text
     )[0]  # only allow users to submit 1 folder_name at a time, so we always index the first entry
@@ -100,8 +100,8 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
     def _submit_url_download(url: str, foldern: str, filen: str):
         resp = requests.request("GET", url, headers=get_bearer_token_header())
         if resp.status_code != 200:
-            raise (SystemError("Request to {} failed with status {}".format(
-                url, resp.status_code)))
+            raise SystemError("Request to {} failed with status {}".format(
+                url, resp.status_code))
 
         # remove time-stamp info from file_name which is assumed to be the first string before the first '/' character
         truncate_file_name = filen.split('/', maxsplit=1)[1]
@@ -165,8 +165,8 @@ def upload_to_project_folder(watchfolder_bucket_url, file_path):
 
     # ensure users' file actually exists
     if not os.path.exists(file_path):
-        raise (FileExistsError(
-            'submitted path {}, cannot be found'.format(file_path)))
+        raise FileExistsError(
+            'submitted path {}, cannot be found'.format(file_path))
 
     client = storage.Client()
     bucket = client.bucket(watchfolder_bucket_url)
@@ -206,8 +206,8 @@ def archive_file_in_project_folder(folder_name, file_name):
                             data=json.dumps(json_tag),
                             headers=get_bearer_token_header())
     if resp.status_code != 200:
-        raise (SystemError('Request to {} failed with status {}'.format(
-            url, resp.status_code)))
+        raise SystemError('Request to {} failed with status {}'.format(
+            url, resp.status_code))
     return True
 
 
@@ -240,6 +240,6 @@ def undo_archive_in_project_folder(folder_name, file_name):
                             data=json.dumps(json_tag),
                             headers=get_bearer_token_header())
     if resp.status_code != 200:
-        raise (SystemError("Request to {} failed with status {}".format(
-            url, resp.status_code)))
+        raise SystemError("Request to {} failed with status {}".format(
+            url, resp.status_code))
     return True

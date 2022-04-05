@@ -45,7 +45,7 @@ def get_trace(trace_id):
                          hise_url("tracer", "trace_path", trace_id),
                          headers=get_bearer_token_header()))
     if len(trace) == 0:
-        raise (Exception("Trace id %s is invalid" % (trace_id)))
+        raise Exception("Trace id %s is invalid" % (trace_id))
     return trace[0]
 
 
@@ -58,16 +58,16 @@ def default_study_space(must=True):
     if len(sspaces) == 0:
         if not must:
             return None
-        raise (ValueError(
-            "User belongs to no study spaces! Cannot upload to HISE!"))
+        raise ValueError(
+            "User belongs to no study spaces! Cannot upload to HISE!")
     if len(sspaces) > 1:
         if not must:
             return None
         for s in sspaces:
             print("%s: %s" % (s["id"], s["name"]))
-        raise (ValueError(
+        raise ValueError(
             "User belongs to multiple study spaces. Please specify with the study_space_id parameter"
-        ))
+        )
     return sspaces[0]
 
 
@@ -93,7 +93,7 @@ def upload_files(files: list,
             return False
 
     if type(files) is not list or len(files) == 0:
-        raise (ValueError("No files specified for upload"))
+        raise ValueError("No files specified for upload")
 
     trace_id = None
     study_space_id = validate_upload_data(study_space_id, title,
@@ -101,7 +101,7 @@ def upload_files(files: list,
     uploaded = []
     for i, f in enumerate(files):
         if not os.path.exists(f):
-            raise (ValueError("%s is not a valid file." % (f)))
+            raise ValueError("%s is not a valid file." % (f))
 
         file_dict = {
             'file': (f, open(f, 'rb'), 'application/json', {
@@ -133,9 +133,9 @@ def upload_files(files: list,
                 requests.request("POST", url, headers=headers,
                                  files=file_dict))
             if "TraceId" not in df_data:
-                raise (SystemError(
+                raise SystemError(
                     "Trace was not found in response to file upload. Cannot continue"
-                ))
+                )
             trace_id = df_data["TraceId"]
             #don't verify with the user more than once
             do_prompt = False
@@ -241,7 +241,7 @@ class DashAppImg:
             '/'
         )[-1] == 'app.py', 'filename of your dash app must be app.py. Please rename your file and try again.'
         if not os.path.exists(path):
-            raise (ValueError("%s is not a valid file" % (path)))
+            raise ValueError("%s is not a valid file" % (path))
         return True
 
     def verify_filenames(self, filenames):
@@ -416,7 +416,7 @@ def save_dash_app(app_filepath: str,
 
 def save_static_image(image, study_space_id=None, title=None):
     if not os.path.exists(image):
-        raise (ValueError("%s is not a valid file." % (image)))
+        raise ValueError("%s is not a valid file." % (image))
 
     img_dict = {
         'bytes': (image, open(image,
@@ -563,11 +563,11 @@ def validate_upload_data(study_space_id, title, input_file_ids):
     if study_space_id is None:
         study_space_id = default_study_space_id()
     if title is None:
-        raise (ValueError("Title cannot be empty"))
+        raise ValueError("Title cannot be empty")
     elif len(title) < 10:
-        raise (ValueError("Title must be at least 10 characters"))
+        raise ValueError("Title must be at least 10 characters")
     if len(input_file_ids) == 0:
-        raise (ValueError("You must specify at least one input file UUID"))
+        raise ValueError("You must specify at least one input file UUID")
     return study_space_id
 
 

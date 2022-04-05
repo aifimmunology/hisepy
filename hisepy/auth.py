@@ -29,16 +29,16 @@ def get_from_metadata_server(path):
                                 "%s/%s" % (metadata_server_root, path),
                                 headers={"Metadata-Flavor": "Google"})
         if resp.status_code != 200:
-            raise (SystemError("Request to %s failed with status %d. %s" %
-                               (path, resp.status_code, resp.text)))
+            raise SystemError("Request to %s failed with status %d. %s" %
+                              (path, resp.status_code, resp.text))
         value = resp.text
     except:
         if path in default_metadata:
             print("Returning default value for %s" % path)
             value = default_metadata[path]
         else:
-            raise (SystemError(
-                "No default value found for %s. Cannot continue" % path))
+            raise SystemError(
+                "No default value found for %s. Cannot continue" % path)
     return value
 
 
