@@ -46,7 +46,7 @@ class hise_file:
             try:
                 self.id = uuid.UUID(file_id)
             except Exception as e:
-                raise (TypeError("%s is not a valid UUID. %s" % (file_id, e)))
+                raise TypeError("%s is not a valid UUID. %s" % (file_id, e))
 
         self.status = False
         self.message = "Not loaded. Run file_obj.load() to load"
@@ -71,7 +71,7 @@ class hise_file:
 
         obj = read_files([str(self.id)])
         if len(obj) == 0:
-            raise (TypeError("Failed to load file %s" % self.id))
+            raise TypeError("Failed to load file %s" % self.id)
 
         self.descriptors = obj[0].descriptors
         self.path = obj[0].path
@@ -145,11 +145,10 @@ def query_files(user_query: dict):
                             headers=get_bearer_token_header())
     obj = json.loads(resp.text)
     if type(obj) is not dict:
-        raise (TypeError("Response %s is not a list, it is a %s." %
-                         (resp.text, type(obj))))
+        raise TypeError("Response %s is not a list, it is a %s." %
+                        (resp.text, type(obj)))
     elif "payload" not in obj:
-        raise (TypeError("Response %s contained an empty payload!" %
-                         resp.test))
+        raise TypeError("Response %s contained an empty payload!" % resp.test)
     return obj["payload"]
 
 
@@ -222,7 +221,7 @@ def post_query(file_list: list = None,
         assert (file_list is None) & (query_id is None)
 
     if (file_list != None) & (type(file_list) is not list):
-        raise (TypeError("You must pass a list of file ids to read_files"))
+        raise TypeError("You must pass a list of file ids to read_files")
 
     # if user submits query, do the query and grab fileIds
     if query_dict is not None:
@@ -252,13 +251,13 @@ def post_query(file_list: list = None,
     resp = requests.request("GET", endpoint, headers=get_bearer_token_header())
 
     if resp.status_code != 200:
-        raise (SystemError("Request to %s failed with status %d. %s" %
-                           (endpoint, resp.status_code, resp.text)))
+        raise SystemError("Request to %s failed with status %d. %s" %
+                          (endpoint, resp.status_code, resp.text))
 
     obj = json.loads(resp.text)
     if type(obj) is not list:
-        raise (TypeError("Response %s is not a list, it is a %s." %
-                         (resp.text, type(obj))))
+        raise TypeError("Response %s is not a list, it is a %s." %
+                        (resp.text, type(obj)))
     return obj
 
 
@@ -319,9 +318,9 @@ def download_files(file_dict: dict):
 
     """
     if type(file_dict) is not dict:
-        raise (TypeError(
+        raise TypeError(
             "You must pass a dictionary of file_uuid: file_name to download_files"
-        ))
+        )
 
     response = []
     #use a dummy batch id for these files
@@ -346,12 +345,12 @@ def download_files(file_dict: dict):
 def cache_and_convert_file_data(file_data: dict):
     """ Helper function to convert files into a hise_file object """
     if type(file_data) is not dict:
-        raise (Exception("Item in response is not a dict, it is a %s." %
-                         (type(file_data))))
+        raise Exception("Item in response is not a dict, it is a %s." %
+                        (type(file_data)))
     elif "descriptors" not in file_data:
-        raise (Exception("Descriptors not found in file data %s" % file_data))
+        raise Exception("Descriptors not found in file data %s" % file_data)
     elif "url" not in file_data:
-        raise (Exception("No download url found in file data %s" % file_data))
+        raise Exception("No download url found in file data %s" % file_data)
     # always working with a single file-id at this point. but there may be multiple descriptor objects
     try:
         f_desc = file_data["descriptors"]["file"]
@@ -381,9 +380,9 @@ def cache_file(url: str, file_name: str, file_dir: str):
     f_path = "%s/%s" % (file_dir, file_name)
     resp = requests.request("GET", url, headers=get_bearer_token_header())
     if resp.status_code != 200:
-        raise (SystemError(
+        raise SystemError(
             "Request to get file %s from %s failed with status %d. %s" %
-            (file_name, resp.status_code, resp.text)))
+            (file_name, resp.status_code, resp.text))
     open(f_path, 'wb').write(resp.content)
 
 
@@ -421,11 +420,11 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
         query = _create_mongo_query_in(qdict)
     elif sample_ids is not None:
         if type(sample_ids) is not list:
-            raise (TypeError("sample_ids must be a list"))
+            raise TypeError("sample_ids must be a list")
         query = {"id": {"$in": sample_ids}}
     if query is None:
-        raise (TypeError(
-            "You must specify either a list of sample_ids or a query"))
+        raise TypeError(
+            "You must specify either a list of sample_ids or a query")
     endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
                                   CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
     resp = requests.request("POST",
@@ -434,16 +433,15 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
                             headers=get_bearer_token_header())
 
     if resp.status_code != 200:
-        raise (SystemError("Request to %s failed with status %d. %s" %
-                           (endpoint, resp.status_code, resp.text)))
+        raise SystemError("Request to %s failed with status %d. %s" %
+                          (endpoint, resp.status_code, resp.text))
 
     obj = json.loads(resp.text)
     if type(obj) is not dict:
-        raise (TypeError("Response %s is not a list, it is a %s." %
-                         (resp.text, type(obj))))
+        raise TypeError("Response %s is not a list, it is a %s." %
+                        (resp.text, type(obj)))
     elif "payload" not in obj:
-        raise (TypeError("Response %s contained an empty payload!" %
-                         resp.test))
+        raise TypeError("Response %s contained an empty payload!" % resp.test)
     if to_df:
         return hf.sample_to_df(obj["payload"])
     else:
@@ -483,11 +481,11 @@ def read_subjects(subject_ids: str = None,
         query = _create_mongo_query_in(qdict)
     elif subject_ids is not None:
         if type(subject_ids) is not list:
-            raise (TypeError("subject_ids must be a list"))
+            raise TypeError("subject_ids must be a list")
         query = {"id": {"$in": subject_ids}}
     if query is None:
-        raise (TypeError(
-            "You must specify either a list of subject_ids or a query"))
+        raise TypeError(
+            "You must specify either a list of subject_ids or a query")
 
     endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
                                   CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
@@ -497,16 +495,15 @@ def read_subjects(subject_ids: str = None,
                             headers=get_bearer_token_header())
 
     if resp.status_code != 200:
-        raise (SystemError("Request to %s failed with status %d. %s" %
-                           (endpoint, resp.status_code, resp.text)))
+        raise SystemError("Request to %s failed with status %d. %s" %
+                          (endpoint, resp.status_code, resp.text))
 
     obj = json.loads(resp.text)
     if type(obj) is not dict:
-        raise (TypeError("Response %s is not a list, it is a %s." %
-                         (resp.text, type(obj))))
+        raise TypeError("Response %s is not a list, it is a %s." %
+                        (resp.text, type(obj)))
     elif "payload" not in obj:
-        raise (TypeError("Response %s contained an empty payload!" %
-                         resp.test))
+        raise TypeError("Response %s contained an empty payload!" % resp.test)
     if to_df:
         return hf.subject_to_df(obj["payload"])
     else:
@@ -518,10 +515,10 @@ def hise_url(service: str,
              resource: str = None,
              args: dict = None):
     if service.upper() not in CONFIG:
-        raise (ValueError("%s is not a known HISE service" % service))
+        raise ValueError("%s is not a known HISE service" % service)
     if config_path.upper() not in CONFIG[service.upper()]:
-        raise (ValueError("%s is not a known path in %s service" %
-                          (config_path, service)))
+        raise ValueError("%s is not a known path in %s service" %
+                         (config_path, service))
 
     server = get_from_metadata_server(server_id_path)
     protocol = "http" if "localhost" in server else "https"
@@ -529,14 +526,14 @@ def hise_url(service: str,
                           CONFIG[service.upper()][config_path.upper()])
     if resource is not None:
         if type(resource) is not str:
-            raise (ValueError("resource argument was a %s, not a string" %
-                              (type(resource))))
+            raise ValueError("resource argument was a %s, not a string" %
+                             (type(resource)))
         url += "/%s" % resource
 
     if args is not None:
         if type(args) is not dict:
-            raise (ValueError("query string argument was a %s, not a dict" %
-                              (type(args))))
+            raise ValueError("query string argument was a %s, not a dict" %
+                             (type(args)))
         url += "?%s" % (urllib.parse.urlencode(args, doseq=True))
 
     return url
@@ -555,7 +552,7 @@ def parse_hise_response(resp):
         msg = resp.reason
 
     if resp.status_code != 200:
-        raise (SystemError(
+        raise SystemError(
             "%s request to %s returned with status %d. %s" %
-            (resp.request.method, resp.url, resp.status_code, msg)))
+            (resp.request.method, resp.url, resp.status_code, msg))
     return obj

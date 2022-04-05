@@ -74,8 +74,8 @@ def schedule_notebook(output_files=None,
                                   CONFIG['TOOLCHAIN']['SCHEDULER_PATH'])
     resp = requests.request("POST", endpoint, json=payload, headers=headers)
     if resp.status_code != 200:
-        raise (Exception("Request to %s failed with status %d. %s" %
-                         (endpoint, resp.status_code, resp.text)))
+        raise Exception("Request to %s failed with status %d. %s" %
+                        (endpoint, resp.status_code, resp.text))
     job = notebook_job(obj=json.loads(resp.text))
     print("Scheduled.")
     return job
@@ -109,13 +109,12 @@ def validate_schedule_input(output_files, input_data, platform, project):
 
     if platform == CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']:
         if input_data is None or type(input_data) is not pandas.DataFrame:
-            raise (TypeError(
+            raise TypeError(
                 "Notebook platform %s requires input_data of type pandas.DataFrame"
-                % (CONFIG['SCHEDULER']['PLATFORM_LOUVAIN'])))
+                % (CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']))
         elif output_files is not None:
-            raise (TypeError(
-                "Notebook platform %s does not take output files" %
-                (CONFIG['SCHEDULER']['PLATFORM_LOUVAIN'])))
+            raise TypeError("Notebook platform %s does not take output files" %
+                            (CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']))
         else:
             #this might take a bit, so give the user some notice
             print("Converting and normalizing input data...")
@@ -126,15 +125,15 @@ def validate_schedule_input(output_files, input_data, platform, project):
     else:
         if output_files is None or type(output_files) is not list or len(
                 output_files) == 0:
-            raise (TypeError(
+            raise TypeError(
                 "You must specify a list of at least one expected output file using the output_files argument"
-            ))
+            )
         else:
             for f in output_files:
                 if " " in f:
-                    raise (TypeError(
+                    raise TypeError(
                         "%s is an invalid output file. Spaces are not allowed in output file names."
-                        % (f)))
+                        % (f))
             payload[CONFIG['SCHEDULER']['OUTPUT_FILES_FIELD']] = output_files
 
     return payload
@@ -198,9 +197,9 @@ def get_notebook_job(job_id=None):
         if os.path.exists(job_record_file):
             job_id = open(job_record_file, "r").read().rstrip()
         else:
-            raise (Exception(
+            raise Exception(
                 "Job Id not specified, and no schedule record found on instance"
-            ))
+            )
     return notebook_job(id=job_id)
 
 
@@ -233,9 +232,9 @@ def current_notebook():
         "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 3 | cut -f2- -d ' '"
     ).read().rstrip().split("\n")
     if len(notebooks) == 0 or notebooks[0] == "":
-        raise (TypeError(
+        raise TypeError(
             "Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"
-        ))
+        )
     elif len(notebooks) > 1:
         olderIsNew = (time.time() - os.stat(notebooks[1]).st_mtime <
                       ambiguitySeconds)
@@ -289,7 +288,7 @@ class notebook_job:
         if CONFIG['SCHEDULER']['JOB_ID_FIELD'] in obj:
             self.id = obj[CONFIG['SCHEDULER']['JOB_ID_FIELD']]
         else:
-            raise (Exception("No job id found in json object"))
+            raise Exception("No job id found in json object")
 
         if CONFIG['SCHEDULER']['LEDGER_OUTPUT_FIELD'] in obj:
             for fid in obj[CONFIG['SCHEDULER']['LEDGER_OUTPUT_FIELD']]:
@@ -299,7 +298,7 @@ class notebook_job:
         if CONFIG['SCHEDULER']['STATUS_FIELD'] in obj:
             self.status = obj[CONFIG['SCHEDULER']['STATUS_FIELD']]
         else:
-            raise (Exception("No status found in json object"))
+            raise Exception("No status found in json object")
 
     def reload(self):
         if self.id is None:
@@ -311,8 +310,8 @@ class notebook_job:
             server_id_path), CONFIG['TOOLCHAIN']['SCHEDULER_PATH'], self.id)
         resp = requests.request("GET", endpoint, headers=headers)
         if resp.status_code != 200:
-            raise (Exception("Request to %s failed with status %d. %s" %
-                             (endpoint, resp.status_code, resp.text)))
+            raise Exception("Request to %s failed with status %d. %s" %
+                            (endpoint, resp.status_code, resp.text))
         self.init_from_object(json.loads(resp.text))
 
     def trace(self):
@@ -369,8 +368,8 @@ class trace:
             get_from_metadata_server(server_id_path), trace_path, self.id)
         resp = requests.request("GET", endpoint, headers=headers)
         if resp.status_code != 200:
-            raise (Exception("Request to %s failed with status %d. %s" %
-                             (endpoint, resp.status_code, resp.text)))
+            raise Exception("Request to %s failed with status %d. %s" %
+                            (endpoint, resp.status_code, resp.text))
         j_obj = json.loads(resp.text)
         if type(j_obj) is list and len(j_obj) > 0:
             j_obj = j_obj[0]

@@ -27,8 +27,8 @@ def convert_data_values(filepath: str, filetype: str):
         else:
             return None
     except:
-        raise (Exception(
-            "Uh-oh, the file wasn't downloaded into the /cache directory"))
+        raise Exception(
+            "Uh-oh, the file wasn't downloaded into the /cache directory")
 
 
 # there's another layer/dict under emr.patientData. is leaving a dict under this column okay?
