@@ -13,7 +13,7 @@ from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
                         clear_notebook_job)
 from .upload import (upload_files, save_static_image, save_visualization,
                      load_visualization, get_trace, get_study_spaces,
-                     get_files_for_query, freeze_dash_app, save_dash_app)
+                     get_files_for_query, save_dash_app)
 from .version import __version__
 
 # if somebody does "from somepackage import *", this is what they will
@@ -38,7 +38,6 @@ __all__ = [
     'archive_file_in_project_folder',
     'undo_archive_in_project_folder',
     'upload_files',
-    'freeze_dash_app',
     'save_static_image',
     'save_visualization',
     'load_visualization',
