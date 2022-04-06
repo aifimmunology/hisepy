@@ -306,7 +306,7 @@ class DashAppImg:
         return resp.text
 
     def export_dash_image(self):
-        """ Exports dash image to users' study space """
+        """ Uploads, saves and deploys Dash app """
         upload_resp = upload_files(
             files=['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)],
             study_space_id=self.study_space_id,
@@ -314,21 +314,28 @@ class DashAppImg:
             input_file_ids=self.input_file_ids,
             input_sample_ids=self.input_sample_ids,
             do_prompt=False)
-        trace_id = upload_resp['trace_id']
-        qargs = {
+        upload_trace_id = upload_resp['trace_id']
+        save_args = {
             "studySpaceId": self.study_space_id,
             "title": self.title,
             "instanceId": get_from_metadata_server(instance_name_path),
             "inputFileIds": self.input_file_ids,
             "sampleIds": self.input_sample_ids,
             "notebook": current_notebook(),
-            "traceId": trace_id
+            "traceId": upload_trace_id
         }
-        url = hise_url("toolchain", "save_dash_app_path", args=qargs)
+        save_url = hise_url("toolchain", "save_dash_app_path", args=save_args)
         headers = get_bearer_token_header()
-        ret = parse_hise_response(
-            requests.request("POST", url, headers=headers))
-        return ret
+        # We don't technically need the save response because it's the same Trace ID,
+        # but we'll go through it to help with debugging if save returns something crazy
+        save_resp = parse_hise_response(
+            requests.post(save_url, headers=headers))
+        deploy_url = hise_url("toolchain",
+                              "deploy_dash_app_path",
+                              resource=save_resp['TraceId'])
+        deploy_resp = parse_hise_response(
+            requests.post(deploy_url, headers=headers))
+        return deploy_resp
 
 
 def save_dash_app(app_filepath: str,
@@ -352,7 +359,7 @@ def save_dash_app(app_filepath: str,
         plotly_objects: list
             a list of plotly objects or filepaths to .png images users want included in their study space
         create_requirements: bool
-            whether or not to create a requirements.txt file.
+            whether to create a requirements.txt file.
             NOTE: this should only be false if you created this file yourself
         study_space_id : str
             unique identifier for study space
@@ -362,7 +369,7 @@ def save_dash_app(app_filepath: str,
             list of unique samples used to generate results
 
     Returns:
-        True if upload was succesful, False if submission failed
+        True if upload was successful, False if submission failed
 
     Examples:
         hp.save_dash_app('/Users/james.harvey/workplace/dash_test/app.py',

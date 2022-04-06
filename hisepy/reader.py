@@ -541,7 +541,6 @@ def hise_url(service: str,
 
 def parse_hise_response(resp):
     obj = None
-    msg = None
     try:
         obj = json.loads(resp.text)
         if "Errors" in obj and len(obj["Errors"]) > 0:
