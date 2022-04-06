@@ -39,7 +39,7 @@ def get_trace(trace_id):
                          hise_url("tracer", "trace_path", trace_id),
                          headers=get_bearer_token_header()))
     if len(trace) == 0:
-        raise Exception("Trace id %s is invalid" % (trace_id))
+        raise Exception("Trace id %s is invalid" % trace_id)
     return trace[0]
 
 
@@ -68,22 +68,29 @@ def default_study_space(must=True):
 def upload_files(files: list,
                  study_space_id: str = None,
                  title: str = None,
-                 input_file_ids: list = [],
-                 input_sample_ids: list = [],
-                 file_types: list = [],
+                 input_file_ids=None,
+                 input_sample_ids=None,
+                 file_types=None,
                  do_prompt: bool = True):
 
-    def _user_prompt_upload(files: list):
+    if input_file_ids is None:
+        input_file_ids = []
+    if input_sample_ids is None:
+        input_sample_ids = []
+    if file_types is None:
+        file_types = []
+
+    def _user_prompt_upload(prompt_files: list):
         print(
             'you are trying to upload file_ids... {}. Do you truly want to proceed?'
-            .format(files))
+            .format(prompt_files))
         user_input = input('(y/n)')
         while user_input.lower() not in ['y', 'n']:
             print('please enter either "n" for no, or "y" for yes.')
             user_input = input('(y/n)')
-        if (user_input.lower() == 'y'):
+        if user_input.lower() == 'y':
             return True
-        elif (user_input.lower() == 'n'):
+        elif user_input.lower() == 'n':
             return False
 
     if type(files) is not list or len(files) == 0:
@@ -95,14 +102,13 @@ def upload_files(files: list,
     uploaded = []
     for i, f in enumerate(files):
         if not os.path.exists(f):
-            raise ValueError("%s is not a valid file." % (f))
+            raise ValueError("%s is not a valid file." % f)
 
         file_dict = {
             'file': (f, open(f, 'rb'), 'application/json', {
                 'Expires': '0'
             })
         }
-        qargs = None
         file_type = cu.get_filetype(f)
         if type(file_types) is list and len(file_types) > i:
             file_type = file_types[i]
@@ -122,7 +128,7 @@ def upload_files(files: list,
 
         url = hise_url("toolchain", "upload_file_path", args=qargs)
         headers = get_bearer_token_header()
-        if (not do_prompt or _user_prompt_upload(files=files)):
+        if not do_prompt or _user_prompt_upload(prompt_files=files):
             df_data = parse_hise_response(
                 requests.request("POST", url, headers=headers,
                                  files=file_dict))
@@ -131,7 +137,7 @@ def upload_files(files: list,
                     "Trace was not found in response to file upload. Cannot continue"
                 )
             trace_id = df_data["TraceId"]
-            #don't verify with the user more than once
+            # don't verify with the user more than once
             do_prompt = False
             uploaded.append(df_data["FileId"])
         else:
@@ -143,9 +149,13 @@ def upload_files(files: list,
 def save_visualization(pl_obj,
                        study_space_id=None,
                        title=None,
-                       input_file_ids=[],
-                       input_sample_ids=[]):
+                       input_file_ids=None,
+                       input_sample_ids=None):
 
+    if input_file_ids is None:
+        input_file_ids = []
+    if input_sample_ids is None:
+        input_sample_ids = []
     tmp_data_file = "/tmp/plotly_data.json"
     tmp_plotly_file = "/tmp/plotly.json"
     tmp_img_file = "/tmp/plotly.png"
@@ -170,7 +180,7 @@ def save_visualization(pl_obj,
 
     args = {"traceId": up_res["trace_id"], "images": img_data["id"]}
 
-    #now null out the data and save the plotly without it
+    # now null out the data and save the plotly without it
     exp_obj["data"] = []
     f = open(tmp_plotly_file, "w")
     f.write(json.dumps(exp_obj))
@@ -183,12 +193,10 @@ def save_visualization(pl_obj,
                                        })
     }
 
-    v_data = parse_hise_response(
+    url = hise_url("toolchain", "visualization_path", "json", args=args)
+    parse_hise_response(
         requests.request("POST",
-                         hise_url("toolchain",
-                                  "visualization_path",
-                                  "json",
-                                  args=args),
+                         url,
                          headers=get_bearer_token_header(),
                          files=vis_dict))
     os.remove(tmp_data_file)
@@ -208,11 +216,13 @@ class DashAppImg:
                  my_study_id: str,
                  my_file_ids: list,
                  style_sheet: str,
-                 work_dir: tempfile.TemporaryDirectory,
+                 work_dir: str,
                  title: str = None,
                  description: str = None,
-                 my_sample_ids: list = []):
+                 my_sample_ids=None):
 
+        if my_sample_ids is None:
+            my_sample_ids = []
         if self.verify_app_path(app_fpath):
             self.app_filepath = app_fpath
         if self.verify_filenames(list_fnames):
@@ -230,13 +240,14 @@ class DashAppImg:
         """ Sets working directory of dash app """
         return os.path.dirname(self.app_filepath)
 
-    def verify_app_path(self, path):
+    @staticmethod
+    def verify_app_path(path):
         """ Verifies that user-submitted path is appropriate and actually exists """
         assert path.split(
             '/'
         )[-1] == 'app.py', 'filename of your dash app must be app.py. Please rename your file and try again.'
         if not os.path.exists(path):
-            raise ValueError("%s is not a valid file" % (path))
+            raise ValueError("%s is not a valid file" % path)
         return True
 
     def verify_filenames(self, filenames):
@@ -246,7 +257,8 @@ class DashAppImg:
         """
         paths_and_dirs = cu.list_files_and_dirs(self.get_app_dir())
         assert set(filenames) - set(paths_and_dirs) == set(
-        ), 'not all files listed under filenames were found. Please make sure the files listed exist in the same directory as your app.py file'
+        ), 'not all files listed under filenames were found. Please make sure the files listed exist in the same' \
+           ' directory as your app.py file'
 
         return True
 
@@ -283,7 +295,8 @@ class DashAppImg:
             tar.add(source_dir, arcname="")
         return True
 
-    def archive_style_sheet(self):
+    @staticmethod
+    def archive_style_sheet():
         """ Requests submitted style sheet, and saves """
         # TODO: does user submit this style sheet? what if user doesn't submit one?
         resp = requests.request(
@@ -327,9 +340,9 @@ def save_dash_app(app_filepath: str,
                   custom_style_sheet: str,
                   title: str = None,
                   description: str = None,
-                  input_sample_ids: list = []):
-    """ Given a filepath to an app.py file, validate input files for the app exists, require a requirements.txt also exists,
-    create static images of plotly objects, tar/zip everything together and upload the file utilizing uploadFiles()
+                  input_sample_ids=None):
+    """ Given a filepath to app.py, validate input files for the app exist, require that requirements.txt also
+     exist, create static images of plotly objects, tar/zip everything together and upload the file via uploadFiles()
 
     Parameters:
         app_filepath : str
@@ -337,9 +350,10 @@ def save_dash_app(app_filepath: str,
         filenames : list
             list of filenames that are used as inputs to users' dash app
         plotly_objects: list
-            either a list of plotly objects, or a list of filepaths to .png images users want included in their study space
+            a list of plotly objects or filepaths to .png images users want included in their study space
         create_requirements: bool
-            whether or not to create a requirements.txt file. NOTE: this should only be false if you created this file yourself
+            whether or not to create a requirements.txt file.
+            NOTE: this should only be false if you created this file yourself
         study_space_id : str
             unique identifier for study space
         input_file_ids : list
@@ -363,9 +377,11 @@ def save_dash_app(app_filepath: str,
                                 []
         )
     """
+    if input_sample_ids is None:
+        input_sample_ids = []
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create static dash image
-        Dobj = DashAppImg(app_fpath=app_filepath,
+        dobj = DashAppImg(app_fpath=app_filepath,
                           list_fnames=filenames,
                           plty_objs=plotly_objects,
                           my_study_id=study_space_id,
@@ -377,27 +393,27 @@ def save_dash_app(app_filepath: str,
                           my_sample_ids=input_sample_ids)
 
         # now walk down this app_dir and find those files
-        fpaths_list = cu.find_files(Dobj.get_app_dir(),
-                                    Dobj.filenames + ['app.py'])
+        fpaths_list = cu.find_files(dobj.get_app_dir(),
+                                    dobj.filenames + ['app.py'])
 
         # move everything to a temporary dir
         for this_file in fpaths_list:
             shutil.copy(this_file, tmpdirname)
 
-        paths_and_dirs = cu.list_files_and_dirs(Dobj.get_app_dir())
+        paths_and_dirs = cu.list_files_and_dirs(dobj.get_app_dir())
         if not create_requirements:
             assert 'requirements.txt' in paths_and_dirs, '''requirements.txt is needed in order to deploy your dash app.
              This file lists all your app dependencies. Please try again with create_requirements set to True.'''
         else:
             # create the thing
-            Dobj.create_req_txt()
+            dobj.create_req_txt()
 
         # handle images users want to show up in their study space.
-        Dobj.export_plotly_objs()
+        dobj.export_plotly_objs()
 
         # tar it up; upload; and clean up
-        Dobj.create_dash_image()
-        resp = Dobj.export_dash_image()
+        dobj.create_dash_image()
+        resp = dobj.export_dash_image()
 
         # now upload the images
         print('dash image was successfully uploaded!')
@@ -406,7 +422,7 @@ def save_dash_app(app_filepath: str,
 
 def save_static_image(image, study_space_id=None, title=None):
     if not os.path.exists(image):
-        raise ValueError("%s is not a valid file." % (image))
+        raise ValueError("%s is not a valid file." % image)
 
     img_dict = {
         'bytes': (image, open(image,
@@ -448,7 +464,7 @@ def load_visualization(trace_id):
                                               format(datauuid)),
                                      headers=get_bearer_token_header()))
             else:
-                #dataReference was empty UUID. Ignore
+                # dataReference was empty UUID. Ignore
                 pass
         except Exception as e:
             print("Failed to load data reference %s: %s" % (ref, format(e)))
