@@ -206,7 +206,6 @@ def save_visualization(pl_obj,
 
 class DashAppImg:
     """ Class representing a Dash App Object """
-    # accepted_filetypes = ['csv', 'pkl']
     dash_app_name = 'app.py'
 
     def __init__(self,
@@ -255,8 +254,8 @@ class DashAppImg:
 
         TODO: force just a single filetype per submission
         """
-        paths_and_dirs = cu.list_files_and_dirs(self.get_app_dir())
-        assert set(filenames) - set(paths_and_dirs) == set(
+        filepaths = cu.find_files(self.get_app_dir(), filenames)
+        assert len(filepaths) == len(filenames
         ), 'not all files listed under filenames were found. Please make sure the files listed exist in the same' \
            ' directory as your app.py file'
 
@@ -407,9 +406,12 @@ def save_dash_app(app_filepath: str,
         for this_file in fpaths_list:
             shutil.copy(this_file, tmpdirname)
 
-        paths_and_dirs = cu.list_files_and_dirs(dobj.get_app_dir())
+        requirement_filepath = cu.find_files(dobj.get_app_dir(),
+                                             'requirements.txt')
         if not create_requirements:
-            assert 'requirements.txt' in paths_and_dirs, '''requirements.txt is needed in order to deploy your dash app.
+            assert len(
+                requirement_filepath
+            ) == 1, '''requirements.txt is needed in order to deploy your dash app.
              This file lists all your app dependencies. Please try again with create_requirements set to True.'''
         else:
             # create the thing
