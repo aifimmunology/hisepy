@@ -41,9 +41,8 @@ __all__ = [
     'save_static_image',
     'save_visualization',
     'load_visualization',
-    'load_visualization_layout',
-    'load_visualization_data',
     'get_study_spaces',
     'get_trace',
     'get_files_for_query',
+    'save_dash_app',
 ]
