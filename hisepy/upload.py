@@ -309,6 +309,7 @@ class DashAppImg:
             input_sample_ids=self.input_sample_ids,
             do_prompt=False)
         upload_trace_id = upload_resp['trace_id']
+
         save_args = {
             "studySpaceId": self.study_space_id,
             "title": self.title,
@@ -335,7 +336,6 @@ class DashAppImg:
 def save_dash_app(app_filepath: str,
                   filenames: list,
                   plotly_objects: list,
-                  create_requirements: bool,
                   study_space_id,
                   input_file_ids: list,
                   custom_style_sheet: str,
@@ -352,9 +352,6 @@ def save_dash_app(app_filepath: str,
             list of filenames that are used as inputs to users' dash app
         plotly_objects: list
             a list of plotly objects or filepaths to .png images users want included in their study space
-        create_requirements: bool
-            whether to create a requirements.txt file.
-            NOTE: this should only be false if you created this file yourself
         study_space_id : str
             unique identifier for study space
         input_file_ids : list
@@ -401,16 +398,8 @@ def save_dash_app(app_filepath: str,
         for this_file in fpaths_list:
             shutil.copy(this_file, tmpdirname)
 
-        requirement_filepath = cu.find_files(dobj.get_app_dir(),
-                                             'requirements.txt')
-        if not create_requirements:
-            assert len(
-                requirement_filepath
-            ) == 1, '''requirements.txt is needed in order to deploy your dash app.
-             This file lists all your app dependencies. Please try again with create_requirements set to True.'''
-        else:
-            # create the thing
-            dobj.create_req_txt()
+        # create .txt files that contains users' imported libraries
+        dobj.create_req_txt()
 
         # handle images users want to show up in their study space.
         dobj.export_plotly_objs()
