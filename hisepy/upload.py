@@ -371,7 +371,6 @@ def save_dash_app(app_filepath: str,
         hp.save_dash_app('/Users/james.harvey/workplace/dash_test/app.py',
                                 ['inputdash1.csv', 'inputdash2.csv'],
                                 ['pic1.png'],
-                                True,
                                 'f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
                                 ['9f6d7ab5-1c7b-4709-9455-3d8ff3fbb6c8'],
                                 'custom.css',
@@ -394,6 +393,10 @@ def save_dash_app(app_filepath: str,
                           title=title,
                           description=description,
                           my_sample_ids=input_sample_ids)
+
+        # Insert UI widget code here:
+        # pull out all filenames
+        # determine what are input datasets vs. hero images
 
         # now walk down this app_dir and find those files
         fpaths_list = cu.find_files(dobj.get_app_dir(),
