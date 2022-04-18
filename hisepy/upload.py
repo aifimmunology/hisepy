@@ -27,9 +27,8 @@ def get_study_spaces():
 
 def get_files_for_query(query_id):
     resp = parse_hise_response(
-        requests.request("POST",
-                         hise_url("hydration", "query_search_path", query_id),
-                         headers=get_bearer_token_header()))
+        requests.post(hise_url("hydration", "query_search_path", query_id),
+                      headers=get_bearer_token_header()))
     return list(map(lambda x: x['file']['id'], resp))
 
 
@@ -130,12 +129,9 @@ def upload_files(files: list,
         headers = get_bearer_token_header()
         if not do_prompt or _user_prompt_upload(prompt_files=files):
             df_data = parse_hise_response(
-                requests.request("POST", url, headers=headers,
-                                 files=file_dict))
+                requests.post(url, headers=headers, files=file_dict))
             if "TraceId" not in df_data:
-                raise SystemError(
-                    "Trace was not found in response to file upload. Cannot continue"
-                )
+                raise SystemError("No trace found in file upload response.")
             trace_id = df_data["TraceId"]
             # don't verify with the user more than once
             do_prompt = False
@@ -195,10 +191,7 @@ def save_visualization(pl_obj,
 
     url = hise_url("toolchain", "visualization_path", "json", args=args)
     parse_hise_response(
-        requests.request("POST",
-                         url,
-                         headers=get_bearer_token_header(),
-                         files=vis_dict))
+        requests.post(url, headers=get_bearer_token_header(), files=vis_dict))
     os.remove(tmp_data_file)
     os.remove(tmp_plotly_file)
     return up_res
@@ -441,10 +434,9 @@ def save_static_image(image, study_space_id=None, title=None):
                                           ["not a file"])
     args = {"studySpaceId": study_space_id, "title": title}
     return parse_hise_response(
-        requests.request("POST",
-                         hise_url("hydration", "upload_path", args=args),
-                         headers=get_bearer_token_header(),
-                         files=img_dict))
+        requests.post(hise_url("hydration", "upload_path", args=args),
+                      headers=get_bearer_token_header(),
+                      files=img_dict))
 
 
 def validate_upload_data(study_space_id, title, input_file_ids):

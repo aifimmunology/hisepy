@@ -72,7 +72,7 @@ def schedule_notebook(output_files=None,
     headers = get_bearer_token_header()
     endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
                                   CONFIG['TOOLCHAIN']['SCHEDULER_PATH'])
-    resp = requests.request("POST", endpoint, json=payload, headers=headers)
+    resp = requests.post(endpoint, json=payload, headers=headers)
     if resp.status_code != 200:
         raise Exception("Request to %s failed with status %d. %s" %
                         (endpoint, resp.status_code, resp.text))

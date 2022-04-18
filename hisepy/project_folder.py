@@ -62,10 +62,9 @@ def list_files_in_project_folder(folder_name):
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
         pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
         f='files')
-    resp = requests.request("POST",
-                            url,
-                            data=json.dumps(folder),
-                            headers=get_bearer_token_header())
+    resp = requests.post(url,
+                         data=json.dumps(folder),
+                         headers=get_bearer_token_header())
     if resp.status_code != 200:
         raise SystemError("Request to {} failed with status {}".format(
             url, resp.status_code))

@@ -45,7 +45,7 @@ def lookup_queryable_fields(field_type='all'):
         url = 'https://{ser}/{led}?field_names=true'.format(
             ser=get_from_metadata_server(server_id_path),
             led=CONFIG['LEDGER']['{}_SEARCH_PATH'.format(cf.upper())])
-        resp = requests.request("POST", url, headers=get_bearer_token_header())
+        resp = requests.post(url, headers=get_bearer_token_header())
         fields = json.loads(resp.text)
 
         # filter to just the collection type user requested
