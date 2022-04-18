@@ -139,10 +139,9 @@ def query_files(user_query: dict):
     endpoint = "https://{s}/{de}".format(
         s=get_from_metadata_server(server_id_path),
         de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
-    resp = requests.request("POST",
-                            endpoint,
-                            data=json.dumps({"filter": query_dict}),
-                            headers=get_bearer_token_header())
+    resp = requests.post(endpoint,
+                         data=json.dumps({"filter": query_dict}),
+                         headers=get_bearer_token_header())
     obj = json.loads(resp.text)
     if type(obj) is not dict:
         raise TypeError("Response %s is not a list, it is a %s." %
@@ -427,10 +426,9 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
             "You must specify either a list of sample_ids or a query")
     endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
                                   CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
-    resp = requests.request("POST",
-                            endpoint,
-                            data=json.dumps({"filter": query}),
-                            headers=get_bearer_token_header())
+    resp = requests.post(endpoint,
+                         data=json.dumps({"filter": query}),
+                         headers=get_bearer_token_header())
 
     if resp.status_code != 200:
         raise SystemError("Request to %s failed with status %d. %s" %
@@ -489,10 +487,9 @@ def read_subjects(subject_ids: str = None,
 
     endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
                                   CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
-    resp = requests.request("POST",
-                            endpoint,
-                            data=json.dumps({"filter": query}),
-                            headers=get_bearer_token_header())
+    resp = requests.post(endpoint,
+                         data=json.dumps({"filter": query}),
+                         headers=get_bearer_token_header())
 
     if resp.status_code != 200:
         raise SystemError("Request to %s failed with status %d. %s" %
