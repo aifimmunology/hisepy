@@ -157,7 +157,9 @@ def save_visualization(pl_obj,
     tmp_img_file = "/tmp/plotly.png"
 
     pl_obj.write_image(tmp_img_file)
-    img_data = save_static_image(tmp_img_file, study_space_id, title)
+    img_data = save_static_image(image=tmp_img_file,
+                                 title=title,
+                                 study_space_id=study_space_id)
     os.remove(tmp_img_file)
 
     exp_obj = json.loads(pl_obj.to_json())
@@ -422,7 +424,7 @@ def save_dash_app(app_filepath: str,
         return resp
 
 
-def save_static_image(image, study_space_id=None, title=None):
+def save_static_image(image, title, study_space_id=None):
     if not os.path.exists(image):
         raise ValueError("%s is not a valid file." % image)
 
