@@ -71,7 +71,6 @@ def upload_files(files: list,
                  input_sample_ids=None,
                  file_types=None,
                  do_prompt: bool = True):
-
     if input_file_ids is None:
         input_file_ids = []
     if input_sample_ids is None:
@@ -142,12 +141,12 @@ def upload_files(files: list,
     return {"trace_id": trace_id, "files": uploaded}
 
 
-def save_visualization(pl_obj,
-                       study_space_id=None,
-                       title=None,
-                       input_file_ids=None,
-                       input_sample_ids=None):
-
+def save_visualization(
+        pl_obj,
+        study_space_id=None,  # optional
+        title=None,  # not actually optional
+        input_file_ids=None,  # not optional
+        input_sample_ids=None):  # optional
     if input_file_ids is None:
         input_file_ids = []
     if input_sample_ids is None:
@@ -206,7 +205,7 @@ class DashAppImg:
     def __init__(self,
                  app_fpath: str,
                  list_fnames: list,
-                 plty_objs: list,
+                 hero_image: str,
                  my_study_id: str,
                  my_file_ids: list,
                  style_sheet: str,
@@ -221,7 +220,7 @@ class DashAppImg:
             self.app_filepath = app_fpath
         if self.verify_filenames(list_fnames):
             self.filenames = list_fnames
-        self.plotly_objects = plty_objs
+        self.hero_image = hero_image
         self.study_space_id = my_study_id
         self.input_file_ids = my_file_ids
         self.input_sample_ids = my_sample_ids
@@ -261,25 +260,16 @@ class DashAppImg:
             "pip3 freeze > {wd}/requirements.txt".format(wd=self.work_dir),
             shell=True)
 
-    def export_plotly_objs(self):
-        plot_type = type(self.plotly_objects[0])
-        if plot_type == str:  # NOTE: might not want this
-            plotly_list = cu.find_files(self.get_app_dir(),
-                                        self.plotly_objects)
-            for this_plot in plotly_list:
-                assert (type(this_plot) == str) and (
-                    cu.get_filetype(this_plot) == 'png'
-                ), "image must be a PNG if you're trying to submit snapshots of visualizations"
+    def upload_hero_image(self):
+        assert type(self.hero_image) == str and cu.get_filetype(
+            self.hero_image) == 'png', "image must be a PNG"
 
-                # move all to tmp dir
-                shutil.copy(this_plot, self.work_dir)
-        else:
-            # assume plotly objects are being passed through
-            for plo in self.plotly_objects:
-                save_visualization(plo,
-                                   study_space_id=self.study_space_id,
-                                   input_file_ids=self.input_file_ids,
-                                   input_sample_ids=self.input_sample_ids)
+        # I don't think this title is ever user-visible, but save_static_image requires it
+        image_title = self.title if len(
+            self.title) >= 10 else "dash app static image"
+        return save_static_image(image=self.hero_image,
+                                 title=image_title,
+                                 study_space_id=self.study_space_id)
 
     def create_dash_image(self):
         """Creates image by bundling all required objects"""
@@ -301,6 +291,14 @@ class DashAppImg:
 
     def export_dash_image(self):
         """ Uploads, saves and deploys Dash app """
+
+        img_resp = self.upload_hero_image()
+        if img_resp['error'] is not False:
+            print("Error uploading image: ", img_resp['error'])
+
+        print("POST hydration/source/studyspace/file for hero image:")
+        print(img_resp)
+
         upload_resp = upload_files(
             files=['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)],
             study_space_id=self.study_space_id,
@@ -308,7 +306,9 @@ class DashAppImg:
             input_file_ids=self.input_file_ids,
             input_sample_ids=self.input_sample_ids,
             do_prompt=False)
-        upload_trace_id = upload_resp['trace_id']
+
+        print("POST toolchain/file for dash app tarball:")
+        print(upload_resp)
 
         save_args = {
             "studySpaceId": self.study_space_id,
@@ -317,7 +317,8 @@ class DashAppImg:
             "inputFileIds": self.input_file_ids,
             "sampleIds": self.input_sample_ids,
             "notebook": current_notebook(),
-            "traceId": upload_trace_id
+            "images": img_resp['id'],
+            "traceId": upload_resp['trace_id']
         }
         save_url = hise_url("toolchain", "save_dash_app_path", args=save_args)
         headers = get_bearer_token_header()
@@ -325,20 +326,28 @@ class DashAppImg:
         # but we'll go through it to help with debugging if save returns something crazy
         save_resp = parse_hise_response(
             requests.post(save_url, headers=headers))
+
+        print("POST toolchain/visualization/dash to save dash app:")
+        print(save_resp)
+
         deploy_url = hise_url("toolchain",
                               "deploy_dash_app_path",
                               resource=save_resp['TraceId'])
         deploy_resp = parse_hise_response(
             requests.post(deploy_url, headers=headers))
+
+        print("POST toolchain/deploy/visualization to deploy dash app:")
+        print(deploy_resp)
+
         return deploy_resp
 
 
 def save_dash_app(app_filepath: str,
                   filenames: list,
-                  plotly_objects: list,
                   study_space_id,
                   input_file_ids: list,
                   custom_style_sheet: str,
+                  image: str = None,
                   title: str = None,
                   description: str = None,
                   input_sample_ids=None):
@@ -350,8 +359,8 @@ def save_dash_app(app_filepath: str,
             filepath to app.py file
         filenames : list
             list of filenames that are used as inputs to users' dash app
-        plotly_objects: list
-            a list of plotly objects or filepaths to .png images users want included in their study space
+        image: str
+            png image to show for Dash app
         study_space_id : str
             unique identifier for study space
         input_file_ids : list
@@ -380,7 +389,7 @@ def save_dash_app(app_filepath: str,
         # create static dash image
         dobj = DashAppImg(app_fpath=app_filepath,
                           list_fnames=filenames,
-                          plty_objs=plotly_objects,
+                          hero_image=image,
                           my_study_id=study_space_id,
                           my_file_ids=input_file_ids,
                           style_sheet=custom_style_sheet,
@@ -403,9 +412,6 @@ def save_dash_app(app_filepath: str,
 
         # create .txt files that contains users' imported libraries
         dobj.create_req_txt()
-
-        # handle images users want to show up in their study space.
-        dobj.export_plotly_objs()
 
         # tar it up; upload; and clean up
         dobj.create_dash_image()
