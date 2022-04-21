@@ -507,6 +507,20 @@ def read_subjects(subject_ids: str = None,
         return obj["payload"]
 
 
+def get_server(service):
+    test_hydration_server = os.getenv("TEST_HYDRATION_SERVER")
+    test_toolchain_server = os.getenv("TEST_TOOLCHAIN_SERVER")
+    test_tracer_server = os.getenv("TEST_TRACER_SERVER")
+    if service == "hydration" and test_hydration_server is not None:
+        return test_hydration_server
+    elif service == "toolchain" and test_toolchain_server is not None:
+        return test_toolchain_server
+    elif service == "tracer" and test_tracer_server is not None:
+        return test_tracer_server
+    else:
+        return get_from_metadata_server(server_id_path)
+
+
 def hise_url(service: str,
              config_path: str,
              resource: str = None,
@@ -517,7 +531,7 @@ def hise_url(service: str,
         raise ValueError("%s is not a known path in %s service" %
                          (config_path, service))
 
-    server = get_from_metadata_server(server_id_path)
+    server = get_server(service)
     protocol = "http" if "localhost" in server else "https"
     url = "%s://%s/%s" % (protocol, server,
                           CONFIG[service.upper()][config_path.upper()])
