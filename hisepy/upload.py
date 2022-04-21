@@ -204,11 +204,9 @@ class DashAppImg:
 
     def __init__(self,
                  app_fpath: str,
-                 list_fnames: list,
                  hero_image: str,
                  my_study_id: str,
                  my_file_ids: list,
-                 style_sheet: str,
                  work_dir: str,
                  title: str = None,
                  description: str = None,
@@ -218,15 +216,12 @@ class DashAppImg:
             my_sample_ids = []
         if self.verify_app_path(app_fpath):
             self.app_filepath = app_fpath
-        if self.verify_filenames(list_fnames):
-            self.filenames = list_fnames
         self.hero_image = hero_image
         self.study_space_id = my_study_id
         self.input_file_ids = my_file_ids
         self.input_sample_ids = my_sample_ids
         self.title = title
         self.description = description
-        self.style_sheet = style_sheet
         self.work_dir = work_dir
 
     def get_app_dir(self):
@@ -273,21 +268,11 @@ class DashAppImg:
 
     def create_dash_image(self):
         """Creates image by bundling all required objects"""
-        source_dir = '{wd}'.format(wd=self.work_dir)
+        source_dir = '{wd}'.format(wd=self.get_app_dir())
         with tarfile.open('{wd}/dash_app.tar.gz'.format(wd=self.work_dir),
                           "w:gz") as tar:
             tar.add(source_dir, arcname="")
         return True
-
-    @staticmethod
-    def archive_style_sheet():
-        """ Requests submitted style sheet, and saves """
-        # TODO: does user submit this style sheet? what if user doesn't submit one?
-        resp = requests.request(
-            "GET",
-            "https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
-        )
-        return resp.text
 
     def export_dash_image(self):
         """ Uploads, saves and deploys Dash app """
@@ -343,10 +328,8 @@ class DashAppImg:
 
 
 def save_dash_app(app_filepath: str,
-                  filenames: list,
                   study_space_id,
                   input_file_ids: list,
-                  custom_style_sheet: str,
                   image: str = None,
                   title: str = None,
                   description: str = None,
@@ -357,8 +340,6 @@ def save_dash_app(app_filepath: str,
     Parameters:
         app_filepath : str
             filepath to app.py file
-        filenames : list
-            list of filenames that are used as inputs to users' dash app
         image: str
             png image to show for Dash app
         study_space_id : str
@@ -367,32 +348,33 @@ def save_dash_app(app_filepath: str,
             list of unique HISE files used to generate results
         input_sample_ids : list
             list of unique samples used to generate results
+        title : str 
+            title to attach to dash app 
+        description : str
+            short description of dash app 
+        
+        
 
     Returns:
         True if upload was successful, False if submission failed
 
     Examples:
-        hp.save_dash_app('/Users/james.harvey/workplace/dash_test/app.py',
-                                ['inputdash1.csv', 'inputdash2.csv'],
-                                ['pic1.png'],
-                                'f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                                ['9f6d7ab5-1c7b-4709-9455-3d8ff3fbb6c8'],
-                                'custom.css',
-                                'my app title',
-                                'this is a description',
-                                []
-        )
+        hp.save_dash_app(app_filepath='/Users/james.harvey/workplace/dash_test/app.py',
+                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ff3fbb6c8'],
+                        image='/Users/james.harvey/workplace/dash_test/pic1.png',
+                        title='my app title', 
+                        description='description it is',
+                        input_sample_ids=None) 
     """
     if input_sample_ids is None:
         input_sample_ids = []
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create static dash image
         dobj = DashAppImg(app_fpath=app_filepath,
-                          list_fnames=filenames,
                           hero_image=image,
                           my_study_id=study_space_id,
                           my_file_ids=input_file_ids,
-                          style_sheet=custom_style_sheet,
                           work_dir=tmpdirname,
                           title=title,
                           description=description,
@@ -401,14 +383,6 @@ def save_dash_app(app_filepath: str,
         # Insert UI widget code here:
         # pull out all filenames
         # determine what are input datasets vs. hero images
-
-        # now walk down this app_dir and find those files
-        fpaths_list = cu.find_files(dobj.get_app_dir(),
-                                    dobj.filenames + ['app.py'])
-
-        # move everything to a temporary dir
-        for this_file in fpaths_list:
-            shutil.copy(this_file, tmpdirname)
 
         # create .txt files that contains users' imported libraries
         dobj.create_req_txt()
