@@ -15,7 +15,7 @@ default_metadata = {
     or "local-testing-instance",
     client_id_path:
     "REDACTED_GCP_CLIENT_ID",
-    server_id_path: os.getenv("TEST_SERVER_NAME") or "dev.allenimmunology.org"
+    server_id_path: "dev.allenimmunology.org"
 }
 
 # dev primecollective
@@ -23,7 +23,6 @@ defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 
 
 def get_from_metadata_server(path):
-    value = None
     try:
         resp = requests.request("GET",
                                 "%s/%s" % (metadata_server_root, path),
@@ -47,24 +46,21 @@ def get_bearer_token_header():
     token_gen = os.getenv(token_env)
     if token_gen is not None:
         token = os.popen(token_gen).read().rstrip()
-        if os.getenv("TEST_SERVER_NAME") is None:
-            headers = {
-                "Authorization": "Bearer %s" % token,
-                "InstanceAccountGuid": defaultLocalAccountGuid
-            }
-        else:
-            headers = {
-                "hise_invoker_token": "%s" % token,
-                "InstanceAccountGuid": defaultLocalAccountGuid
-            }
-    else:
         headers = {
-            "Authorization":
-            "Bearer %s" %
-            (get_from_metadata_server("%s?format=full&audience=%s" %
-                                      (identity_path, client_id))),
-            "InstanceAccountGuid":
-            "%s" % (get_from_metadata_server("%s" % account_guid_path))
+            "InstanceAccountGuid": defaultLocalAccountGuid,
+            # Rather than look at whether we're running locally, just set both auth headers
+            # for dev:
+            "Authorization": "Bearer %s" % token,
+            # for local instances:
+            "hise_invoker_token": "%s" % token
+        }
+    else:
+        token = get_from_metadata_server("%s?format=full&audience=%s" %
+                                         (identity_path, client_id))
+        account_guid = get_from_metadata_server(account_guid_path)
+        headers = {
+            "Authorization": "Bearer %s" % token,
+            "InstanceAccountGuid": "%s" % account_guid
         }
     return headers
 

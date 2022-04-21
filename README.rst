@@ -56,25 +56,3 @@ Scheduling General Notebook Jobs
    job.status
    #when it is completed...
    file_refs = job.download_output()
-    
-For Contributors
-===========
-
-Running locally
-----
-A few environment variables must be set to make HISE API calls:
-::
-  export TOKEN_GENERATOR="/path/to/hisecli/hisecli auth"
-  export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your-credentials-sa-dev-pipeline-internal-231c2bfbebfd.json"
-
-For call that need the current notebook, you'll also want
-::
-  export TEST_SCHEDULER_NOTEBOOK=FakeNotebookName.ipynb
-
-The instance name can be set via ``TEST_INSTANCE_NAME`` or defaults to ``local-testing-instance``.
-
-You can point the SDK at your locally running services via
-::
-  export TEST_SERVER_NAME=localhost:2082
-but be aware that the SDK expects `all` services to be available at that endpoint, not just toolchain/ledger/etc.
-Ideally use only one at a time.
