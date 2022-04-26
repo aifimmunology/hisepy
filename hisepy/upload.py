@@ -141,6 +141,11 @@ def upload_files(files: list,
     return {"trace_id": trace_id, "files": uploaded}
 
 
+# Save a plotly figure
+# network call process:
+# save_static_image (POST hydration/source/studyspace/file) of figure written to png
+# upload_files (POST toolchain/file) of plotly figure data (separated from layout)
+# POST toolchain/visualization/json with upload trace and image IDs
 def save_visualization(
         pl_obj,
         study_space_id=None,  # optional
