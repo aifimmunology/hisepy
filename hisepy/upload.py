@@ -17,6 +17,9 @@ from hisepy.scheduler import current_notebook
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
 
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+
 
 def get_study_spaces():
     return parse_hise_response(
@@ -247,11 +250,9 @@ class DashAppImg:
         return True
 
     def verify_filenames(self, filenames):
-        """ Verifies that submitted input files are of appropriate type, and exists within the working directory
-
-        TODO: force just a single filetype per submission
-        """
-        filepaths = cu.find_files(self.get_app_dir(), filenames)
+        """ Verifies that submitted input files exists within /home directory """
+        filepaths = cu.find_files('/{}'.format(CONFIG['IDE']['HOME_DIR']),
+                                  filenames)
         assert len(filepaths) == len(filenames
         ), 'not all files listed under filenames were found. Please make sure the files listed exist in the same' \
            ' directory as your app.py file'
@@ -397,13 +398,19 @@ def save_dash_app(app_filepath: str,
         # pull out all filenames
         # determine what are input datasets vs. hero images
 
-        # now walk down this app_dir and find those files
-        fpaths_list = cu.find_files(dobj.get_app_dir(),
-                                    dobj.filenames + ['app.py'])
+        # walk down entire /home directory and find filenames
+        # NOTE: duplicate filenames should be okay here since we're listing
+        # entire filepaths
+        fpaths_list = cu.find_files('/{}'.format(CONFIG['IDE']['HOME_DIR']),
+                                    dobj.filenames) + [app_filepath]
 
-        # move everything to a temporary dir
-        for this_file in fpaths_list:
-            shutil.copy(this_file, tmpdirname)
+        # move everything to a temporary dir while creating/preserving source
+        # directories
+        for f in fpaths_list:
+            dst = os.path.normpath(tmpdirname + os.path.dirname(f))
+            if not os.path.exists(dst):
+                os.makedirs(dst)
+            shutil.copy(f, dst)
 
         # create .txt files that contains users' imported libraries
         dobj.create_req_txt()
