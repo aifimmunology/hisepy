@@ -347,13 +347,13 @@ class DashAppImg:
 
 
 def save_dash_app(app_filepath: str,
-                  additional_files: list[str],
-                  input_file_ids: list[str],
+                  additional_files: list,
+                  input_file_ids: list,
                   study_space_id: str,
                   title: str,
                   description: str = None,
                   image: str = None,
-                  input_sample_ids: list[str] = None):
+                  input_sample_ids: list = None):
     """
     Given a Dash app consisting of an entry point named `app.py` and a list of supporting files, upload and deploy that
     app to HISE as a visualization in the given study space.
