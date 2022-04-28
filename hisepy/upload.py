@@ -381,6 +381,9 @@ def save_dash_app(app_filepath: str,
                          input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
     """
 
+    # remove duplicate entries from additional_files
+    additional_files = list(set(additional_files))
+
     if input_sample_ids is None:
         input_sample_ids = []
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -395,13 +398,7 @@ def save_dash_app(app_filepath: str,
                           description=description,
                           my_sample_ids=input_sample_ids)
 
-        # Insert UI widget code here:
-        # pull out all filenames
-        # determine what are input datasets vs. hero images
-
         # walk down entire /home directory and find filenames
-        # NOTE: duplicate filenames should be okay here since we're listing
-        # entire filepaths
         fpaths_list = cu.find_files('/{}'.format(CONFIG['IDE']['HOME_DIR']),
                                     dobj.filenames) + [app_filepath]
 
