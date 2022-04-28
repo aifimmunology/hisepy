@@ -260,9 +260,10 @@ class DashAppImg:
         return True
 
     def create_req_txt(self):
-        subprocess.run(
-            "pip3 freeze > {wd}/requirements.txt".format(wd=self.work_dir),
-            shell=True)
+        subprocess.run("pip3 freeze > {wd}/{ide_home}/requirements.txt".format(
+            wd=self.work_dir,
+            ide_home='/{}'.format(CONFIG['IDE']['HOME_DIR'])),
+                       shell=True)
 
     def upload_hero_image(self):
         assert type(self.hero_image) == str and cu.get_filetype(
