@@ -213,7 +213,6 @@ class DashAppImg:
                  hero_image: str,
                  my_study_id: str,
                  my_file_ids: list,
-                 style_sheet: str,
                  work_dir: str,
                  title: str = None,
                  description: str = None,
@@ -231,7 +230,6 @@ class DashAppImg:
         self.input_sample_ids = my_sample_ids
         self.title = title
         self.description = description
-        self.style_sheet = style_sheet
         self.work_dir = work_dir
 
     def get_app_dir(self):
@@ -348,56 +346,48 @@ class DashAppImg:
 
 
 def save_dash_app(app_filepath: str,
-                  filenames: list,
-                  study_space_id,
-                  input_file_ids: list,
-                  custom_style_sheet: str,
-                  image: str = None,
-                  title: str = None,
+                  additional_files: list[str],
+                  input_file_ids: list[str],
+                  study_space_id: str,
+                  title: str,
                   description: str = None,
-                  input_sample_ids=None):
-    """ Given a filepath to app.py, validate input files for the app exist, require that requirements.txt also
-     exist, create static images of plotly objects, tar/zip everything together and upload the file via uploadFiles()
-
-    Parameters:
-        app_filepath : str
-            filepath to app.py file
-        filenames : list
-            list of filenames that are used as inputs to users' dash app
-        image: str
-            png image to show for Dash app
-        study_space_id : str
-            unique identifier for study space
-        input_file_ids : list
-            list of unique HISE files used to generate results
-        input_sample_ids : list
-            list of unique samples used to generate results
-
-    Returns:
-        True if upload was successful, False if submission failed
-
-    Examples:
-        hp.save_dash_app('/Users/james.harvey/workplace/dash_test/app.py',
-                                ['inputdash1.csv', 'inputdash2.csv'],
-                                ['pic1.png'],
-                                'f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                                ['9f6d7ab5-1c7b-4709-9455-3d8ff3fbb6c8'],
-                                'custom.css',
-                                'my app title',
-                                'this is a description',
-                                []
-        )
+                  image: str = None,
+                  input_sample_ids: list[str] = None):
     """
+    Given a Dash app consisting of an entry point named `app.py` and a list of supporting files, upload and deploy that
+    app to HISE as a visualization in the given study space.
+
+    :param app_filepath: path to file named app.py that serves your Dash app
+     (i.e., ends with `app.run_server(host='0.0.0.0')`)
+    :param additional_files: list of additional files used by your app (e.g., data files, custom CSS)
+    :param input_file_ids: list of HISE file UUIDs that this app visualizes
+    :param study_space_id: UUID of study space to save app to
+    :param title: a 10+ character title for the app
+    :param description:
+    :param image: png thumbnail image for app in study space
+    :param input_sample_ids: list of samples UUIDs that this app visualizes
+    :return: Response from server
+
+    Example:
+    hisepy.save_dash_app(app_filepath='dash_app/app.py',
+                         additional_files=['data/input-1.csv', 'data/input-2.csv'],
+                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
+                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                         title="Hello world Dash app",
+                         description="An amazingly complex data visualization",
+                         image="dash_app/thumbnail.png",
+                         input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
+    """
+
     if input_sample_ids is None:
         input_sample_ids = []
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create static dash image
         dobj = DashAppImg(app_fpath=app_filepath,
-                          list_fnames=filenames,
+                          list_fnames=additional_files,
                           hero_image=image,
                           my_study_id=study_space_id,
                           my_file_ids=input_file_ids,
-                          style_sheet=custom_style_sheet,
                           work_dir=tmpdirname,
                           title=title,
                           description=description,
