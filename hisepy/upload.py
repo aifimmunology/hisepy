@@ -255,9 +255,6 @@ class DashAppImg:
         for this_f in filenames:
             assert ((os.path.isfile(this_f))
                     ), "couldn't find file: {}".format(this_f)
-            if os.path.isabs(this_f):
-                assert '/{}'.format(CONFIG['IDE']['HOME_DIR']) in this_f, \
-                    'file must be saved somewhere in /home/jupyter'
         return True
 
     def standardize_filepaths(self, filenames):
