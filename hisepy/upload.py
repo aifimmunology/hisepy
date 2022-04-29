@@ -253,9 +253,9 @@ class DashAppImg:
         """ Verifies that all submitted input files exists within /home directory """
         work_dir = self.get_app_dir()
         for this_f in filenames:
-            assert ((os.path.isfile(this_f)) or (os.path.isfile('{}/{}'.format(
-                work_dir, this_f)))), "couldn't find file: {}".format(this_f)
-            if os.path.isfile(this_f):
+            assert ((os.path.isfile(this_f))
+                    ), "couldn't find file: {}".format(this_f)
+            if os.path.isabs(this_f):
                 assert '/{}'.format(CONFIG['IDE']['HOME_DIR']) in this_f, \
                     'file must be saved somewhere in /home/jupyter'
         return True
@@ -263,10 +263,7 @@ class DashAppImg:
     def standardize_filepaths(self, filenames):
         """ returns absolute paths for submitted filenames or filepaths """
         work_dir = self.get_app_dir()
-        return [
-            os.path.normpath(os.path.join(work_dir, f)) for f in filenames
-            if ~os.path.isabs(f)
-        ]
+        return [os.path.abspath(f) for f in filenames]
 
     def create_req_txt(self):
         subprocess.run("pip3 freeze > {wd}/{ide_home}/requirements.txt".format(
