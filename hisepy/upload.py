@@ -226,7 +226,7 @@ class DashAppImg:
         if self.verify_app_path(app_fpath):
             self.app_filepath = app_fpath
         if self.verify_filenames(list_fnames):
-            self.filenames = self.standardize_filepaths(list_fnames)
+            self.filepaths = self.standardize_filepaths(list_fnames)
         self.hero_image = hero_image
         self.study_space_id = my_study_id
         self.input_file_ids = my_file_ids
@@ -251,40 +251,22 @@ class DashAppImg:
 
     def verify_filenames(self, filenames):
         """ Verifies that all submitted input files exists within /home directory """
-
-        # loop and split paths between path and filename
-        split_files = [(os.path.split(f)[0], os.path.split(f)[1])
-                       for f in filenames]
-        additional_files_no_paths = [f[1] for f in split_files]
-
-        # find all filepaths for submitted filenames in users' directory
-        filepaths = cu.find_files('/{}'.format(CONFIG['IDE']['HOME_DIR']),
-                                  additional_files_no_paths)
-
-        # now check that we have user-submitted filepaths.
-        for this_sf in split_files:
-            if os.path.isdir(this_sf[0]):
-                this_fp = '{dir}/{fn}'.format(dir=this_sf[0], fn=this_sf[1])
-                assert this_fp in filepaths, 'submitted filepath: {}, was not found'.format(
-                    this_fp)
-
-        assert len(filepaths) >= len(
-            filenames
-        ), 'not all files selected were found. Please make sure the files listed exist somewhere in your IDE'
-
+        work_dir = self.get_app_dir()
+        for this_f in filenames:
+            assert ((os.path.isfile(this_f)) or (os.path.isfile('{}/{}'.format(
+                work_dir, this_f)))), "couldn't find file: {}".format(this_f)
+            if os.path.isfile(this_f):
+                assert '/{}'.format(CONFIG['IDE']['HOME_DIR']) in this_f, \
+                    'file must be saved somewhere in /home/jupyter'
         return True
 
     def standardize_filepaths(self, filenames):
-        """ Finds list of files and returns all filepaths. """
-        # filter out full filepaths
-        only_filenames = [f for f in filenames if os.path.dirname(f) == '']
-        only_filepaths = [f for f in filenames if os.path.dirname(f) != '']
-
-        # now find filenames in users' directory
-        filepaths = cu.find_files('/{}'.format(CONFIG['IDE']['HOME_DIR']),
-                                  only_filenames)
-
-        return filepaths + only_filepaths
+        """ returns absolute paths for submitted filenames or filepaths """
+        work_dir = self.get_app_dir()
+        return [
+            os.path.normpath(os.path.join(work_dir, f)) for f in filenames
+            if ~os.path.isabs(f)
+        ]
 
     def create_req_txt(self):
         subprocess.run("pip3 freeze > {wd}/{ide_home}/requirements.txt".format(
@@ -427,7 +409,7 @@ def save_dash_app(app_filepath: str,
 
         # move everything to a temporary dir while creating/preserving source
         # directories
-        for f in dobj.filenames:
+        for f in dobj.filepaths:
             dst = os.path.normpath(tmpdirname + os.path.dirname(f))
             if not os.path.exists(dst):
                 os.makedirs(dst)
