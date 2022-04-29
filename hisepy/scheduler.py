@@ -27,6 +27,8 @@ def schedule_notebook(output_files=None,
         Parameters:
             output_files : list
                 List of expected outputs.
+            input_data : list 
+                List of input datasets
             platform : str
                 Optional. Used to specify what platform the job should be scheuled on.
             project : str
@@ -58,13 +60,14 @@ def schedule_notebook(output_files=None,
     elif is_derived_instance():
         #we're on a scheduled instance, so return an empty job
         return notebook_job()
-
+    notebook = current_notebook()
     payload = validate_schedule_input(output_files, input_data, platform,
-                                      project)
+                                      project, notebook)
 
     if prompt:
         if not prompt_for_platform(
-                payload[CONFIG['SCHEDULER']['PLATFORM_FIELD']]):
+                payload[CONFIG['SCHEDULER']['PLATFORM_FIELD']], output_files,
+                notebook):
             print("Not scheduling.")
             return None
 
@@ -87,8 +90,8 @@ def is_derived_instance():
     return os.path.exists(derived_instance_flag_file)
 
 
-def validate_schedule_input(output_files, input_data, platform, project):
-    notebook = current_notebook()
+def validate_schedule_input(output_files, input_data, platform, project,
+                            notebook):
     nbtokens = notebook.split("/")
 
     if platform is None:
@@ -146,7 +149,7 @@ def convert_and_normalize_dataframe(df):
     return dfcsv
 
 
-def prompt_for_platform(platform):
+def prompt_for_platform(platform, output_files, nb_file):
     if platform == CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']:
         print(
             "About to execute a louvain dimension reduction of your data on a DataProc cluster."
