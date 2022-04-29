@@ -253,9 +253,9 @@ class DashAppImg:
         """ Verifies that submitted input files exists within /home directory """
         filepaths = cu.find_files('/{}'.format(CONFIG['IDE']['HOME_DIR']),
                                   filenames)
-        assert len(filepaths) == len(filenames
-        ), 'not all files listed under filenames were found. Please make sure the files listed exist in the same' \
-           ' directory as your app.py file'
+        assert len(filepaths) == len(
+            filenames
+        ), 'not all files listed under filenames were found. Please make sure the files listed exist somewheres in your IDE'
 
         return True
 
@@ -384,12 +384,17 @@ def save_dash_app(app_filepath: str,
     # remove duplicate entries from additional_files
     additional_files = list(set(additional_files))
 
+    # loop and split paths between path and filename; then keep just the filenames
+    split_files = [(os.path.split(f)[0], os.path.split(f)[1])
+                   for f in additional_files]
+    additional_files_no_paths = [f[1] for f in split_files]
+
     if input_sample_ids is None:
         input_sample_ids = []
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create static dash image
         dobj = DashAppImg(app_fpath=app_filepath,
-                          list_fnames=additional_files,
+                          list_fnames=additional_files_no_paths,
                           hero_image=image,
                           my_study_id=study_space_id,
                           my_file_ids=input_file_ids,
@@ -397,6 +402,11 @@ def save_dash_app(app_filepath: str,
                           title=title,
                           description=description,
                           my_sample_ids=input_sample_ids)
+
+        # NOTE: probably don't need this assertion. why would this occur..?
+        assert (
+            len(dobj.filenames) >= len(additional_files)
+        ), "Woops. we're detecting less files in your IDE than what you specified."
 
         # walk down entire /home directory and find filenames
         fpaths_list = cu.find_files('/{}'.format(CONFIG['IDE']['HOME_DIR']),
