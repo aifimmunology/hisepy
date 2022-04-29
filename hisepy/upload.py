@@ -226,7 +226,7 @@ class DashAppImg:
         if self.verify_app_path(app_fpath):
             self.app_filepath = app_fpath
         if self.verify_filenames(list_fnames):
-            self.filenames = self.standardize_files(list_fnames)
+            self.filenames = self.standardize_filepaths(list_fnames)
         self.hero_image = hero_image
         self.study_space_id = my_study_id
         self.input_file_ids = my_file_ids
@@ -274,7 +274,7 @@ class DashAppImg:
 
         return True
 
-    def standardize_files(self, filenames):
+    def standardize_filepaths(self, filenames):
         """ Finds list of files and returns all filepaths. """
         # filter out full filepaths
         only_filenames = [f for f in filenames if os.path.dirname(f) == '']
