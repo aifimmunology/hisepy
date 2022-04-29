@@ -255,7 +255,7 @@ class DashAppImg:
                                   filenames)
         assert len(filepaths) == len(
             filenames
-        ), 'not all files listed under filenames were found. Please make sure the files listed exist somewheres in your IDE'
+        ), 'not all files listed under filenames were found. Please make sure the files listed exist somewhere in your IDE'
 
         return True
 
