@@ -242,19 +242,18 @@ class DashAppImg:
     @staticmethod
     def verify_app_path(path):
         """ Verifies that user-submitted path is appropriate and actually exists """
-        assert path.split(
-            '/'
-        )[-1] == 'app.py', 'filename of your dash app must be app.py. Please rename your file and try again.'
+        if os.path.basename(path) != 'app.py':
+            raise ValueError(
+                "Dash app entry point file must be called `app.py`")
         if not os.path.exists(path):
             raise ValueError("%s is not a valid file" % path)
         return True
 
     def verify_filenames(self, filenames):
         """ Verifies that all submitted input files exists within /home directory """
-        work_dir = self.get_app_dir()
         for this_f in filenames:
-            assert ((os.path.isfile(this_f))
-                    ), "couldn't find file: {}".format(this_f)
+            if not os.path.exists(this_f):
+                raise FileNotFoundError("No such file: %s" % this_f)
         return True
 
     def standardize_filepaths(self, filenames):
@@ -269,8 +268,9 @@ class DashAppImg:
                        shell=True)
 
     def upload_hero_image(self):
-        assert type(self.hero_image) == str and cu.get_filetype(
-            self.hero_image) == 'png', "image must be a PNG"
+        if type(self.hero_image) != str or cu.get_filetype(
+                self.hero_image) == 'png':
+            raise ValueError("Image must be a PNG")
 
         # I don't think this title is ever user-visible, but save_static_image requires it
         image_title = self.title if len(
