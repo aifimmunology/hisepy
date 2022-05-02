@@ -397,9 +397,7 @@ def save_dash_app(app_filepath: str,
         # pull out all filenames
         # determine what are input datasets vs. hero images
 
-        # now walk down this app_dir and find those files
-        fpaths_list = cu.find_files(dobj.get_app_dir(),
-                                    dobj.filenames + ['app.py'])
+        fpaths_list = dobj.filenames + [dobj.app_filepath]
 
         # move everything to a temporary dir
         for this_file in fpaths_list:
