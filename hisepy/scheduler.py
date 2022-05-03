@@ -10,6 +10,7 @@ import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from hisepy.reader import download_files
 
+the_current_notebook = None
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 derived_instance_flag_file = "/tmp/.derivedinstance"
@@ -227,9 +228,20 @@ def current_notebook():
             name : str
                 Name of notebook.
     """
+    global the_current_notebook
+    if the_current_notebook is not None:
+        #once you specify the notebook in a kernel it should,
+        #by definition always be the same notebook
+        #This does mean you will have to reset the kernel
+        #in order to specify a different notebook
+        #if you make a mistake.
+        #Really what we should have is a jupyter plugin to figure out the notebook.
+        return the_current_notebook
+
     test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
     if test_notebook is not None and test_notebook != "":
         return test_notebook
+
     ambiguitySeconds = 15 * 60
     notebooks = os.popen(
         "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 3 | cut -f2- -d ' '"
@@ -251,6 +263,7 @@ def current_notebook():
                     print("%d) %s" % (idx + 1, notebooks[idx]))
                 print("Please select (1-%d) " % (len(notebooks)))
                 resp = int(input()) - 1
+            the_current_notebook = notebooks[resp]
             return notebooks[resp]
     return notebooks[0]
 
