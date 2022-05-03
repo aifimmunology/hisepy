@@ -66,7 +66,9 @@ def schedule_notebook(output_files=None,
 
     if prompt:
         if not prompt_for_platform(
-                payload[CONFIG['SCHEDULER']['PLATFORM_FIELD']]):
+                payload[CONFIG['SCHEDULER']['PLATFORM_FIELD']],
+                payload[CONFIG['SCHEDULER']['NOTEBOOK_NAME_FIELD']],
+                output_files):
             print("Not scheduling.")
             return None
 
@@ -148,7 +150,7 @@ def convert_and_normalize_dataframe(df):
     return dfcsv
 
 
-def prompt_for_platform(platform):
+def prompt_for_platform(platform, nb_file, output_files):
     if platform == CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']:
         print(
             "About to execute a louvain dimension reduction of your data on a DataProc cluster."
