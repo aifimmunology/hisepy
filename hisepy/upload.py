@@ -260,7 +260,8 @@ class DashAppImg:
 
     def create_req_txt(self):
         subprocess.run(
-            "pip3 freeze > {wd}/requirements.txt".format(wd=self.work_dir),
+            "pipreqs --savepath {wd}/requirements.in {wd} && pip-compile --no-annotate --no-header {wd}/requirements.in"
+            .format(wd=self.work_dir),
             shell=True)
 
     def upload_hero_image(self):
