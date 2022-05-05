@@ -217,7 +217,7 @@ class DashAppImg:
                  my_study_id: str,
                  my_file_ids: list,
                  work_dir: str,
-                 title: str = None,
+                 title: str,
                  description: str = None,
                  my_sample_ids=None):
 
