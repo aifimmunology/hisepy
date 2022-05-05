@@ -283,10 +283,9 @@ class DashAppImg:
 
     def create_dash_image(self):
         """Creates image by bundling all required objects"""
-        source_dir = '{wd}'.format(wd=self.work_dir)
-        with tarfile.open('{wd}/dash_app.tar.gz'.format(wd=self.work_dir),
-                          "w:gz") as tar:
-            tar.add(source_dir, arcname="")
+        tarfile_path = '{wd}/dash_app.tar.gz'.format(wd=self.work_dir)
+        with tarfile.open(tarfile_path, "w:gz") as tar:
+            tar.add(self.work_dir, arcname="")
         return True
 
     def export_dash_image(self):
