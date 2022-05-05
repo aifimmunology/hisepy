@@ -262,10 +262,12 @@ class DashAppImg:
         return [os.path.abspath(f) for f in filenames]
 
     def create_req_txt(self):
-        subprocess.run("pip3 freeze > {wd}/{ide_home}/requirements.txt".format(
-            wd=self.work_dir,
-            ide_home='/{}'.format(CONFIG['IDE']['HOME_DIR'])),
-                       shell=True)
+        subprocess.run(
+            "pipreqs --savepath {wd}/requirements.in {wd} && pip-compile --no-annotate --no-header"
+            " --output-file {wd}/{ide_home}/requirements.txt {wd}/requirements.in"
+            .format(wd=self.work_dir,
+                    ide_home='/{}'.format(CONFIG['IDE']['HOME_DIR'])),
+            shell=True)
 
     def upload_hero_image(self):
         if type(self.hero_image) != str or cu.get_filetype(
@@ -401,13 +403,15 @@ def save_dash_app(app_filepath: str,
                           description=description,
                           my_sample_ids=input_sample_ids)
 
-        # move everything to a temporary dir while creating/preserving source
-        # directories
-        for f in dobj.filepaths:
-            dst = os.path.normpath(tmpdirname + os.path.dirname(f))
-            if not os.path.exists(dst):
-                os.makedirs(dst)
-            shutil.copy(f, dst)
+        # Insert UI widget code here:
+        # pull out all filenames
+        # determine what are input datasets vs. hero images
+
+        fpaths_list = dobj.filenames + [dobj.app_filepath]
+
+        # move everything to a temporary dir
+        for this_file in fpaths_list:
+            shutil.copy(this_file, tmpdirname)
 
         # create .txt files that contains users' imported libraries
         dobj.create_req_txt()
