@@ -289,16 +289,6 @@ class DashAppImg:
             tar.add(source_dir, arcname="")
         return True
 
-    @staticmethod
-    def archive_style_sheet():
-        """ Requests submitted style sheet, and saves """
-        # TODO: does user submit this style sheet? what if user doesn't submit one?
-        resp = requests.request(
-            "GET",
-            "https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
-        )
-        return resp.text
-
     def export_dash_image(self):
         """ Uploads, saves and deploys Dash app """
 
