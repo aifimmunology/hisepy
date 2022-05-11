@@ -19,6 +19,7 @@ freezer_ignore_endpoints = {"shutdown": None}
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR']
 
 
 def get_study_spaces():
@@ -211,69 +212,37 @@ class DashAppImg:
     dash_app_name = 'app.py'
 
     def __init__(self,
-                 app_fpath: str,
-                 list_fnames: list,
+                 app_filepath: str,
+                 additional_files: list,
                  hero_image: str,
-                 my_study_id: str,
-                 my_file_ids: list,
+                 study_space_id: str,
+                 input_file_ids: list,
                  work_dir: str,
                  title: str,
                  description: str = None,
-                 my_sample_ids=None):
+                 input_sample_ids=None):
 
-        if my_sample_ids is None:
-            my_sample_ids = []
-        if self.verify_app_path(app_fpath):
-            self.app_filepath = app_fpath
-        if self.verify_filenames(list_fnames):
-            self.filepaths = self.standardize_filepaths(list_fnames)
-        self.hero_image = hero_image
-        self.study_space_id = my_study_id
-        self.input_file_ids = my_file_ids
-        self.input_sample_ids = my_sample_ids
+        if input_sample_ids is None:
+            input_sample_ids = []
+        self.app_filepath = os.path.abspath(app_filepath)
+        # store filepaths as set to automatically drop dupes
+        self.filepaths = {os.path.abspath(path) for path in additional_files}
+        self.hero_image = os.path.abspath(hero_image)
+        self.study_space_id = study_space_id
+        self.input_file_ids = input_file_ids
+        self.input_sample_ids = input_sample_ids
         self.title = title
         self.description = description
         self.work_dir = work_dir
-
-    def get_app_dir(self):
-        """ Sets working directory of dash app """
-        return os.path.dirname(self.app_filepath)
-
-    @staticmethod
-    def verify_app_path(path):
-        """ Verifies that user-submitted path is appropriate and actually exists """
-        if os.path.basename(path) != 'app.py':
-            raise ValueError(
-                "Dash app entry point file must be called `app.py`")
-        if not os.path.exists(path):
-            raise ValueError("%s is not a valid file" % path)
-        return True
-
-    def verify_filenames(self, filenames):
-        """ Verifies that all submitted input files exists within /home directory """
-        for this_f in filenames:
-            if not os.path.exists(this_f):
-                raise FileNotFoundError("No such file: %s" % this_f)
-        return True
-
-    def standardize_filepaths(self, filenames):
-        """ returns absolute paths for submitted filenames or filepaths """
-        work_dir = self.get_app_dir()
-        return [os.path.abspath(f) for f in filenames]
 
     def create_req_txt(self):
         subprocess.run(
             "pipreqs --savepath {wd}/requirements.in {wd} && pip-compile --no-annotate --no-header"
             " --output-file {wd}/{ide_home}/requirements.txt {wd}/requirements.in"
-            .format(wd=self.work_dir,
-                    ide_home='/{}'.format(CONFIG['IDE']['HOME_DIR'])),
+            .format(wd=self.work_dir, ide_home=IDE_HOME_DIR),
             shell=True)
 
     def upload_hero_image(self):
-        if type(self.hero_image) != str or cu.get_filetype(
-                self.hero_image) == 'png':
-            raise ValueError("Image must be a PNG")
-
         # I don't think this title is ever user-visible, but save_static_image requires it
         image_title = self.title if len(
             self.title) >= 10 else "dash app static image"
@@ -341,6 +310,39 @@ class DashAppImg:
         return deploy_resp
 
 
+def validate_app_path(app_path):
+    if os.path.basename(app_path) != 'app.py':
+        raise ValueError("App file must be called `app.py`")
+    if not os.path.exists(app_path):
+        raise ValueError("%s is not a valid file" % app_path)
+    abspath = os.path.abspath(app_path)
+    if not abspath.startswith(IDE_HOME_DIR):
+        raise ValueError("App file must be within %s" % IDE_HOME_DIR)
+
+
+def validate_files(filenames):
+    """ Verifies that all submitted input files exist and are in /home/jupyter """
+    for this_f in filenames:
+        abs_path = os.path.abspath(this_f)
+        if not os.path.exists(abs_path):
+            # Echo user's input back to them for easy reference along with
+            # where we expected that file to be. It would be nicer to
+            # validate *all* the input and then mention *all* the problems,
+            # especially as this is coming after multiple other HISE calls,
+            # so retrying is kinda expensive, but here we are.
+            raise FileNotFoundError("Can't find '%s' (no such file: %s)" %
+                                    (this_f, abs_path))
+        if not abs_path.startswith(IDE_HOME_DIR):
+            raise Exception(
+                "Only files under %s can be included.  Not there: %s" %
+                (IDE_HOME_DIR, abs_path))
+
+
+def validate_hero_image(hero_image):
+    if type(hero_image) != str or cu.get_filetype(hero_image) != 'png':
+        raise ValueError("image must be a PNG")
+
+
 def save_dash_app(app_filepath: str,
                   additional_files: list,
                   input_file_ids: list,
@@ -355,7 +357,8 @@ def save_dash_app(app_filepath: str,
 
     :param app_filepath: path to file named app.py that serves your Dash app
      (i.e., ends with `app.run_server(host='0.0.0.0')`)
-    :param additional_files: list of additional files used by your app (e.g., data files, custom CSS)
+    :param additional_files: list of additional files used by your app (e.g., data files, custom CSS).
+     Only files under /home/jupyter can be included.
     :param input_file_ids: list of HISE file UUIDs that this app visualizes
     :param study_space_id: UUID of study space to save app to
     :param title: a 10+ character title for the app
@@ -374,33 +377,34 @@ def save_dash_app(app_filepath: str,
                          image="dash_app/thumbnail.png",
                          input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
     """
-
-    # remove duplicate entries from additional_files
-    additional_files = list(set(additional_files))
-
     if input_sample_ids is None:
         input_sample_ids = []
+
+    # validate ASAP to avoid making a couple network calls before failing
+    validate_app_path(app_filepath)
+    validate_files(additional_files)
+    validate_hero_image(image)
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create static dash image
-        dobj = DashAppImg(app_fpath=app_filepath,
-                          list_fnames=additional_files,
+        dobj = DashAppImg(app_filepath=app_filepath,
+                          additional_files=additional_files,
                           hero_image=image,
-                          my_study_id=study_space_id,
-                          my_file_ids=input_file_ids,
-                          work_dir=tmpdirname,
+                          study_space_id=study_space_id,
+                          input_file_ids=input_file_ids,
                           title=title,
                           description=description,
-                          my_sample_ids=input_sample_ids)
+                          input_sample_ids=input_sample_ids,
+                          work_dir=tmpdirname)
 
         # Insert UI widget code here:
-        # pull out all filenames
-        # determine what are input datasets vs. hero images
-
-        fpaths_list = dobj.filenames + [dobj.app_filepath]
-
-        # move everything to a temporary dir
-        for this_file in fpaths_list:
-            shutil.copy(this_file, tmpdirname)
+        # move everything to a temporary dir while creating/preserving source
+        # directories
+        for f in dobj.filepaths.union({dobj.app_filepath}):
+            dst = os.path.normpath(tmpdirname + os.path.dirname(f))
+            if not os.path.exists(dst):
+                os.makedirs(dst)
+            shutil.copy(f, dst)
 
         # create .txt files that contains users' imported libraries
         dobj.create_req_txt()
@@ -409,7 +413,6 @@ def save_dash_app(app_filepath: str,
         dobj.create_dash_image()
         resp = dobj.export_dash_image()
 
-        # now upload the images
         print('dash image was successfully uploaded!')
         return resp
 

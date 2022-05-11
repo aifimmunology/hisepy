@@ -55,7 +55,7 @@ TRACER:
 # globals specific for IDE 
 IDE: 
   CACHE_DIR : cache
-  HOME_DIR : home/jupyter
+  HOME_DIR : /home/jupyter
 
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
