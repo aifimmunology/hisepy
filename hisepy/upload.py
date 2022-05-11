@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import requests
 
 import hisepy.common_utils as cu
+from hisepy import auth
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
@@ -19,7 +20,7 @@ freezer_ignore_endpoints = {"shutdown": None}
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
-IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR']
+IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 
 
 def get_study_spaces():
@@ -125,7 +126,8 @@ def upload_files(files: list,
                 "instanceId": get_from_metadata_server(instance_name_path),
                 "inputFileIds": input_file_ids,
                 "sampleIds": input_sample_ids,
-                "notebook": current_notebook()
+                "notebook": current_notebook(),
+                "homedir": IDE_HOME_DIR
             }
 
         url = hise_url("toolchain", "upload_file_path", args=qargs)
@@ -237,8 +239,8 @@ class DashAppImg:
 
     def create_req_txt(self):
         subprocess.run(
-            "pipreqs --savepath {wd}/requirements.in {wd} && pip-compile --no-annotate --no-header"
-            " --output-file {wd}/{ide_home}/requirements.txt {wd}/requirements.in"
+            "pipreqs --savepath {wd}/{ide_home}/requirements.in {wd} && pip-compile --no-annotate --no-header"
+            " --output-file {wd}/{ide_home}/requirements.txt {wd}/{ide_home}/requirements.in"
             .format(wd=self.work_dir, ide_home=IDE_HOME_DIR),
             shell=True)
 
@@ -285,6 +287,7 @@ class DashAppImg:
             "inputFileIds": self.input_file_ids,
             "sampleIds": self.input_sample_ids,
             "notebook": current_notebook(),
+            "homedir": IDE_HOME_DIR,
             "images": img_resp['id'],
             "traceId": upload_resp['trace_id']
         }
