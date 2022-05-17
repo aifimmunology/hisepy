@@ -16,22 +16,12 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
 class hise_file:
-    """
-    A class representing a hise_file.
+    """ A class representing a hise_file.
 
-    Attributes
-    __________
-    file_id : str
-        UUID for a file.
-    file_path : string
-        Path where physical file is saved.
-    descriptors : dict
-        Contains metadata.
-
-    Methods
-    _______
-    load():
-        attaches fields like path or descriptors to hise_file object
+    Attributes:
+        file_id (str): UUID for a file.
+        file_path (str): Path where physical file is saved.
+        descriptors (dict): Contains metadata.
     """
 
     def __init__(self,
@@ -40,6 +30,7 @@ class hise_file:
                  file_type=None,
                  descriptors=None,
                  data_values=None):
+        """ Inits hise_file object """
         if type(file_id) is uuid.UUID:
             self.id = file_id
         else:
@@ -65,6 +56,7 @@ class hise_file:
             self.data_values = None
 
     def load(self):
+        """ Loads hise_file and downloads onto user's workspace. """
         if self.path is not None and os.path.exists(self.path):
             #already loaded
             return True
@@ -81,14 +73,14 @@ class hise_file:
 
 # TODO: refactor and expand logic to some mongo-human query translator class
 def _add_prefix_to_query(user_query: dict):
-    """ Takes users' query and adds the appropriate prefix to the field_names """
+    """ Takes user's query and adds the appropriate prefix to the field_names """
     # create data.frame of all queryable fields
     new_query_dict = user_query.copy()
     q_df = hl.lookup_queryable_fields()
     q_df = q_df.loc[~q_df[['field_type', 'field']].duplicated(),
                     ]  # drop duplicates
 
-    # go through each key of users' dict and append the field_type as a prefix
+    # go through each key of user's dict and append the field_type as a prefix
     for k in list(new_query_dict):
         prefix = q_df.loc[q_df['field'].eq(k), 'field_type'].unique()[0]
         new_query_dict.update({'{}.{}'.format(prefix, k): new_query_dict[k]})
@@ -102,26 +94,29 @@ def _add_prefix_to_query(user_query: dict):
 # TODO: refactor and inlcude to future mongo query class
 def _create_mongo_query_in(user_query: dict):
     """
-    Takes a users' dictionary, and converts all entries and.
-    Note: You can think of this as just a bunch of "OR" booleans
+    Takes a user's dictionary, and converts all entries and combines all 
+    fields with boolean OR.
     """
     for key in user_query.keys():
         assert type(
             user_query[key]) == list, "key {} has values not in a list".format(
                 key)
 
-    # take the users' query and reformat it using mongo  query language
+    # take the user's query and reformat it using mongo  query language
     user_query.update((k, {'$in': v}) for k, v in user_query.items())
     return user_query
 
 
 def query_files(user_query: dict):
-    """
-    loads all associated files for a user-submitted query
-        Parameters:
-            user_query : dict
-                dictionary where for each key:value pair, the value must be of type list.
-                NOTE: file.fileType must be present in the query
+    """ 
+    POST request to ledger by submitting user's query parameters
+    
+    Parameters:
+        user_query (dict): dictionary where for each key:value pair, the value must be of type list.
+    Returns:
+        response payload
+    Example: 
+        query_files(user_query={'cohortGuid' : ['FH1']})
     """
 
     assert 'fileType' in user_query.keys(
@@ -133,7 +128,7 @@ def query_files(user_query: dict):
         assert type(
             query_dict[d]) == list, "key {} has values not in a list".format(d)
 
-    # take the users' query and reformat it using mongo  query language
+    # take the user's query and reformat it using mongo  query language
     query_dict.update((k, {'$in': v}) for k, v in query_dict.items())
 
     endpoint = "https://{s}/{de}".format(
@@ -155,24 +150,21 @@ def get_file_descriptors(
         file_list: list = None,
         query_id: str = None,
         query_dict: dict = None):  # TBD on actual name of this
-    """ Load all file descriptors (file/sample/subject metadata) and return a dict of data.frames
-        Parameters:
-            file_list : list
-                - list of file_ids
-            query_id : str
-                - query_id obtained from HISE's Advanced Search
-            query_dict : dict
-                - dictionary that contains query parameters
-        Output:
-            desc_df : list
-                - dictionary of data.frame objects
+    """ 
+    Retrieves file descriptors based on user's query.
 
-        Examples:
-            df_dict = get_file_descriptors(file_list)
-            df_dict.keys() # print keys of dict
-            df_dict['descriptors'] # to view descriptors
-            df_dict['labResults'] # lab results
-            df_dict['specimens'] # specimen df
+    Parameters:
+        file_list (list): list of file_ids
+        query_id (str): query_id obtained from HISE's Advanced Search
+        query_dict (dict): dictionary that contains query parameters
+    Returns:
+        dictionary of data.frame objects
+    Examples:
+        df_dict = get_file_descriptors(file_list)
+        df_dict.keys() # print keys of dict
+        df_dict['descriptors'] # to view descriptors
+        df_dict['labResults'] # lab results
+        df_dict['specimens'] # specimen df
     """
     obj = post_query(file_list, query_id, query_dict)
 
@@ -199,17 +191,18 @@ def get_file_descriptors(
 def post_query(file_list: list = None,
                query_id: str = None,
                query_dict: dict = None):
-    """ creates a response object from POST request to a Hydration endpoint
-        Parameters:
-            file_list : list
-                - list of file_ids
-            query_id : str
-                - query_id obtained from HISE's Advanced Search
-            query_dict : dict
-                - dictionary that contains query parameters
-        Output:
-            obj : dict
-                - JSON output from POST request
+    """ 
+    creates a response object from POST request to a Hydration endpoint
+    Parameters:
+        file_list : list
+            - list of file_ids
+        query_id : str
+            - query_id obtained from HISE's Advanced Search
+        query_dict : dict
+            - dictionary that contains query parameters
+    Output:
+        obj : dict
+            - JSON output from POST request
     """
     # make sure users only use 1 parameter
     if file_list is not None:
@@ -242,6 +235,7 @@ def post_query(file_list: list = None,
         file_list = []
         for o in resp_obj:
             file_list += [o['file']['id']]
+        file_list = list(set(file_list))
 
     qstr = "&".join(map(lambda x: "id=%s" % x, file_list))
     endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path),
@@ -266,21 +260,19 @@ def read_files(file_list: list = None,
                to_df: bool = True):
     """
     Read the contents of a list of file ids into a hise_file object
+    Note: users should only use 1 parameter per function call
 
-    NOTE: users should only use 1 parameter per function call
+    Parameters:
+        file_list (list): a list of UUIDS to retrieve
+        query_id (str): string value of queryID from Advanced Search
+        query_dict (dict): dictionary that allows users to submit a query.
+            Note: for each key:value pair, the value must be of type list
+        to_df (bool):  boolean determining whether result should be returned as a data.frame. 
 
-        Parameters:
-            file_list : list
-                a list of UUIDS to retrieve
-            query_id : str
-                string value of queryID from Advanced Search
-            query_dict : dict
-                dictionary that allows users to submit a query.
-                NOTE: for each key:value pair, the value must be of type list
+    Returns:
+        a list of hise_file objects
 
-        Returns:
-            response : a list of hise_file objects
-
+    Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
     """
     obj = post_query(file_list, query_id, query_dict)
 
@@ -308,12 +300,11 @@ def download_files(file_dict: dict):
     Read the contents of a dictionary of non-result file ids into hise_file objects
     These files will contain NULL descriptors (since they are not result files)
 
-        Parameters:
-            file_dict : dictionary
-                a dictionary of file_uuid: file_name
+    Parameters:
+        file_dict (dict): a dictionary of file_uuid: file_name
 
-        Returns:
-            response : a list of hise_file objects with empty descriptors
+    Returns:
+        a list of hise_file objects with empty descriptors
 
     """
     if type(file_dict) is not dict:
@@ -387,17 +378,20 @@ def cache_file(url: str, file_name: str, file_dir: str):
 
 def read_samples(sample_ids=None, query_dict=None, to_df=True):
     """
-    Read or search the SampleStatus materialized view.
-    User should specify one or the other of sample_ids or query
+    Read or search the SampleStatus materialized view. User should specify one 
+    or the other of sample_ids or query.
 
-        Parameters:
-            sample_ids : list
-               a list of UUIDS to retrieve
-            query_dict : dict
-               a dictionary object containing search parameters using mongo query language
+    Parameters:
+        sample_ids (list): a list of UUIDS to retrieve.
+        query_dict (dict): a dictionary object containing search 
+            parameters using mongo query language.
+        to_df (bool) : If true, returns a data.frame object
 
-        Returns:
-            response : a list of samples
+    Returns:
+        response payload either in JSON or data.frame
+
+    Example:
+        hp.read_samples(sample_ids=['e82714e3-d0c9-46a1-9ea6-62a34cba3265'])
 
     """
     if query_dict is not None:
@@ -409,7 +403,7 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
         assert field_diff == set(
         ), 'the following fields are not part of sample materialized view...{}'.format(
             field_diff)
-        # modify users' query and convert to mongo query language
+        # modify user's query and convert to mongo query language
         qdict = query_dict.copy()
         qdict = _add_prefix_to_query(query_dict)
         # have to hardcode cohort
@@ -450,17 +444,17 @@ def read_subjects(subject_ids: str = None,
                   query_dict: dict = None,
                   to_df: bool = True):
     """
-    Read or search the Subject materialized view.
-    User should specify one or the other of subject_ids or query
+    Read or search the Subject materialized view.User should specify one or the 
+    other of subject_ids or query
 
-        Parameters:
-            subject_ids : list
-               a list of UUIDS to retrieve
-            query_dict : dict
-               a dictionary object containing search parameters using mongo query language
+    Parameters:
+        subject_ids (list): a list of UUIDS to retrieve
+        query_dict (dict): a dictionary object containing search parameters 
+            using mongo query language
+        to_df (bool): If true, returns a data.frame 
 
-        Returns:
-            response : a list of subjects
+    Returns:
+        response payload as a data.frame or JSON 
 
     """
 
@@ -473,7 +467,7 @@ def read_subjects(subject_ids: str = None,
         ), 'the following fields are not part of sample materialized view...{}'.format(
             field_diff)
 
-        # modify users' query and convert to mongo query language
+        # modify user's query and convert to mongo query language
         qdict = query_dict.copy()
         qdict = _add_prefix_to_query(query_dict)
         query = _create_mongo_query_in(qdict)
