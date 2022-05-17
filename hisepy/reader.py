@@ -235,6 +235,7 @@ def post_query(file_list: list = None,
         file_list = []
         for o in resp_obj:
             file_list += [o['file']['id']]
+        file_list = list(set(file_list))
 
     qstr = "&".join(map(lambda x: "id=%s" % x, file_list))
     endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path),
