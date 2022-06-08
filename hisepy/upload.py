@@ -8,6 +8,7 @@ import uuid
 
 import plotly.graph_objects as go
 import requests
+import pandas as pd
 
 import hisepy.common_utils as cu
 from hisepy import auth
@@ -24,10 +25,16 @@ IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 
 
 def get_study_spaces():
-    return parse_hise_response(
+    """ Returns metadata on all study spaces a user has access to 
+    """
+    obj = parse_hise_response(
         requests.request("GET",
                          hise_url("tracer", "study_space_path"),
                          headers=get_bearer_token_header()))
+    df = pd.DataFrame()
+    for i in list(range(len(obj))):
+        df = pd.concat([df, pd.json_normalize(obj[i])])
+    return df
 
 
 def get_files_for_query(query_id):
