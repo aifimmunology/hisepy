@@ -15,6 +15,7 @@ from .upload import (upload_files, save_static_image, save_visualization,
                      load_visualization, get_trace, get_study_spaces,
                      get_files_for_query, save_dash_app)
 from .version import __version__
+from .widgets import SaveDashAppWidget, SaveVisualizationWidget, UploadFilesWidget
 
 # if somebody does "from somepackage import *", this is what they will
 # be able to access:
