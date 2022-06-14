@@ -119,14 +119,6 @@ class SaveDashAppWidget:
         
         def on_save_button_click(evt):
             if self.study_space_dropdown.value is not None and len(self.title_text.value) >= SaveDashAppWidget.min_title_length:
-                print(str(self.app_filepath.value))
-                print(self.get_selected_files(self.additional_files.value))
-                print(self.resolve_ids(self.input_file_ids.value))
-                print(self.resolve_ids(self.input_sample_ids.value))
-                print(self.study_space_dropdown.value)
-                print(self.title_text.value)
-                print(self.description_text.value)
-                
                 # enforce user selected a single image
                 if len(self.image_filepath.value) > 1: 
                     raise AssertionError("must choose a single PNG file")
