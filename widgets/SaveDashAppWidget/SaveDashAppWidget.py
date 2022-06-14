@@ -74,7 +74,7 @@ class SaveDashAppWidget:
             disabled=False
         )
         
-        self.image_filepath = widgets.Select(
+        self.image_filepath = widgets.SelectMultiple(
             options=self.build_file_list(Path.cwd()),
             # rows=10,
             disabled=False
@@ -106,8 +106,16 @@ class SaveDashAppWidget:
                 if selected_item[0].is_dir():
                     cwd = Path(selected_item[0])
                     self.additional_files.options=self.build_file_list(cwd)
+        
+        def on_image_filepath_change(change): 
+            selected_item = change['new']
+            if selected_item:
+                if selected_item[0].is_dir():
+                    cwd = Path(selected_item[0])
+                    self.image_filepath.options=self.build_file_list(cwd)
                     
         self.additional_files.observe(on_additional_files_change, names='value')
+        self.image_filepath.observe(on_image_filepath_change, names='value') 
         
         def on_save_button_click(evt):
             if self.study_space_dropdown.value is not None and len(self.title_text.value) >= SaveDashAppWidget.min_title_length:
@@ -118,7 +126,14 @@ class SaveDashAppWidget:
                 print(self.study_space_dropdown.value)
                 print(self.title_text.value)
                 print(self.description_text.value)
-                print(Path(self.image_filepath.value).name) # or str(Path(self.image_filepath.value).resolve()) - for full path
+                
+                # enforce user selected a single image
+                if len(self.image_filepath.value) > 1: 
+                    raise AssertionError("must choose a single PNG file")
+                else: 
+                    image_fpath = str(Path(self.image_filepath.value[0]).resolve())
+                
+                print(str(Path(self.image_filepath.value[0]).resolve())) # or str(Path(self.image_filepath.value).resolve()) - for full path
                 self.save_dash_app_result = hp.save_dash_app(app_filepath=str(self.app_filepath.value),
                                                     additional_files=self.get_selected_files(self.additional_files.value), 
                                                     input_file_ids=self.resolve_ids(self.input_file_ids.value),
@@ -126,7 +141,7 @@ class SaveDashAppWidget:
                                                     study_space_id=self.study_space_dropdown.value, 
                                                     title=self.title_text.value,
                                                     description=self.description_text.value, 
-                                                    image=Path(self.image_filepath.value).name)
+                                                    image=image_fpath)
 
         self.save_button.on_click(on_save_button_click)
 
@@ -195,7 +210,8 @@ class SaveDashAppWidget:
         if len(file_tpls) > 0:
             for fl_path in file_tpls:
                 if fl_path.is_file():
-                    fl_list.append(fl_path.name) # the full file path as a string. str(your_path.resolve())
+                    fl_list.append(str(fl_path.resolve()))
+                    # the full file path as a string. str(your_path.resolve())
                 
         return fl_list
     

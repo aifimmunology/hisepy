@@ -3,6 +3,7 @@ from pathlib import Path
 import hisepy as hp
 
 class SaveVisualizationWidget:
+        
     min_title_length = 10
     study_space_dropdown_place_holder = 'Choose a Study space'
     study_space_dropdown_description = 'Study space:'
@@ -16,18 +17,11 @@ class SaveVisualizationWidget:
     file_list_description = 'Select App.py:'
     app_filepath_label = 'App.py:'
     
-    plotly_obj_label = 'Visualization:'
-    plotly_obj_placeholder = 'plotly object'
-    
-    image_filepath_description = 'PNG File:'
-    
     input_file_ids_placeholder = '"DEF-456","ABC-123"'
     input_file_ids_description = 'File IDs:'
     
     input_sample_ids_placeholder = '"DEF-456","ABC-123"'
-    input_sample_ids_description = 'Sample IDs:'
-    
-    additional_files_description = 'Additional Files:'
+    input_sample_ids_description = 'Sample IDs:' 
 
     save_button_tooltip = 'Save Visualization'
     save_button_description = 'Save'
@@ -35,27 +29,12 @@ class SaveVisualizationWidget:
     
     heading_text = 'Save Visualization to Study Space'
     
-    def __init__(self):
+    def __init__(self, plotly_obj):
         self.heading_text = widgets.HTML(
             value="<h1>" + SaveVisualizationWidget.heading_text + "</h1>",
         )
         
-        self.plotly_obj = widgets.Text(
-            value='',
-            placeholder=SaveVisualizationWidget.plotly_obj_placeholder,
-            disabled=False
-        )
-        
-        self.app_filepath = widgets.Select(
-            options=self.build_file_list(Path.cwd()),
-            disabled=False
-        )
-        
-        self.additional_files = widgets.SelectMultiple(
-            options=self.build_file_list(Path.cwd()),
-            rows=10,
-            disabled=False
-        )
+        self.plotly_obj = plotly_obj
         
         self.sp_options = [('Choose a study space', None)]
         study_spaces = hp.get_study_spaces()
@@ -65,8 +44,7 @@ class SaveVisualizationWidget:
     
         self.study_space_dropdown = widgets.Dropdown(
             placeholder=SaveVisualizationWidget.study_space_dropdown_place_holder,
-            options=self.sp_options,
-            # description=SaveVisualizationWidget.study_space_dropdown_description,
+            options=self.sp_options
         )
 
         self.title_text = widgets.Text(
@@ -78,12 +56,6 @@ class SaveVisualizationWidget:
         self.description_text = widgets.Text(
             value='',
             placeholder=SaveVisualizationWidget.description_text_placeholder,
-            disabled=False
-        )
-        
-        self.image_filepath = widgets.Select(
-            options=self.build_file_list(Path.cwd()),
-            # rows=10,
             disabled=False
         )
         
@@ -113,20 +85,10 @@ class SaveVisualizationWidget:
                 if selected_item[0].is_dir():
                     cwd = Path(selected_item[0])
                     self.additional_files.options=self.build_file_list(cwd)
-                    
-        self.additional_files.observe(on_additional_files_change, names='value')
-        
+                            
         def on_save_button_click(evt):
             if self.study_space_dropdown.value is not None and len(self.title_text.value) >= SaveVisualizationWidget.min_title_length:
-                print(self.app_filepath.value)
-                print(self.get_selected_files(self.additional_files.value))
-                print(self.resolve_ids(self.input_file_ids.value))
-                print(self.resolve_ids(self.input_sample_ids.value))
-                print(self.study_space_dropdown.value)
-                print(self.title_text.value)
-                print(self.description_text.value)
-                print(Path(self.image_filepath.value).name) # or str(Path(self.image_filepath.value).resolve()) - for full path
-                self.save_result = hp.save_visualization(pl_obj=self.plotly_obj.value, 
+                self.save_result = hp.save_visualization(pl_obj=self.plotly_obj, 
                                                          study_space_id=self.study_space_dropdown.value, 
                                                          title=self.title_text.value, 
                                                          input_file_ids=self.resolve_ids(self.input_file_ids.value), 
@@ -148,9 +110,6 @@ class SaveVisualizationWidget:
         self.grid[1, 2] = widgets.Label(SaveVisualizationWidget.title_text_description)
         self.grid[1, 3] = self.title_text
 
-        # app files
-        self.grid[2, 0] = widgets.Label(SaveVisualizationWidget.plotly_obj_label)
-        self.grid[2, 1] = self.plotly_obj
         # file or sample ids
         self.grid[3, 0] = widgets.Label(SaveVisualizationWidget.input_file_ids_description)
         self.grid[3, 1] = self.input_file_ids
@@ -171,8 +130,8 @@ class SaveVisualizationWidget:
         display(self.grid, 
                 self.output)
     
-    def getSaveDashAppResult(self):
-            return self.save_dash_app_result
+    def getSaveVizResult(self):
+            return self.save_result
     
     def build_file_list(self, current_path):
         file_list_tpl = []
