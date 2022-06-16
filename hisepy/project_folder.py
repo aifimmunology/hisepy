@@ -24,9 +24,8 @@ def list_project_folders():
     """
     Lists all project folders a user has access to
 
-        Returns:
-            project_list : list
-                list of project short-names
+    Returns:
+        list of project short-names user has access to
     """
     url = 'https://{ser}/{hy}/{pfe}'.format(
         ser=get_from_metadata_server(server_id_path),
@@ -49,12 +48,10 @@ def list_files_in_project_folder(folder_name):
     """
     Returns information about what files are present in a given project folder
 
-        Parameters:
-            folder_name : str
-                name of project folder
-        Returns:
-            df : pd.DataFrane
-                data.frame containing fileIds and fileNames
+    Parameters:
+        folder_name (str): name of project folder
+    Returns:
+        data.frame containing fileIds and fileNames
     """
     folder = {'folders': [folder_name]}
     url = 'https://{ser}/{hy}/{pfe}/{f}'.format(
@@ -82,18 +79,15 @@ def list_files_in_project_folder(folder_name):
 
 def download_from_project_folder(folder_name, file_name='', subdir=''):
     """
-    Downloads a given file onto a users' IDE. The filepath pattern is as follows:
+    Downloads a given file onto a user's IDE. The filepath pattern is as follows:
     '~/folder_name/file_name'.
-        NOTE: ~ denotes your home directory
 
-        Parameters:
-            folder_name : str
-                name of project folder
-            file_name : str
-                name of file that you see under 'name' when utilizing list_files_in_project_folder
-
-        Returns: bool
-            True if download was successful
+    Parameters:
+        folder_name (str): name of project folder
+        file_name (str): name of file that you see under 'name' when utilizing 
+            list_files_in_project_folder
+    Returns:
+        True if download was successful
     """
 
     def _submit_url_download(url: str, foldern: str, filen: str):
@@ -148,46 +142,16 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
     return True
 
 
-def upload_to_project_folder(watchfolder_bucket_url, file_path):
-    """
-    Uploads file via watchfolder_bucket_url so that it becomes available in the linked Project Folder
-
-        Parameters:
-            watchfolder_bucket_url : str
-                url link to dedicated watch folder for the Project Folder of interest
-            file_path : str
-                path to your file
-
-        Returns : bool
-            True if file was downloaded
-    """
-
-    # ensure users' file actually exists
-    if not os.path.exists(file_path):
-        raise FileExistsError(
-            'submitted path {}, cannot be found'.format(file_path))
-
-    client = storage.Client()
-    bucket = client.bucket(watchfolder_bucket_url)
-    blob = bucket.blob(file_path)
-    blob.upload_from_filename(file_path)
-    return True
-
-
 def archive_file_in_project_folder(folder_name, file_name):
     """
-    Mark a file in a project folder to be archived. This will not actually delete the file,
-    but will remove it from being seen or downloaded when utilizing any other project folder methods.
+    Mark a file in a project folder to be archived. An archived file will not be
+    listed in hp.list_files_in_project_folder()
 
-    NOTE: you can unarchive a file by using undo_archive_in_project_folder() method
-
-        Parameters:
-            folder_name : str
-                name of project folder
-            file_name : str
-                name of project folder
-        Returns:
-            boolean : True if function call was a success
+    Parameters:
+        folder_name (str): name of project folder
+        file_name (str): name of project folder
+    Returns:
+        True if function call was a success
     """
 
     archive_tag = CONFIG['PROJECT_FOLDER']['ARCHIVE_TAG']
@@ -212,16 +176,14 @@ def archive_file_in_project_folder(folder_name, file_name):
 
 def undo_archive_in_project_folder(folder_name, file_name):
     """
-    Unarchives files. any files that were tagged to be archived will now be visible through list_files_in_project_folder()
+    Unarchives files. any files that were tagged to be archived will now be 
+    visible through list_files_in_project_folder()
 
-        Parameters:
-            folder_name : str
-                name of project folder
-            file_name : str
-                name of project folder that you want unarchived and visible
-        Returns:
-            boolean : True if function call was a success
-
+    Parameters:
+        folder_name (str): name of project folder
+        file_name (str): name of project folder that you want unarchived and visible
+    Returns:
+        True if function call was a success
     """
 
     available_tag = CONFIG['PROJECT_FOLDER']['AVAILABLE_TAG']
