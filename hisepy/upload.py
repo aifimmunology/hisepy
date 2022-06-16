@@ -24,6 +24,7 @@ IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 
 
 def get_study_spaces():
+    """ Returns list of studies a user has access to """
     return parse_hise_response(
         requests.request("GET",
                          hise_url("tracer", "study_space_path"),
@@ -31,6 +32,7 @@ def get_study_spaces():
 
 
 def get_files_for_query(query_id):
+    """ Returns a list of file_ids pertaining to a HISE query_id """
     resp = parse_hise_response(
         requests.post(hise_url("hydration", "query_search_path", query_id),
                       headers=get_bearer_token_header()))
@@ -38,6 +40,7 @@ def get_files_for_query(query_id):
 
 
 def get_trace(trace_id):
+    """ Returns trace object """
     trace = parse_hise_response(
         requests.request("GET",
                          hise_url("tracer", "trace_path", trace_id),
@@ -76,6 +79,25 @@ def upload_files(files: list,
                  input_sample_ids=None,
                  file_types=None,
                  do_prompt: bool = True):
+    """
+    Uploads files to a specified study.
+
+    Parameters:
+        files (list): absolute filepath of file to be uploaded
+        study_space_id (str): ID that pertains to a study in the collaboration space 
+        title (str): 10+ character title for upload result 
+        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
+        input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
+        file_types (str): filetype of uploaded files 
+        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
+    Returns: 
+        dictionary with keys ["trace_id", "files"]
+    Example: 
+        hp.upload_files(files=['/home/jupyter/upload_file.csv'],
+                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                        title='a upload title',
+                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
+    """
     if input_file_ids is None:
         input_file_ids = []
     if input_sample_ids is None:
@@ -158,6 +180,17 @@ def save_visualization(
         title=None,  # not actually optional
         input_file_ids=None,  # not optional
         input_sample_ids=None):  # optional
+    """
+    Save a plotly figure to a user's specified study. 
+
+    Parameters: 
+        pl_obj (plotly.Figure): (see LINK HERE)
+        study_space_id (str): UUID of study to save visualization to
+        title (str): 10+ character for visualization being uploaded
+        input_file_ids (list): list of file_ids from HISE that were utilized to generate visualization.
+    Returns: 
+        dictionary with keys ["trace_id", "files"]
+    """
     if input_file_ids is None:
         input_file_ids = []
     if input_sample_ids is None:
@@ -358,27 +391,28 @@ def save_dash_app(app_filepath: str,
     Given a Dash app consisting of an entry point named `app.py` and a list of supporting files, upload and deploy that
     app to HISE as a visualization in the given study space.
 
-    :param app_filepath: path to file named app.py that serves your Dash app
-     (i.e., ends with `app.run_server(host='0.0.0.0')`)
-    :param additional_files: list of additional files used by your app (e.g., data files, custom CSS).
-     Only files under /home/jupyter can be included.
-    :param input_file_ids: list of HISE file UUIDs that this app visualizes
-    :param study_space_id: UUID of study space to save app to
-    :param title: a 10+ character title for the app
-    :param description:
-    :param image: png thumbnail image for app in study space
-    :param input_sample_ids: list of samples UUIDs that this app visualizes
-    :return: Response from server
-
+    Parameters:
+        app_filepath (str): path to file named app.py that serves your Dash app
+            (i.e., ends with `app.run_server(host='0.0.0.0')`)
+        additional_files (list): list of additional files used by your app (e.g., data files, custom CSS).
+            Only files under /home/jupyter can be included.
+        input_file_ids (list): list of HISE file UUIDs that this app visualizes
+        study_space_id (str): UUID of study space to save app to
+        title (str): a 10+ character title for the app
+        description (str): description of app being uploaded 
+        image (str): png thumbnail image for app in study space
+        input_sample_ids (list): list of samples UUIDs that this app visualizes
+    Returns:
+        Response from server
     Example:
-    hisepy.save_dash_app(app_filepath='dash_app/app.py',
-                         additional_files=['data/input-1.csv', 'data/input-2.csv'],
-                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
-                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                         title="Hello world Dash app",
-                         description="An amazingly complex data visualization",
-                         image="dash_app/thumbnail.png",
-                         input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
+        hisepy.save_dash_app(app_filepath='dash_app/app.py',
+                            additional_files=['data/input-1.csv', 'data/input-2.csv'],
+                            input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
+                            study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                            title="Hello world Dash app",
+                            description="An amazingly complex data visualization",
+                            image="dash_app/thumbnail.png",
+                            input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
     """
     if input_sample_ids is None:
         input_sample_ids = []
@@ -409,7 +443,7 @@ def save_dash_app(app_filepath: str,
                 os.makedirs(dst)
             shutil.copy(f, dst)
 
-        # create .txt files that contains users' imported libraries
+        # create .txt files that contains user's imported libraries
         dobj.create_req_txt()
 
         # tar it up; upload; and clean up
@@ -421,6 +455,20 @@ def save_dash_app(app_filepath: str,
 
 
 def save_static_image(image, title, study_space_id=None):
+    """
+    Saves a PNG image to a study
+    
+    Parameters: 
+        image (str): absolute path to image 
+        title (str): title of image being uploaded 
+        study_space_id (str): UUID of study
+    Returns: 
+        Response from server
+    Example: 
+        hp.save_static_image(image='/home/jupyter/imgs/viz_image.png', 
+                             title='visualization title',
+                             study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba')
+    """
     if not os.path.exists(image):
         raise ValueError("%s is not a valid file." % image)
 
@@ -450,6 +498,14 @@ def validate_upload_data(study_space_id, title, input_file_ids):
 
 
 def load_visualization(trace_id):
+    """ 
+    Loads a plotly visualization to user
+    
+    Parameters: 
+        trace_id (str): trace id of from a hp.save_visulization() call
+    Returns: 
+        plotly figure
+    """
     data = None
     trace = get_trace(trace_id)
     if "steps" in trace and "dataReference" in trace["steps"]:
