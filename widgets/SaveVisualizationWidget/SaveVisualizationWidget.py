@@ -1,6 +1,10 @@
 import ipywidgets as widgets
 from pathlib import Path
 import hisepy as hp
+import plotly
+import plotly.express as px
+import inspect
+from IPython.core.magics.namespace import NamespaceMagics
 
 class SaveVisualizationWidget:
     min_title_length = 10
@@ -29,21 +33,39 @@ class SaveVisualizationWidget:
     
     additional_files_description = 'Additional Files:'
 
+    plotly_obj_dropdown_place_holder = 'Choose a Visualization'
+    
     save_button_tooltip = 'Save Visualization'
     save_button_description = 'Save'
     save_button_label = 'Save to study space:'
     
     heading_text = 'Save Visualization to Study Space'
     
-    def __init__(self):
+    def __init__(self, ipython):
+        self.namespace = NamespaceMagics()
+        self.namespace.shell = ipython.kernel.shell
+        
+        self.save_visualization_result = None
+        
         self.heading_text = widgets.HTML(
             value="<h1>" + SaveVisualizationWidget.heading_text + "</h1>",
         )
         
-        self.plotly_obj = widgets.Text(
-            value='',
-            placeholder=SaveVisualizationWidget.plotly_obj_placeholder,
-            disabled=False
+        user_ns = self.namespace.shell.user_ns
+        user_ns_hidden = self.namespace.shell.user_ns_hidden
+        nonmatching = object()  # This can never be in user_ns
+        
+        self.pf_options = [(i, i)for i in user_ns
+                if not i.startswith('_') \
+                and (user_ns[i] is not user_ns_hidden.get(i, nonmatching)) \
+                and type(user_ns[i]) is plotly.graph_objs._figure.Figure]
+        
+        self.pf_options.insert(0, ('Choose Visualization', None))
+    
+        self.plotly_objs_dropdown = widgets.Dropdown(
+            placeholder=SaveVisualizationWidget.plotly_obj_dropdown_place_holder,
+            options=self.pf_options,
+            # description=SaveVisualizationWidget.study_space_dropdown_description,
         )
         
         self.app_filepath = widgets.Select(
@@ -118,15 +140,13 @@ class SaveVisualizationWidget:
         
         def on_save_button_click(evt):
             if self.study_space_dropdown.value is not None and len(self.title_text.value) >= SaveVisualizationWidget.min_title_length:
-                print(self.app_filepath.value)
-                print(self.get_selected_files(self.additional_files.value))
-                print(self.resolve_ids(self.input_file_ids.value))
-                print(self.resolve_ids(self.input_sample_ids.value))
+                print(self.plotly_objs_dropdown.value)
                 print(self.study_space_dropdown.value)
                 print(self.title_text.value)
-                print(self.description_text.value)
-                print(Path(self.image_filepath.value).name) # or str(Path(self.image_filepath.value).resolve()) - for full path
-                self.save_result = hp.save_visualization(pl_obj=self.plotly_obj.value, 
+                print(self.resolve_ids(self.input_file_ids.value))
+                print(self.resolve_ids(self.input_sample_ids.value))
+                
+                self.save_visualization_result = hp.save_visualization(pl_obj=self.get_selected_figure(self.plotly_objs_dropdown.value), 
                                                          study_space_id=self.study_space_dropdown.value, 
                                                          title=self.title_text.value, 
                                                          input_file_ids=self.resolve_ids(self.input_file_ids.value), 
@@ -150,7 +170,7 @@ class SaveVisualizationWidget:
 
         # app files
         self.grid[2, 0] = widgets.Label(SaveVisualizationWidget.plotly_obj_label)
-        self.grid[2, 1] = self.plotly_obj
+        self.grid[2, 1] = self.plotly_objs_dropdown
         # file or sample ids
         self.grid[3, 0] = widgets.Label(SaveVisualizationWidget.input_file_ids_description)
         self.grid[3, 1] = self.input_file_ids
@@ -171,8 +191,8 @@ class SaveVisualizationWidget:
         display(self.grid, 
                 self.output)
     
-    def getSaveDashAppResult(self):
-            return self.save_dash_app_result
+    def getSaveVisualizationResult(self):
+        return self.save_visualization_result
     
     def build_file_list(self, current_path):
         file_list_tpl = []
@@ -188,6 +208,10 @@ class SaveVisualizationWidget:
         file_list_tpl.insert(0, parent_dir)
 
         return file_list_tpl
+    
+    def get_selected_figure(self, fig):
+        user_ns = self.namespace.shell.user_ns
+        return user_ns[fig]
         
     def get_selected_files(self, file_tpls):
         fl_list = []
@@ -199,8 +223,8 @@ class SaveVisualizationWidget:
         return fl_list
     
     def resolve_ids(self, ids_str):
-        ids_list = []
         if ids_str:
-            ids_list = ids_str.replace('"', "").split(',')
-            
-        return ids_list
+            ids_list = list(map(lambda id: str.strip(id), ids_str.replace('"', "").split(',')))
+            return ids_list
+        else:
+            return []
