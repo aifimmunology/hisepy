@@ -10,6 +10,7 @@ import os
 
 import h5py
 import pandas as pd
+import json
 
 import hisepy.common_utils as cu
 
@@ -102,126 +103,84 @@ def _dict_to_df(input_df, col_name):
     return fin_df
 
 
-# TODO: this method really demonstrates how useful a class could be...
-# if the output of read_sample() changes then a lot of troubleshooting is going to be needed...
 def sample_to_df_worker(sample_out):
-    """
-    Takes output from readSamples, and outputs to a data.frame
-        Parameters:
-            sample_out: dictionary
-                dictionary that contains sample metadata
-        Returns:
-            dict_df : dictionary of 3 data.frame objects ['metadata','specimens','survey']
-    """
-    dict_keys = sample_out.keys()
+    """ 
+    Reformats JSON output from read_samples() to a data.frame object 
 
-    # if value is string vs. dict
-    single_df = pd.DataFrame()
-    meta_df = pd.DataFrame()
-    spec_df = pd.DataFrame()
-    no_entry_df = pd.DataFrame()
-    surv_df = pd.DataFrame()
-    for dv in dict_keys:
-        this_entry = sample_out[dv]
+    Parameters:
+        sample_out (dict): response object from read_samples() 
+    Returns: 
+        a dictionary of 4 data.frame objects with the following keys: ['metadata','labResults', 'specimens','survey']
+    """
 
-        # situations where we'll just omit a column
-        if (this_entry is None) | (type(this_entry) is bool):
-            no_entry = pd.DataFrame(data=[''], columns=[dv])
-            no_entry_df = pd.concat([no_entry_df, no_entry], axis=1)
-        elif type(this_entry) is list:
-            if this_entry[0] == '':
-                no_entry_list = pd.DataFrame(data=[''], columns=[dv])
-                no_entry_df = pd.concat([no_entry_df, no_entry_list], axis=1)
-            else:
-                try:
-                    if dv == 'survey':
-                        for i in list(range(0, len(this_entry))):
-                            this_surv_df = pd.DataFrame()
-                            for j in this_entry[i].keys():
-                                survey_entry = this_entry[i][j]
-                                if (type(survey_entry) in [str, int]) | (
-                                        survey_entry is None):
-                                    tmp_surv_df = pd.DataFrame([survey_entry],
-                                                               columns=[j])
-                                    this_surv_df = pd.concat(
-                                        [this_surv_df, tmp_surv_df], axis=1)
-                                elif ((type(survey_entry) == dict) |
-                                      (j == 'revisionHistory')):
-                                    if j == 'revisionHistory':
-                                        survey_entry = survey_entry[0]
-                                    survey_entry.update(
-                                        (k, [v])
-                                        for k, v in survey_entry.items())
-                                    tmp_surv_df = pd.DataFrame.from_dict(
-                                        survey_entry)
-                                    tmp_cols = tmp_surv_df.columns.tolist()
-                                    new_cols = [
-                                        '{}.{}'.format(j, k) for k in tmp_cols
-                                    ]
-                                    tmp_surv_df.columns = new_cols
-                                    this_surv_df = pd.concat(
-                                        [this_surv_df, tmp_surv_df], axis=1)
-                            surv_df = pd.concat([surv_df, this_surv_df],
-                                                axis=0)
-                    elif dv == 'specimens':
-                        for i in range(0, len(this_entry)):
-                            this_entry[i].update(
-                                (k, [v]) for k, v in this_entry[i].items())
-                            specimen_tmp = pd.DataFrame.from_dict(
-                                this_entry[i])
-                            spec_df = pd.concat([spec_df, specimen_tmp],
-                                                axis=0)
-                except:  # for entries like batchIdList that aren't always null/emptry
-                    if dv in ['survey', 'specimens']:
-                        raise SystemError(
-                            '{} object was not attached properly')
-                    single_df = pd.concat(
-                        [single_df,
-                         pd.DataFrame(this_entry, columns=[dv])],
-                        axis=1)
-        elif type(this_entry) == str:
-            single_tmp = pd.DataFrame([this_entry], columns=[dv])
-            single_df = pd.concat([single_df, single_tmp], axis=1)
-        elif type(this_entry) == dict:
-            this_entry.update(
-                (k, [v]) for k, v in
-                this_entry.items())  # convert values to lists inplace
-            metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
-            metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dv))
-            meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
+    # initialize all data.frame objects in case there is nothing to reformat
+    metadata_df = pd.DataFrame(data=[''])
+    specimen_df = pd.DataFrame(data=[''])
+    surv_df = pd.DataFrame(data=[''])
+    lab_df = pd.DataFrame(data=[''])
+    for dv in sample_out.keys():
+        if dv == 'specimens':
+            specimen_df = pd.read_json(json.dumps(sample_out[dv]))
+        elif dv == 'survey':
+            surv_df = pd.read_json(json.dumps(sample_out[dv]))
+            if len(surv_df) == 0:
+                continue
+            # expand answers column where possible
+            answers_df = pd.DataFrame()
+            for i in list(range(0, len(surv_df))):
+                these_answers = pd.DataFrame([surv_df['answers'][i]])
+
+                # assign id for later merge
+                these_answers['id'] = surv_df.loc[i, 'id']
+
+                # concat answers together
+                answers_df = pd.concat([answers_df, these_answers])
+
+            # rename columns by adding prefix "answers"
+            answers_df = answers_df.add_prefix('answers.').reset_index(
+                drop=True)
+            surv_df = surv_df.merge(answers_df,
+                                    left_on='id',
+                                    right_on='answers.id')
+
+            # clean up
+            surv_df.drop(columns=['answers', 'answers.id'], inplace=True)
+        elif dv == 'lab':
+            lab_df = pd.DataFrame([sample_out[dv]])
+            # expand on lab results
+            lab_results = pd.DataFrame([lab_df['labResults'][0]])
+            lab_df = pd.concat([lab_df, lab_results], axis=1)
+
+            lab_df.drop(columns='labResults', inplace=True)
+
+        # everything else goes under metadata
         else:
-            raise ValueError(
-                "There's an unexpected entry for collection... {}. please contact dev support!"
-                .format(dv))
+            this_entry = sample_out[dv]
 
-    # combine everything together
-    # also ensure all data.frames have an identifier users can merge on
+            if type(this_entry) == str:
+                metadata_df[dv] = this_entry
+            # only want to do this for samples/subject
+            elif type(this_entry) == dict:
+                if dv in ['sample', 'subject']:
+                    tmp_df = pd.DataFrame([sample_out[dv]
+                                           ]).add_prefix('{}.'.format(dv))
+                    metadata_df = pd.concat([metadata_df, tmp_df], axis=1)
+                else:
+                    metadata_df[dv] = [sample_out[dv]]
+
+    # add idenftifier columns to each data.frame object (subjectGuid & sampleKitGuid)
+    this_subject_id = metadata_df.loc[:, 'subject.subjectGuid'].item()
+    this_samplekit_id = metadata_df.loc[:, 'sample.sampleKitGuid'].item()
+    for this_obj in [lab_df, surv_df, specimen_df]:
+        this_obj['subjectGuid'] = str(this_subject_id)
+        this_obj['sampleKitGuid'] = str(this_samplekit_id)
+
     dict_df = {
-        'metadata':
-        pd.concat([single_df, meta_df, no_entry_df], axis=1),
-        'specimens':
-        spec_df,
-        'survey':
-        surv_df,
-        'labResults':
-        pd.concat([
-            _dict_to_df(meta_df, 'lab.labResults'),
-            meta_df[['lab.id', 'lab.revisionHistory', 'lab.revisionNumber']]
-        ],
-                  axis=1)
+        'metadata': metadata_df,
+        'specimens': specimen_df,
+        'survey': surv_df,
+        'labResults': lab_df
     }
-    dict_df['specimens']['subjectGuid'] = dict_df['metadata'][
-        'subject.subjectGuid']
-    dict_df['specimens']['sampleKitGuid'] = dict_df['metadata'][
-        'sample.sampleKitGuid']
-    dict_df['survey']['subjectGuid'] = dict_df['metadata'][
-        'subject.subjectGuid']
-    dict_df['labResults']['sampleGuid'] = dict_df['metadata'][
-        'sample.sampleGuid']
-    dict_df['labResults']['sampleKitGuid'] = dict_df['metadata'][
-        'sample.sampleKitGuid']
-    dict_df['labResults']['subjectGuid'] = dict_df['metadata'][
-        'subject.subjectGuid']
 
     return dict_df
 
