@@ -375,13 +375,14 @@ def cache_file(url: str, file_name: str, file_dir: str):
     open(f_path, 'wb').write(resp.content)
 
 
-def read_samples(sample_ids=None, query_dict=None, to_df=True):
+def read_samples(sample_ids=None, query_id=None, query_dict=None, to_df=True):
     """
     Read or search the SampleStatus materialized view. User should specify one 
     or the other of sample_ids or query.
 
     Parameters:
         sample_ids (list): a list of UUIDS to retrieve.
+        query_id (str): a UUID that corresponds to a query generated via Advanced Search 
         query_dict (dict): a dictionary object containing search 
             parameters using mongo query language.
         to_df (bool) : If true, returns a data.frame object
@@ -393,7 +394,13 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
         hp.read_samples(sample_ids=['e82714e3-d0c9-46a1-9ea6-62a34cba3265'])
 
     """
+    # check only 1 optional parameter is being assigned
+    if sum(p is not None for p in [sample_ids, query_id, query_dict]) != 1:
+        raise ValueError(
+            "You must specify either sample_ids, query_id or query_dict.")
     if query_dict is not None:
+        if type(query_dict) is not dict:
+            raise TypeError('query_dict must be of type dictionary')
         # check that fields are within sample materialized view
         sample_fields = hl.lookup_queryable_fields(
             'sample')['field'].unique().tolist() + ['subjectGuid']
@@ -414,6 +421,19 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
         if type(sample_ids) is not list:
             raise TypeError("sample_ids must be a list")
         query = {"id": {"$in": sample_ids}}
+    elif query_id is not None:
+        q_endpoint = 'https://{s}/{q}/{qid}'.format(
+            s=get_from_metadata_server(server_id_path),
+            q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
+            qid=query_id)
+        resp = requests.request('POST',
+                                q_endpoint,
+                                headers=get_bearer_token_header())
+        if resp.status_code != 200:
+            raise SystemError("Request to %s failed with status %d. %s" %
+                              (q_endpoint, resp.status_code, resp.text))
+        obj = json.loads(resp.text)
+        return hf.sample_to_df(obj)
     if query is None:
         raise TypeError(
             "You must specify either a list of sample_ids or a query")
@@ -422,12 +442,12 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
     resp = requests.post(endpoint,
                          data=json.dumps({"filter": query}),
                          headers=get_bearer_token_header())
-
     if resp.status_code != 200:
         raise SystemError("Request to %s failed with status %d. %s" %
                           (endpoint, resp.status_code, resp.text))
-
     obj = json.loads(resp.text)
+    if obj['payload'] is None:
+        raise ValueError("User's query resulted in 0 results")
     if type(obj) is not dict:
         raise TypeError("Response %s is not a list, it is a %s." %
                         (resp.text, type(obj)))
