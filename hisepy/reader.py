@@ -3,6 +3,7 @@ import os
 import pathlib
 import urllib
 import uuid
+import pandas as pd
 
 import requests
 
@@ -142,7 +143,7 @@ def query_files(user_query: dict):
         raise TypeError("Response %s is not a list, it is a %s." %
                         (resp.text, type(obj)))
     elif "payload" not in obj:
-        raise TypeError("Response %s contained an empty payload!" % resp.test)
+        raise TypeError("Response %s contained an empty payload!" % resp.text)
     return obj["payload"]
 
 
@@ -370,9 +371,8 @@ def cache_file(url: str, file_name: str, file_dir: str):
     f_path = "%s/%s" % (file_dir, file_name)
     resp = requests.request("GET", url, headers=get_bearer_token_header())
     if resp.status_code != 200:
-        raise SystemError(
-            "Request to get file %s from %s failed with status %d. %s" %
-            (file_name, resp.status_code, resp.text))
+        raise SystemError("Request to get file %s failed with status %d. %s" %
+                          (file_name, resp.status_code, resp.text))
     open(f_path, 'wb').write(resp.content)
 
 
@@ -439,7 +439,7 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
         raise TypeError("Response %s is not a list, it is a %s." %
                         (resp.text, type(obj)))
     elif "payload" not in obj:
-        raise TypeError("Response %s contained an empty payload!" % resp.test)
+        raise TypeError("Response %s contained an empty payload!" % resp.text)
     if to_df:
         return hf.sample_to_df(obj["payload"])
     else:
@@ -570,3 +570,82 @@ def parse_hise_response(resp):
             "%s request to %s returned with status %d. %s" %
             (resp.request.method, resp.url, resp.status_code, msg))
     return obj
+
+
+def list_filesets(study_space_id):
+    """ 
+    Returns a list of filesets for a given study 
+
+    Parameters:
+        study_space_id (str) : a unique identifier for a study in the collaboration space
+
+    Returns: 
+        data.frame with columns ['title','description','fileIds']
+        
+    Example: 
+        hp.list_filesets(study_space_id='c39e3ae5-ec11-4f02-b89d-255945c5788e')
+    """
+    # get me all the filesets
+    query_dict = {'studySpaceId': study_space_id}
+    obj = parse_hise_response(
+        requests.get(hise_url('tracer', 'file_set'),
+                     params=query_dict,
+                     headers=get_bearer_token_header()))
+
+    # transform to a data.frame
+    obj_df = pd.DataFrame(obj)
+    if len(obj_df) == 0:
+        raise ValueError("There are no filesets in the study specified")
+
+    # don't show users deleted entries
+    obj_df_sub = obj_df.loc[obj_df['deleted'].eq('false'), ]
+    return obj_df_sub[[
+        'id', 'studySpaceId', 'title', 'description', 'fileIds'
+    ]].reset_index(drop=True)
+
+
+def cache_filesets(fileset_id, study_space_id):
+    """ 
+    Downloads all files pertaining to a fileset to a user's workspace.
+
+    Parameters: 
+        fileset_id (str) : unique identifier for a fileset in a study
+        study_space_id (str) : unique identifier for a study in the collaboration space
+
+    Example:
+        hp.cache_filesets(fileset_title='Reports on why this study is worth it', 
+                            study_space_id='a9ddcfa9-e36d-451e-9e00-0f582e09e696')
+    """
+    assert fileset_id is not None, "You must specify a fileset_id"
+    assert study_space_id is not None, "You must specify a study_space_id"
+    assert type(fileset_id) is str, "fileset_id must be of type string"
+    assert type(study_space_id) is str, "study_space_id must be of type string"
+
+    # get all the fileIds to download
+    fileset_df = list_filesets(study_space_id)
+    if fileset_id is not None:
+        fileset_df_sub = fileset_df.loc[fileset_df['id'].eq(fileset_id), ]
+        these_file_ids = list(fileset_df_sub['fileIds'].item().keys())
+        fileset_title = str(fileset_df_sub['title'].item())
+
+    # make sure we only have a single fileSet entry we're downloading from
+    if len(fileset_df_sub) == 0:
+        raise ValueError(
+            "There is no fileset entry with the title and study specified")
+
+    # make requests to hydration
+    obj = post_query(file_list=these_file_ids)
+
+    # save all files in ~/cache/<filesetName>/...
+    cache_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], fileset_title)
+    for this_obj in obj:
+        # split filepath string into path and filename.
+        split_filename = os.path.split(this_obj['descriptors']['file']['name'])
+        this_filename = split_filename[1]
+        file_source_dir = split_filename[0]
+        cache_file(
+            url=this_obj['url'],
+            file_name=this_filename,  # just grab the filename (could be a path)
+            file_dir="%s/%s" % (cache_dir, file_source_dir))
+
+    return
