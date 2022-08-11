@@ -56,6 +56,7 @@ TRACER:
 IDE: 
   CACHE_DIR : cache
   HOME_DIR : /home/jupyter
+  CACHE_LOG_NAME : .hisefilelog.rds
 
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
