@@ -122,6 +122,7 @@ def upload_files(files: list,
         raise ValueError("No files specified for upload")
 
     trace_id = None
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     study_space_id = validate_upload_data(study_space_id, title,
                                           input_file_ids)
     uploaded = []
@@ -200,6 +201,7 @@ def save_visualization(
     tmp_img_file = "/tmp/plotly.png"
 
     pl_obj.write_image(tmp_img_file)
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     img_data = save_static_image(image=tmp_img_file,
                                  title=title,
                                  study_space_id=study_space_id)
@@ -271,11 +273,19 @@ class DashAppImg:
         self.work_dir = work_dir
 
     def create_req_txt(self):
-        subprocess.run(
-            "pipreqs --savepath {wd}/{ide_home}/requirements.in {wd} && pip-compile --no-annotate --no-header"
-            " --output-file {wd}/{ide_home}/requirements.txt {wd}/{ide_home}/requirements.in"
-            .format(wd=self.work_dir, ide_home=IDE_HOME_DIR),
-            shell=True)
+        subprocess.run([
+            'pipreqs', '--savepath', '{wd}/{app}/requirements.in'.format(
+                wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
+            '{}'.format(self.work_dir)
+        ],
+                       check=True,
+                       capture_output=True)
+        subprocess.run([
+            'pip-compile', '--no-annotate', '--no-header', '--quiet',
+            '{wd}/{app}/requirements.in'.format(
+                wd=self.work_dir, app=os.path.dirname(self.app_filepath))
+        ],
+                       check=True)
 
     def upload_hero_image(self):
         # I don't think this title is ever user-visible, but save_static_image requires it
@@ -421,6 +431,7 @@ def save_dash_app(app_filepath: str,
     validate_app_path(app_filepath)
     validate_files(additional_files)
     validate_hero_image(image)
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create static dash image
