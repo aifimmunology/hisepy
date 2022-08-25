@@ -272,9 +272,9 @@ class DashAppImg:
 
     def create_req_txt(self):
         subprocess.run(
-            "pipreqs --savepath {wd}/{ide_home}/requirements.in {wd} && pip-compile --no-annotate --no-header"
-            " --output-file {wd}/{ide_home}/requirements.txt {wd}/{ide_home}/requirements.in"
-            .format(wd=self.work_dir, ide_home=IDE_HOME_DIR),
+            "pipreqs --savepath {wd}/{app}/requirements.in {wd} && pip-compile --no-annotate --no-header"
+            " --output-file {wd}/{app}/requirements.txt {wd}/{app}/requirements.in"
+            .format(wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
             shell=True)
 
     def upload_hero_image(self):
