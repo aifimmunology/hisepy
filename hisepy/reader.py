@@ -290,6 +290,7 @@ def read_files(file_list: list = None,
             continue
         else:
             response.append(cache_and_convert_file_data(f))
+    cu.log_downloaded_files(response)
     if to_df:
         return hf.descriptors_to_df(response)
     else:
