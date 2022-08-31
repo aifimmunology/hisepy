@@ -122,6 +122,7 @@ def upload_files(files: list,
         raise ValueError("No files specified for upload")
 
     trace_id = None
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     study_space_id = validate_upload_data(study_space_id, title,
                                           input_file_ids)
     uploaded = []
@@ -200,6 +201,7 @@ def save_visualization(
     tmp_img_file = "/tmp/plotly.png"
 
     pl_obj.write_image(tmp_img_file)
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     img_data = save_static_image(image=tmp_img_file,
                                  title=title,
                                  study_space_id=study_space_id)
@@ -421,6 +423,7 @@ def save_dash_app(app_filepath: str,
     validate_app_path(app_filepath)
     validate_files(additional_files)
     validate_hero_image(image)
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create static dash image
