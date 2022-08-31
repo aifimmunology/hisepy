@@ -51,6 +51,7 @@ TRACER:
   TRACER_NAME : tracer 
   TRACE_PATH : tracer/trace
   STUDY_SPACE_PATH: tracer/studyspace
+  FILE_SET : tracer/fileset
   
 # globals specific for IDE 
 IDE: 

@@ -137,3 +137,16 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
             .format(invalid_sample_ids))
 
     return
+
+
+def verify_file_count(dir, expected_num_files):
+    """ Checks if the number of files in a directory is correct """
+
+    file_count = 0
+    # recursively walk down tree and check if current iteration is a file
+    for root_dir, this_dir, file in os.walk(dir):
+        file_count += len(file)
+    if file_count != expected_num_files:
+        raise ValueError("Expected to find %d files, but only %d were found" %
+                         (expected_num_files, file_count))
+    return True
