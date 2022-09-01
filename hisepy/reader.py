@@ -581,7 +581,7 @@ def list_filesets(study_space_id):
         study_space_id (str) : a unique identifier for a study in the collaboration space
 
     Returns: 
-        data.frame with columns ['title','description','fileIds']
+        data.frame with columns ['id', 'studySpaceId', 'title','description','fileIds']
         
     Example: 
         hp.list_filesets(study_space_id='c39e3ae5-ec11-4f02-b89d-255945c5788e')
@@ -642,11 +642,11 @@ def cache_filesets(fileset_id, study_space_id):
     for this_obj in obj:
         # split filepath string into path and filename.
         split_filename = os.path.split(this_obj['descriptors']['file']['name'])
+        this_file_id = this_obj['descriptors']['file']['id']
         this_filename = split_filename[1]
-        file_source_dir = split_filename[0]
         cache_file(
             url=this_obj['url'],
             file_name=this_filename,  # just grab the filename (could be a path)
-            file_dir="%s/%s" % (cache_dir, file_source_dir))
+            file_dir="%s/%s" % (cache_dir, this_file_id))
 
     return
