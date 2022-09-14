@@ -235,16 +235,20 @@ def _desc_lab_to_df(this_desc):
     lab_df = pd.DataFrame()
 
     # copy results, and convert entries to list
-    labr = this_desc['labResults'].copy()
-    labr.update((k, [v]) for k, v in labr.items())
+    if this_desc['labResults'] is None:
+        labr = pd.DataFrame()
+    else:
+        labr = this_desc['labResults'].copy()
+        labr.update((k, [v]) for k, v in labr.items())
 
     # handle revision history
-    if this_desc['revisionHistory'] is None:
+    if (this_desc['revisionHistory'] is None) or (this_desc['revisionHistory']
+                                                  == list()):
         revision_df = pd.DataFrame()
     else:
         revh = this_desc['revisionHistory'][0]
         revision_df = pd.DataFrame()
-        if revh != None:
+        if revh is not None:
             datah = revh['dataHistory'].copy()
             datah.update((k, [v]) for k, v in datah.items())
             datah_df = pd.DataFrame(datah)
@@ -273,91 +277,62 @@ def _desc_specimen_to_df(this_desc, sample_kit_guid):
     return spec_df
 
 
-def descriptors_to_df_worker(hise_file):
+def reshape_descriptors(this_desc):
+    """ Reshapes descriptors to a dataframe object 
     """
-    Takes a hise_file and reformats attached descriptors into a data.frame
-
-        Parameters:
-            hise_file : hise_file (see reader.py)
-
-        Returns:
-            dict_df : dictionary with keys where values are data.frames
-    """
-
-    # grab all keys from descriptor object
+    assert type(
+        this_desc
+    ) is dict, "expected descriptors to be a dictionary. Received type %s" % type(
+        this_desc)
     dict_df = {
         'descriptors': pd.DataFrame(),
         'labResults': pd.DataFrame(),
         'specimens': pd.DataFrame()
     }
+    this_df_desc = pd.DataFrame()
+    for dk in this_desc.keys():
+        if (dk in [
+                'specimens', 'lab', 'emr', 'lastUpdated', 'labLastModified',
+                'surveyLastModified'
+        ]) | (this_desc[dk] is None):
+            continue
 
-    # calculate length of descriptors iff the type is a list
-    if type(hise_file[0].descriptors) == dict:
-        desc_len = 1  # otherwise, just iterate once
-    elif type(hise_file[0].descriptors) == list:
-        desc_len = len(hise_file[0].descriptors)
+        # convert dictionary to dataframe
+        copy_tmp = this_desc[dk].copy()
+        copy_tmp.update((k, [v]) for k, v in copy_tmp.items())
+        tmp_df = pd.DataFrame(copy_tmp)
 
-    # the only time we should be utilizing this loop (i.e i > 1),
-    # will be when a file_id is associated with multiple files
-    for i in list(range(0, desc_len)):
+        # rename columns by adding a prefix (i.e lab.<col>, file.<col>, etc)
+        tmp_df_cols = tmp_df.columns.tolist()
+        new_cols = ['{}.{}'.format(dk, i) for i in tmp_df_cols]
+        tmp_df.columns = new_cols
 
-        # most cases, we should just have a single descriptor we're working with
-        try:
-            descriptor_keys = hise_file[0].descriptors.keys()
-            this_desc = hise_file[0].descriptors.copy()
-        except:
-            descriptor_keys = hise_file[0].descriptors[i].keys()
-            this_desc = hise_file[0].descriptors[i].copy()
+        this_df_desc = pd.concat([this_df_desc, tmp_df], axis=1)
 
-        df_desc = pd.DataFrame()
+    # handle lastUpdated, labLastModified, and surveyLastModified - create df then rename column
+    update_df = pd.DataFrame()
+    for update_col in ['lastUpdated', 'labLastModified', 'surveyLastModified']:
+        this_desc[update_col] = [this_desc[update_col]]
+        update_df = pd.DataFrame.from_dict(
+            this_desc[update_col]).rename(columns={0: update_col})
+        this_df_desc = pd.concat([this_df_desc, update_df],
+                                 axis=1)  #column bind
 
-        # go through each object and convert into a data.frame
-        # lab results has some extra layers to the dictionary, so we'll do that separately
-        # emr shouldn't exist in descriptors (removed in hydration service)
-        for dk in descriptor_keys:
-            if (dk in [
-                    'specimens', 'lab', 'emr', 'lastUpdated',
-                    'labLastModified', 'surveyLastModified'
-            ]) | (this_desc[dk] == None):
-                continue
+    # now take care of lab results
+    lab_df = _desc_lab_to_df(this_desc['lab'].copy())
 
-            # convert dictionary to dataframe
-            copy_tmp = this_desc[dk].copy()
-            copy_tmp.update((k, [v]) for k, v in copy_tmp.items())
-            tmp_df = pd.DataFrame(copy_tmp)
+    # and now handle specimens
+    spec_df = _desc_specimen_to_df(this_desc['specimens'],
+                                   this_desc['sample']['sampleKitGuid'])
 
-            # rename columns by adding a prefix (i.e lab.<col>, file.<col>, etc)
-            tmp_df_cols = tmp_df.columns.tolist()
-            new_cols = ['{}.{}'.format(dk, i) for i in tmp_df_cols]
-            tmp_df.columns = new_cols
-
-            df_desc = pd.concat([df_desc, tmp_df], axis=1)
-
-        # handle lastUpdated, labLastModified, and surveyLastModified - create df then rename column
-        update_df = pd.DataFrame()
-        for update_col in [
-                'lastUpdated', 'labLastModified', 'surveyLastModified'
-        ]:
-            this_desc[update_col] = [this_desc[update_col]]
-            update_df = pd.DataFrame.from_dict(
-                this_desc[update_col]).rename(columns={0: update_col})
-            df_desc = pd.concat([df_desc, update_df], axis=1)  #column bind
-
-        # now take care of lab results
-        lab_df = _desc_lab_to_df(this_desc['lab'].copy())
-
-        # and now handle specimens
-        spec_df = _desc_specimen_to_df(this_desc['specimens'],
-                                       this_desc['sample']['sampleKitGuid'])
-
-        # do some final cleaning and return a dictionary of data.frames
-        dict_df['descriptors'] = dict_df['descriptors'].append(df_desc)
-        dict_df['labResults'] = dict_df['labResults'].append(lab_df)
-        dict_df['specimens'] = dict_df['specimens'].append(spec_df)
+    # do some final cleaning and return a dictionary of data.frames
+    dict_df['descriptors'] = this_df_desc
+    dict_df['labResults'] = lab_df
+    dict_df['specimens'] = spec_df
     return dict_df
 
 
-def descriptors_to_df(list_of_hise_files):
+def hise_file_to_df(list_of_hise_files):
     """
     Given a list of hise_file objects, return a dictionary containing a data.frame of descriptors, and a data.frame of lab results
 
@@ -374,8 +349,15 @@ def descriptors_to_df(list_of_hise_files):
     values_df = pd.DataFrame()
     values_list = []
     for i in range(0, len(list_of_hise_files)):
-        tmp_df = descriptors_to_df_worker([list_of_hise_files[i]])
-        list_dict += [tmp_df]
+        this_desc = list_of_hise_files[i].descriptors
+        if type(this_desc) is list:
+            for olink_desc in this_desc:
+                tmp_df = reshape_descriptors(olink_desc)
+                list_dict += [tmp_df]
+
+        elif type(this_desc) is dict:
+            tmp_df = reshape_descriptors(this_desc)
+            list_dict += [tmp_df]
 
         # create an object of data values for a given data type
         if filetype == 'csv':

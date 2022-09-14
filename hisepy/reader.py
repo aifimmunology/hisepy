@@ -147,10 +147,9 @@ def query_files(user_query: dict):
     return obj["payload"]
 
 
-def get_file_descriptors(
-        file_list: list = None,
-        query_id: str = None,
-        query_dict: dict = None):  # TBD on actual name of this
+def get_file_descriptors(file_list: list = None,
+                         query_id: str = None,
+                         query_dict: dict = None):
     """ 
     Retrieves file descriptors based on user's query.
 
@@ -167,26 +166,40 @@ def get_file_descriptors(
         df_dict['labResults'] # lab results
         df_dict['specimens'] # specimen df
     """
-    obj = post_query(file_list, query_id, query_dict)
 
-    # do parsing
-    hise_file_list = []
+    def _append_descriptors(dict_df, new_dict_desc):
+        dict_df['descriptors'] = pd.concat(
+            [new_dict_desc['descriptors'], dict_df['descriptors']], axis=0)
+        dict_df['labResults'] = pd.concat(
+            [new_dict_desc['labResults'], dict_df['labResults']], axis=0)
+        dict_df['specimens'] = pd.concat(
+            [new_dict_desc['specimens'], dict_df['specimens']], axis=0)
+        return dict_df
+
+    # get a list of descriptor objects
+    obj = post_query(file_list, query_id, query_dict)
+    descriptor_list = []
     for f in obj:
-        batch_id = "unknown"
-        if "batchID" in f['descriptors'][
-                'file'] and f['descriptors']['file']["batchID"] != "":
-            batch_id = f['descriptors']['file']["batchID"]
-        file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
-        file_name = f['descriptors']['file']["name"].split("/")[-1]
-        filetype = cu.get_filetype(file_name)
-        hise_file_list += [
-            hise_file(file_id=f['descriptors']['file']['id'],
-                      file_path=file_dir,
-                      descriptors=f["descriptors"],
-                      file_type=filetype)
-        ]
-    desc_df = hf.descriptors_to_df(hise_file_list)
-    return desc_df
+        descriptor_list += [f["descriptors"]]
+
+    dict_df = {
+        'descriptors': pd.DataFrame(),
+        'labResults': pd.DataFrame(),
+        'specimens': pd.DataFrame()
+    }
+    for this_desc in descriptor_list:
+        if type(this_desc) is list:
+            for olink_desc in this_desc:
+                olink_desc_df = hf.reshape_descriptors(olink_desc)
+                dict_df = _append_descriptors(dict_df, olink_desc_df)
+        elif type(this_desc) is dict:
+            desc_dict_df = hf.reshape_descriptors(this_desc)
+            dict_df = _append_descriptors(dict_df, desc_dict_df)
+        else:
+            raise TypeError(
+                "Received an unfamiliar type for descriptor object. Type: %s" %
+                type(this_desc))
+    return dict_df
 
 
 def post_query(file_list: list = None,
@@ -220,8 +233,11 @@ def post_query(file_list: list = None,
     if query_dict is not None:
         payload = query_files(query_dict)
         file_list = []
+        if payload is None:
+            raise Exception("Query had no matching results")
         for i in range(0, len(payload)):
             file_list += [payload[i]['file']['id']]
+        file_list = set(file_list)
 
     # if user submits a query_id, grab all fileIds associated with that query
     if query_id is not None:
@@ -292,7 +308,7 @@ def read_files(file_list: list = None,
             response.append(cache_and_convert_file_data(f))
     cu.log_downloaded_files(response)
     if to_df:
-        return hf.descriptors_to_df(response)
+        return hf.hise_file_to_df(response)
     else:
         return response
 

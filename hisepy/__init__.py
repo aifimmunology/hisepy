@@ -1,4 +1,4 @@
-from .formatter import (descriptors_to_df, subject_to_df, sample_to_df,
+from .formatter import (hise_file_to_df, subject_to_df, sample_to_df,
                         _dict_to_df)
 from .lookup import (lookup_queryable_fields, lookup_unique_entries)
 from .project_folder import (list_project_folders,
@@ -28,7 +28,7 @@ __all__ = [
     'get_notebook_job',
     'clear_notebook_job',
     'notebook_job',
-    'descriptors_to_df',
+    'hise_file_to_df',
     'subject_to_df',
     'sample_to_df',
     'lookup_queryable_fields',
