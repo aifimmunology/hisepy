@@ -71,6 +71,7 @@ def log_downloaded_files(hise_file):
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame()
     download_workdir = os.getcwd()
+
     if os.path.exists(cache_file_path):
         cache_file = pyreadr.read_r(cache_file_path)
 
@@ -79,10 +80,16 @@ def log_downloaded_files(hise_file):
 
     # do some logging - what samples and files were downloaded?
     for hf in hise_file:
+        # descriptors can have > 1 entry if filetype == Olink
+        # so lets just take the first sampleID if that's the case
+        if type(hf.descriptors) is list:
+            this_sample_id = hf.descriptors[0]['sample']['id']
+        elif type(hf.descriptors) is dict:
+            this_sample_id = hf.descriptors['sample']['id']
         this_entry_df = pd.DataFrame(
             data={
                 'fileId': [str(hf.id)],
-                'sampleId': [hf.descriptors['sample']['id']],
+                'sampleId': [this_sample_id],
                 'downloadSourceDir': [download_workdir],
                 'downloadTimeStamp': [str(datetime.datetime.now())]
             })
