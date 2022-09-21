@@ -66,6 +66,7 @@ TOOLCHAIN:
   UPLOAD_FILE_PATH: toolchain/file
   SAVE_DASH_APP_PATH: toolchain/visualization/dash
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
+  TOOLCHAIN_IDE : toolchain/instances
   
 # scheduler endpoints and global... 
 SCHEDULER: 

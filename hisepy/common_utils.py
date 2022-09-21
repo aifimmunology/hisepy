@@ -14,6 +14,7 @@ import yaml
 import pyreadr
 import pandas as pd
 import datetime
+import json
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -150,3 +151,21 @@ def verify_file_count(dir, expected_num_files):
         raise ValueError("Expected to find %d files, but only %d were found" %
                          (expected_num_files, file_count))
     return True
+
+
+def parse_hise_response(resp):
+    obj = None
+    try:
+        obj = json.loads(resp.text)
+        if "Errors" in obj and len(obj["Errors"]) > 0:
+            msg = obj["Errors"][0]["Message"]
+        else:
+            msg = resp.reason
+    except:
+        msg = resp.reason
+
+    if resp.status_code != 200:
+        raise SystemError(
+            "%s request to %s returned with status %d. %s" %
+            (resp.request.method, resp.url, resp.status_code, msg))
+    return obj
