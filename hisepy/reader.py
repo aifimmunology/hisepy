@@ -147,6 +147,19 @@ def query_files(user_query: dict):
     return obj["payload"]
 
 
+def validate_user_query_fields(query):
+    ''' Checks that keys of users' dictionary all are acceptable
+    '''
+    user_field_names = set(query.keys())
+    acceptable_fields = hl.list_queryable_fields()
+    setdiff = user_field_names.difference(acceptable_fields)
+    if setdiff != set():
+        raise Exception("""The following field names are invalid: {uf}. \n
+        Valid field names you can use in your query are: {ac}
+        """.format(uf=setdiff, ac=acceptable_fields))
+    return
+
+
 def get_file_descriptors(file_list: list = None,
                          query_id: str = None,
                          query_dict: dict = None):
@@ -177,6 +190,8 @@ def get_file_descriptors(file_list: list = None,
         return dict_df
 
     # get a list of descriptor objects
+    if query_dict is not None:
+        validate_user_query_fields(query_dict)
     obj = post_query(file_list, query_id, query_dict)
     descriptor_list = []
     for f in obj:
