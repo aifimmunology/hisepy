@@ -137,3 +137,12 @@ def lookup_unique_entries(field):
     unique_fields = np.unique(np_unique_fields)
 
     return unique_fields
+
+
+def list_queryable_fields():
+    ''' Returns a list of fields user can use to create a query 
+    '''
+    df = lookup_queryable_fields()
+    df = df.loc[(~df['field_type'].isin(['emr', 'lab'])
+                 & ~df['field'].isin(['id', 'cohort'])), ]
+    return df['field'].unique().tolist()
