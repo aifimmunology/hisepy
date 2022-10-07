@@ -15,6 +15,7 @@ from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
 from .upload import (upload_files, save_static_image, save_visualization,
                      load_visualization, get_trace, get_study_spaces,
                      get_files_for_query, save_dash_app)
+from .instances import (stop_ide, suspend_ide)
 from .version import __version__
 
 # if somebody does "from somepackage import *", this is what they will
