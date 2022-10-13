@@ -15,6 +15,7 @@ import pyreadr
 import pandas as pd
 import datetime
 import json
+import pathlib
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -176,3 +177,31 @@ def parse_hise_response(resp):
             "%s request to %s returned with status %d. %s" %
             (resp.request.method, resp.url, resp.status_code, msg))
     return obj
+
+
+def download_response_content(resp, dest):
+    # check status
+    if resp.status_code != 200:
+        raise SystemError(
+            "%s request to %s returned with status %d. %s" %
+            (resp.request.method, resp.url, resp.status_code, resp.text))
+
+    # separate filename and path
+    dest_list = dest.split('/')
+    this_file_name = dest_list[-1]
+    dest_list.pop()
+    this_path = '/'.join(dest_list)
+    if '.' not in this_file_name:
+        raise SystemError("Unable to parse out fileName, %s" %
+                          (this_file_name))
+
+    # create directory if it doesn't exist; download
+    pathlib.Path(this_path).mkdir(parents=True, exist_ok=True)
+    if not os.path.isdir(this_path):
+        raise SystemError("unable to create path, %s" % (this_path))
+
+    with open(dest, 'wb') as f:
+        for chunk in resp.iter_content():
+            f.write(chunk)
+    print('file successfully downloaded: {}'.format(dest))
+    return
