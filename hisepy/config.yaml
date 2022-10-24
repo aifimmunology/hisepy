@@ -31,6 +31,7 @@ PROJECT_FOLDER:
 # hydration endpoints 
 HYDRATION:
   HYDRATION_NAME : hydration
+  USER_FOLDER_PATH : hydration/analysis/userFolder
   FILE_SEARCH_PATH : hydration/analysis/files
   DESCRIPTORS_PATH : hydration/analysis/descriptors
   DOWNLOAD_PATH : hydration/source/server
