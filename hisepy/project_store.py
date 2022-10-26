@@ -1,4 +1,4 @@
-""" project_folder.py
+""" project_store.py
 
 Description:
 
@@ -20,9 +20,9 @@ _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
-def list_project_folders():
+def list_project_stores():
     """
-    Lists all project folders a user has access to
+    Lists all project stores a user has access to
 
     Returns:
         list of project short-names user has access to
@@ -30,67 +30,67 @@ def list_project_folders():
     url = 'https://{ser}/{hy}/{pfe}'.format(
         ser=get_from_metadata_server(server_id_path),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'])
+        pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'])
     resp = requests.request("GET", url, headers=get_bearer_token_header())
     if resp.status_code != 200:
         raise SystemError("Request to {} failed with status {}".format(
             url, resp.status_code))
-    project_list = json.loads(resp.text)['folders']
+    project_list = json.loads(resp.text)['stores']
 
-    if len(project_list) == 0:
+    if project_list is None or len(project_list) == 0:
         ValueError(
-            "user doesn't have access to any project Folders. Please contact dev support if this shouldn't be the case."
+            "user doesn't have access to any project Stores. Please contact dev support if this shouldn't be the case."
         )
     return project_list
 
 
-def list_files_in_project_folder(folder_name):
+def list_files_in_project_store(store_name):
     """
-    Returns information about what files are present in a given project folder
+    Returns information about what files are present in a given project store
 
     Parameters:
-        folder_name (str): name of project folder
+        store_name (str): name of project store
     Returns:
         data.frame containing fileIds and fileNames
     """
-    folder = {'folders': [folder_name]}
+    store = {'stores': [store_name]}
     url = 'https://{ser}/{hy}/{pfe}/{f}'.format(
         ser=get_from_metadata_server(server_id_path),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
+        pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
         f='files')
     resp = requests.post(url,
-                         data=json.dumps(folder),
+                         data=json.dumps(store),
                          headers=get_bearer_token_header())
     if resp.status_code != 200:
         raise SystemError("Request to {} failed with status {}".format(
             url, resp.status_code))
     obj = json.loads(
         resp.text
-    )[0]  # only allow users to submit 1 folder_name at a time, so we always index the first entry
+    )[0]  # only allow users to submit 1 store_name at a time, so we always index the first entry
 
     df = pd.DataFrame(obj['files'])
-    df['folder_name'] = folder_name
+    df['store_name'] = store_name
     if len(df) == 0:
         ValueError(
-            "No files were found in project folder... {}".format(folder_name))
+            "No files were found in project store... {}".format(store_name))
     return df
 
 
-def download_from_project_folder(folder_name, file_name='', subdir=''):
+def download_from_project_store(store_name, file_name='', subdir=''):
     """
     Downloads a given file onto a user's IDE. The filepath pattern is as follows:
-    '~/folder_name/file_name'.
+    '~/store_name/file_name'.
 
     Parameters:
-        folder_name (str): name of project folder
+        store_name (str): name of project store
         file_name (str): name of file that you see under 'name' when utilizing 
-            list_files_in_project_folder
+            list_files_in_project_store
     Returns:
         True if download was successful
     """
 
-    def _submit_url_download(url: str, foldern: str, filen: str):
+    def _submit_url_download(url: str, store: str, filen: str):
         truncate_file_name = filen.split('/', maxsplit=1)[1]
         resp = requests.request("GET",
                                 url,
@@ -99,22 +99,22 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
         if resp.status_code != 200:
             raise SystemError("Request to {} failed with status {}".format(
                 url, resp.status_code))
-        with open('{}/{}/{}'.format(os.getcwd(), foldern, truncate_file_name),
+        with open('{}/{}/{}'.format(os.getcwd(), store, truncate_file_name),
                   'wb') as f:
             for chunk in resp.iter_content():
                 f.write(chunk)
 
     # create directory
     try:
-        os.mkdir('{}/{}'.format(os.getcwd(), folder_name))
+        os.mkdir('{}/{}'.format(os.getcwd(), store_name))
     except:  # directory already exists, but we don't want to error out
         pass
 
     # case where user wants to download all files within a subdir they uploaded
     if (file_name == '') & (subdir != ''):
-        # find all files that has that subfolder in name
-        list_files = list_files_in_project_folder(
-            folder_name)['name'].unique().tolist()
+        # find all files that has that subdir in name
+        list_files = list_files_in_project_store(
+            store_name)['name'].unique().tolist()
 
         # subset to entries with '/<subdir>/' in name
         subdir_files = [x for x in list_files if '/{}/'.format(subdir) in x]
@@ -125,44 +125,44 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
             this_url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
                 ser=get_from_metadata_server(server_id_path),
                 hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-                pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-                fol=folder_name,
+                pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
+                fol=store_name,
                 fil='files',
                 fn=i)
-            _submit_url_download(this_url, folder_name, i)
+            _submit_url_download(this_url, store_name, i)
     else:
         # create url download
         url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
             ser=get_from_metadata_server(server_id_path),
             hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-            pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-            fol=folder_name,
+            pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
+            fol=store_name,
             fil='files',
             fn=file_name)
-        _submit_url_download(url, folder_name, file_name)
+        _submit_url_download(url, store_name, file_name)
     return True
 
 
-def archive_file_in_project_folder(folder_name, file_name):
+def archive_file_in_project_store(store_name, file_name):
     """
-    Mark a file in a project folder to be archived. An archived file will not be
-    listed in hp.list_files_in_project_folder()
+    Mark a file in a project store to be archived. An archived file will not be
+    listed in hp.list_files_in_project_store()
 
     Parameters:
-        folder_name (str): name of project folder
-        file_name (str): name of project folder
+        store_name (str): name of project store
+        file_name (str): name of file
     Returns:
         True if function call was a success
     """
 
-    archive_tag = CONFIG['PROJECT_FOLDER']['ARCHIVE_TAG']
-    tag_field = CONFIG['PROJECT_FOLDER']['TAG_FIELD_NAME']
+    archive_tag = CONFIG['PROJECT_STORE']['ARCHIVE_TAG']
+    tag_field = CONFIG['PROJECT_STORE']['TAG_FIELD_NAME']
     json_tag = {tag_field: archive_tag}
     url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
         ser=get_from_metadata_server(server_id_path),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-        fol=folder_name,
+        pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
+        fol=store_name,
         fil='files',
         fn=file_name)
     resp = requests.request("PUT",
@@ -175,26 +175,26 @@ def archive_file_in_project_folder(folder_name, file_name):
     return True
 
 
-def undo_archive_in_project_folder(folder_name, file_name):
+def undo_archive_in_project_store(store_name, file_name):
     """
     Unarchives files. any files that were tagged to be archived will now be 
-    visible through list_files_in_project_folder()
+    visible through list_files_in_project_store()
 
     Parameters:
-        folder_name (str): name of project folder
-        file_name (str): name of project folder that you want unarchived and visible
+        store_name (str): name of project store
+        file_name (str): name of file that you want unarchived and visible
     Returns:
         True if function call was a success
     """
 
-    available_tag = CONFIG['PROJECT_FOLDER']['AVAILABLE_TAG']
-    tag_field = CONFIG['PROJECT_FOLDER']['TAG_FIELD_NAME']
+    available_tag = CONFIG['PROJECT_STORE']['AVAILABLE_TAG']
+    tag_field = CONFIG['PROJECT_STORE']['TAG_FIELD_NAME']
     json_tag = {tag_field: available_tag}
     url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
         ser=get_from_metadata_server(server_id_path),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-        fol=folder_name,
+        pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
+        fol=store_name,
         fil='files',
         fn=file_name)
     resp = requests.request("PUT",
