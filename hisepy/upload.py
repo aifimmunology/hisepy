@@ -78,6 +78,8 @@ def upload_files(files: list,
                  input_file_ids=None,
                  input_sample_ids=None,
                  file_types=None,
+                 store=None,
+                 destination=None,
                  do_prompt: bool = True):
     """
     Uploads files to a specified study.
@@ -89,6 +91,8 @@ def upload_files(files: list,
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
         file_types (str): filetype of uploaded files 
+        store (str): Which store ('project' or 'common') to use for the files (default in 'project')
+        destination (str): Destination folder for the files 
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
     Returns: 
         dictionary with keys ["trace_id", "files"]
@@ -110,6 +114,10 @@ def upload_files(files: list,
     elif len(file_types) != len(files):
         raise ValueError(
             "File types must be a list with one type for each upload")
+    if store is not None:
+        if store not in ['common', 'project']:
+            raise ValueError(
+                "Value for store can only be 'common' or 'project'")
 
     def _user_prompt_upload(prompt_files: list):
         print(
@@ -136,6 +144,8 @@ def upload_files(files: list,
         "title": title,
         "fileType": [],
         "saveIDE": True,
+        "store": store,
+        "destination": destination,
         "instanceId": get_from_metadata_server(instance_name_path),
         "inputFileIds": input_file_ids,
         "sampleIds": input_sample_ids,
@@ -212,6 +222,7 @@ def save_visualization(
                           input_file_ids=input_file_ids,
                           input_sample_ids=input_sample_ids,
                           file_types=[dataframe_file_type],
+                          store='common',
                           do_prompt=False)
 
     args = {"traceId": up_res["trace_id"], "images": img_data["id"]}
@@ -311,6 +322,7 @@ class DashAppImg:
             title=self.title,
             input_file_ids=self.input_file_ids,
             input_sample_ids=self.input_sample_ids,
+            store='common',
             do_prompt=False)
 
         print("POST toolchain/file for dash app tarball:")

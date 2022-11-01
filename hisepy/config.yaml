@@ -21,9 +21,9 @@ AUTHORIZE:
   SERVER_ID_PATH : attributes/hise-server
   TOKEN_ENV : TOKEN_GENERATOR
   
-PROJECT_FOLDER: 
+PROJECT_STORE: 
   TAG_FIELD_NAME : availability
-  PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
+  PROJECT_STORE_ENDPOINT : analysis/projectStore
   AVAILABLE_TAG : available
   DELETED_TAG : marked_for_deletion
   ARCHIVE_TAG : marked_for_archival
