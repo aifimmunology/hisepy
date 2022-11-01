@@ -13,8 +13,7 @@ token_env = "TOKEN_GENERATOR"
 default_metadata = {
     instance_name_path: os.getenv("TEST_INSTANCE_NAME")
     or "local-testing-instance",
-    client_id_path:
-    "REDACTED_GCP_CLIENT_ID",
+    client_id_path: os.getenv("AUTH_CLIENT_ID"),
     server_id_path: "dev.allenimmunology.org"
 }
 
