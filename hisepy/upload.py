@@ -104,6 +104,12 @@ def upload_files(files: list,
         input_sample_ids = []
     if file_types is None:
         file_types = []
+    elif type(file_types) is not list:
+        raise ValueError(
+            "File types must be a list with one type for each upload")
+    elif len(file_types) != len(files):
+        raise ValueError(
+            "File types must be a list with one type for each upload")
 
     def _user_prompt_upload(prompt_files: list):
         print(
@@ -121,53 +127,40 @@ def upload_files(files: list,
     if type(files) is not list or len(files) == 0:
         raise ValueError("No files specified for upload")
 
-    trace_id = None
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     study_space_id = validate_upload_data(study_space_id, title,
                                           input_file_ids)
-    uploaded = []
+    uploads = []
+    qargs = {
+        "studySpaceId": study_space_id,
+        "title": title,
+        "fileType": [],
+        "saveIDE": True,
+        "instanceId": get_from_metadata_server(instance_name_path),
+        "inputFileIds": input_file_ids,
+        "sampleIds": input_sample_ids,
+        "notebook": current_notebook(),
+        "homedir": IDE_HOME_DIR
+    }
     for i, f in enumerate(files):
         if not os.path.exists(f):
             raise ValueError("%s is not a valid file." % f)
 
-        file_dict = {
-            'file': (f, open(f, 'rb'), 'application/json', {
-                'Expires': '0'
-            })
-        }
-        file_type = cu.get_filetype(f)
-        if type(file_types) is list and len(file_types) > i:
-            file_type = file_types[i]
-        if trace_id is not None:
-            qargs = {"traceId": trace_id, "fileType": file_type}
-        else:
-            qargs = {
-                "studySpaceId": study_space_id,
-                "title": title,
-                "fileType": file_type,
-                "saveIDE": True,
-                "instanceId": get_from_metadata_server(instance_name_path),
-                "inputFileIds": input_file_ids,
-                "sampleIds": input_sample_ids,
-                "notebook": current_notebook(),
-                "homedir": IDE_HOME_DIR
-            }
+        uploads.append(('file', (f, open(f, 'rb'), 'application/json', {
+            'Expires': '0'
+        })))
+        qargs["fileType"].append(
+            file_types[i] if len(file_types) > i else cu.get_filetype(f))
 
-        url = hise_url("toolchain", "upload_file_path", args=qargs)
-        headers = get_bearer_token_header()
-        if not do_prompt or _user_prompt_upload(prompt_files=files):
-            df_data = parse_hise_response(
-                requests.post(url, headers=headers, files=file_dict))
-            if "TraceId" not in df_data:
-                raise SystemError("No trace found in file upload response.")
-            trace_id = df_data["TraceId"]
-            # don't verify with the user more than once
-            do_prompt = False
-            uploaded.append(df_data["FileId"])
-        else:
-            print('Uploading canceled.')
-            break
-    return {"trace_id": trace_id, "files": uploaded}
+    url = hise_url("toolchain", "upload_file_path", args=qargs)
+    headers = get_bearer_token_header()
+    if not do_prompt or _user_prompt_upload(prompt_files=files):
+        df_data = parse_hise_response(
+            requests.post(url, headers=headers, files=uploads))
+        return {"trace_id": df_data["TraceId"], "files": files}
+    else:
+        print('Uploading canceled.')
+        return {}
 
 
 # Save a plotly figure
