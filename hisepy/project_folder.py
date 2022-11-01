@@ -90,17 +90,18 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
     """
 
     def _submit_url_download(url: str, foldern: str, filen: str):
-        resp = requests.request("GET", url, headers=get_bearer_token_header())
+        truncate_file_name = filen.split('/', maxsplit=1)[1]
+        resp = requests.request("GET",
+                                url,
+                                headers=get_bearer_token_header(),
+                                stream=True)
         if resp.status_code != 200:
             raise SystemError("Request to {} failed with status {}".format(
                 url, resp.status_code))
-
-        # remove time-stamp info from file_name which is assumed to be the first string before the first '/' character
-        truncate_file_name = filen.split('/', maxsplit=1)[1]
-
         with open('{}/{}/{}'.format(os.getcwd(), foldern, truncate_file_name),
                   'wb') as f:
-            f.write(resp.content)
+            for chunk in resp.iter_content():
+                f.write(chunk)
 
     # create directory
     try:
