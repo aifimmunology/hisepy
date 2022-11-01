@@ -10,7 +10,6 @@ import os
 
 import pandas as pd
 import requests
-from google.cloud import storage
 
 import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
