@@ -11,6 +11,14 @@ MATERIALIZED_VIEW:
 FILETYPES: 
   SCRNA_RESULT : scRNA-seq-labeled 
 
+METADATA_FIELDS: 
+  DESCRIPTORS: ['sample','file', 'subject', 'cohort']
+  SPECIMENS: ['specimens']
+  LABS: ['lab']
+  SURVEY: ['survey', 'surveyScheme']
+  EMR: ['emr']
+
+
 # Authorization config
 AUTHORIZE: 
   METADATA_SERVER_ROOT : http://metadata.google.internal/computeMetadata/v1/instance
