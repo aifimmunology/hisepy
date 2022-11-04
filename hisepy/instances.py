@@ -11,9 +11,8 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 def stop_ide():
     ''' Stops/Terminates the active instance that is calling this function. '''
     # get IDE name
-    this_ide_name = get_from_metadata_server('{}/{}'.format(
-        CONFIG['AUTHORIZE']['METADATA_SERVER_ROOT'],
-        CONFIG['AUTHORIZE']['INSTANCE_NAME_PATH']))
+    this_ide_name = get_from_metadata_server(
+        CONFIG['AUTHORIZE']['INSTANCE_NAME_PATH'])
     obj = cu.parse_hise_response(
         requests.request("POST",
                          "https://{s}/{tool}/{ide}/stop".format(
@@ -31,9 +30,8 @@ def stop_ide():
 def suspend_ide():
     ''' Suspends the active instance that is calling this function. '''
     # get IDE name
-    this_ide_name = get_from_metadata_server('{}/{}'.format(
-        CONFIG['AUTHORIZE']['METADATA_SERVER_ROOT'],
-        CONFIG['AUTHORIZE']['INSTANCE_NAME_PATH']))
+    this_ide_name = get_from_metadata_server(
+        CONFIG['AUTHORIZE']['INSTANCE_NAME_PATH'])
     obj = cu.parse_hise_response(
         requests.request("POST",
                          "https://{s}/{tool}/{ide}/suspend".format(
