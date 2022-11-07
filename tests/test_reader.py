@@ -9,6 +9,8 @@ for the reshaped object...
 - datatypes of columns 
 - naming of columns 
 - all data is still present; nothing got dropped 
+
+TOOD: utilize mock here.. 
 '''
 
 import sys
