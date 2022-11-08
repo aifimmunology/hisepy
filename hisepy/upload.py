@@ -31,6 +31,21 @@ def get_study_spaces():
                          headers=get_bearer_token_header()))
 
 
+def get_result_files():
+    """ Returns available result files for the user's current account/projects """
+    return parse_hise_response(
+        requests.post(
+            hise_url("ledger", "result_file_search_path"),
+            json={"filter": {
+                "fileType": {
+                    "$not": {
+                        "$regex": "\#derived"
+                    }
+                }
+            }},
+            headers=get_bearer_token_header()))
+
+
 def get_files_for_query(query_id):
     """ Returns a list of file_ids pertaining to a HISE query_id """
     resp = parse_hise_response(
