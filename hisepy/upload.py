@@ -17,6 +17,9 @@ from hisepy.scheduler import current_notebook
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
+permanent_store = "permanent"
+project_store = "project"
+valid_upload_stores = [permanent_store, project_store]
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -106,7 +109,7 @@ def upload_files(files: list,
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
         file_types (str): filetype of uploaded files 
-        store (str): Which store ('project' or 'common') to use for the files (default in 'project')
+        store (str): Which store ('project' or 'permanent') to use for the files (default in 'project')
         destination (str): Destination folder for the files 
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
     Returns: 
@@ -130,9 +133,9 @@ def upload_files(files: list,
         raise ValueError(
             "File types must be a list with one type for each upload")
     if store is not None:
-        if store not in ['common', 'project']:
-            raise ValueError(
-                "Value for store can only be 'common' or 'project'")
+        if store not in valid_upload_stores:
+            raise ValueError("Value for store must be in %s" %
+                             (", ".join(valid_upload_stores)))
 
     def _user_prompt_upload(prompt_files: list):
         print(
@@ -237,7 +240,7 @@ def save_visualization(
                           input_file_ids=input_file_ids,
                           input_sample_ids=input_sample_ids,
                           file_types=[dataframe_file_type],
-                          store='common',
+                          store=permanent_store,
                           do_prompt=False)
 
     args = {"traceId": up_res["trace_id"], "images": img_data["id"]}
@@ -337,7 +340,7 @@ class DashAppImg:
             title=self.title,
             input_file_ids=self.input_file_ids,
             input_sample_ids=self.input_sample_ids,
-            store='common',
+            store=permanent_store,
             do_prompt=False)
 
         print("POST toolchain/file for dash app tarball:")
