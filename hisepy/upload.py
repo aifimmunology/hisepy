@@ -17,6 +17,7 @@ from hisepy.scheduler import current_notebook
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
+valid_upload_stores = ["permanent", "project"]
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -106,7 +107,7 @@ def upload_files(files: list,
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
         file_types (str): filetype of uploaded files 
-        store (str): Which store ('project' or 'common') to use for the files (default in 'project')
+        store (str): Which store ('project' or 'permanent') to use for the files (default in 'project')
         destination (str): Destination folder for the files 
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
     Returns: 
@@ -130,9 +131,9 @@ def upload_files(files: list,
         raise ValueError(
             "File types must be a list with one type for each upload")
     if store is not None:
-        if store not in ['common', 'project']:
-            raise ValueError(
-                "Value for store can only be 'common' or 'project'")
+        if store not in valid_upload_stores:
+            raise ValueError("Value for store must be in %s" %
+                             (", ".join(valid_upload_stores)))
 
     def _user_prompt_upload(prompt_files: list):
         print(
