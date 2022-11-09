@@ -17,7 +17,9 @@ from hisepy.scheduler import current_notebook
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
-valid_upload_stores = ["permanent", "project"]
+permanent_store = "permanent"
+project_store = "project"
+valid_upload_stores = [permanent_store, project_store]
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -238,7 +240,7 @@ def save_visualization(
                           input_file_ids=input_file_ids,
                           input_sample_ids=input_sample_ids,
                           file_types=[dataframe_file_type],
-                          store='common',
+                          store=permanent_store,
                           do_prompt=False)
 
     args = {"traceId": up_res["trace_id"], "images": img_data["id"]}
@@ -338,7 +340,7 @@ class DashAppImg:
             title=self.title,
             input_file_ids=self.input_file_ids,
             input_sample_ids=self.input_sample_ids,
-            store='common',
+            store=permanent_store,
             do_prompt=False)
 
         print("POST toolchain/file for dash app tarball:")
