@@ -142,10 +142,10 @@ def download_from_project_store(store_name, file_name='', subdir=''):
     return True
 
 
-def archive_file_in_project_store(store_name, file_name):
+def promote_file_in_project_store(store_name, file_name):
     """
-    Mark a file in a project store to be archived. An archived file will not be
-    listed in hp.list_files_in_project_store()
+    Mark a file in a project store to be promoted to the permanent store. 
+    Promoted files will not be listed in hp.list_files_in_project_store()
 
     Parameters:
         store_name (str): name of project store
@@ -153,42 +153,60 @@ def archive_file_in_project_store(store_name, file_name):
     Returns:
         True if function call was a success
     """
-
-    archive_tag = CONFIG['PROJECT_STORE']['ARCHIVE_TAG']
-    tag_field = CONFIG['PROJECT_STORE']['TAG_FIELD_NAME']
-    json_tag = {tag_field: archive_tag}
-    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-        ser=get_from_metadata_server(server_id_path),
-        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-        pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
-        fol=store_name,
-        fil='files',
-        fn=file_name)
-    resp = requests.request("PUT",
-                            url,
-                            data=json.dumps(json_tag),
-                            headers=get_bearer_token_header())
-    if resp.status_code != 200:
-        raise SystemError('Request to {} failed with status {}'.format(
-            url, resp.status_code))
-    return True
+    return project_store_file_action(store_name, file_name,
+                                     CONFIG['PROJECT_STORE']['PROMOTION_TAG'])
 
 
-def undo_archive_in_project_store(store_name, file_name):
+def undo_promote_in_project_store(store_name, file_name):
     """
-    Unarchives files. any files that were tagged to be archived will now be 
-    visible through list_files_in_project_store()
+    Undoes the promotion action, so long as the file 
+    has not already been moved to the permanent store.
+    The file will once again be visible through list_files_in_project_store()
 
     Parameters:
         store_name (str): name of project store
-        file_name (str): name of file that you want unarchived and visible
+        file_name (str): name of file that you want unpromoted and visible
     Returns:
         True if function call was a success
     """
+    return project_store_file_action(store_name, file_name,
+                                     CONFIG['PROJECT_STORE']['AVAILABLE_TAG'])
 
-    available_tag = CONFIG['PROJECT_STORE']['AVAILABLE_TAG']
+
+def delete_file_in_project_store(store_name, file_name):
+    """
+    Deletes a file in the project store, so long as it is not otherwise in use
+    The file will not be visible through list_files_in_project_store()    
+
+    Parameters:
+        store_name (str): name of project store
+        file_name (str): name of file 
+    Returns:
+        True if function call was a success
+    """
+    return project_store_file_action(store_name, file_name,
+                                     CONFIG['PROJECT_STORE']['DELETED_TAG'])
+
+
+def undo_delete_in_project_store(store_name, file_name):
+    """
+    Undoes the file delete action, so long as it is within the file's retention period
+    (usually 90 days)
+    The file will once again be visible through list_files_in_project_store()
+    
+    Parameters:
+        store_name (str): name of project store
+        file_name (str): name of file that you want undeleted and visible
+    Returns:
+        True if function call was a success
+    """
+    return project_store_file_action(store_name, file_name,
+                                     CONFIG['PROJECT_STORE']['AVAILABLE_TAG'])
+
+
+def project_store_file_action(store_name, file_name, action):
     tag_field = CONFIG['PROJECT_STORE']['TAG_FIELD_NAME']
-    json_tag = {tag_field: available_tag}
+    json_tag = {tag_field: action}
     url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
         ser=get_from_metadata_server(server_id_path),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
@@ -201,6 +219,14 @@ def undo_archive_in_project_store(store_name, file_name):
                             data=json.dumps(json_tag),
                             headers=get_bearer_token_header())
     if resp.status_code != 200:
-        raise SystemError("Request to {} failed with status {}".format(
-            url, resp.status_code))
+        message = 'Request to {} failed with status {}'.format(
+            url, resp.status_code)
+        try:
+            obj = json.loads(resp.text)
+            if 'Errors' in obj and len(obj['Errors']) > 0:
+                message = obj['Errors'][0]['Message']
+        except:
+            pass
+        raise SystemError(message)
+
     return True
