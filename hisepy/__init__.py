@@ -3,8 +3,10 @@ from .formatter import (hise_file_to_df, subject_to_df, sample_to_df,
 from .lookup import (lookup_queryable_fields, lookup_unique_entries)
 from .project_store import (list_project_stores, list_files_in_project_store,
                             download_from_project_store,
-                            archive_file_in_project_store,
-                            undo_archive_in_project_store)
+                            promote_file_in_project_store,
+                            undo_promote_in_project_store,
+                            delete_file_in_project_store,
+                            undo_delete_in_project_store)
 from .reader import (hise_file, read_files, read_subjects, read_samples,
                      query_files, get_file_descriptors, cache_filesets,
                      list_filesets)
@@ -42,8 +44,10 @@ __all__ = [
     'list_project_stores',
     'list_files_in_project_store',
     'download_from_project_store',
-    'archive_file_in_project_store',
-    'undo_archive_in_project_store',
+    'promote_file_in_project_store',
+    'undo_promote_in_project_store',
+    'delete_file_in_project_store',
+    'undo_delete_in_project_store',
     'upload_files',
     'save_static_image',
     'save_visualization',
