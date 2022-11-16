@@ -26,7 +26,7 @@ PROJECT_STORE:
   PROJECT_STORE_ENDPOINT : analysis/projectStore
   AVAILABLE_TAG : available
   DELETED_TAG : marked_for_deletion
-  ARCHIVE_TAG : marked_for_archival
+  PROMOTION_TAG : marked_for_promotion
 
 # hydration endpoints 
 HYDRATION:
