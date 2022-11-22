@@ -81,22 +81,22 @@ def log_downloaded_files(hise_file):
         cache_df = cache_file[None]
 
     # do some logging - what samples and files were downloaded?
-    for hf in hise_file:
-        # descriptors can have > 1 entry if filetype == Olink
-        # so lets just take the first sampleID if that's the case
-        if type(hf.descriptors) is list:
-            this_sample_id = hf.descriptors[0]['sample']['id']
-        elif type(hf.descriptors) is dict:
-            this_sample_id = hf.descriptors['sample']['id']
-        this_entry_df = pd.DataFrame(
-            data={
-                'fileId': [str(hf.id)],
-                'sampleId': [this_sample_id],
-                'downloadSourceDir': [download_workdir],
-                'downloadTimeStamp': [str(datetime.datetime.now())]
-            })
-        cache_df = pd.concat([cache_df, this_entry_df])
-
+    # descriptors can have > 1 entry if filetype == Olink
+    # so lets just take the first sampleID if that's the case
+    if type(hise_file['descriptors']) is list:
+        this_sample_id = hise_file['descriptors'][0]['sample']['id']
+        this_file_id = hise_file['descriptors'][0]['file']['id']
+    elif type(hise_file['descriptors']) is dict:
+        this_sample_id = hise_file['descriptors']['sample']['id']
+        this_file_id = hise_file['descriptors']['file']['id']
+    this_entry_df = pd.DataFrame(
+        data={
+            'fileId': [this_file_id],
+            'sampleId': [this_sample_id],
+            'downloadSourceDir': [download_workdir],
+            'downloadTimeStamp': [str(datetime.datetime.now())]
+        })
+    cache_df = pd.concat([cache_df, this_entry_df])
     pyreadr.write_rds(
         '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
                          d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
