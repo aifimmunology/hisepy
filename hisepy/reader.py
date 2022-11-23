@@ -321,8 +321,13 @@ def read_files(file_list: list = None,
             continue
         else:
             response.append(cache_and_convert_file_data(f))
-    cu.log_downloaded_files(response)
-    if to_df:
+            cu.log_downloaded_files(f)
+
+    # check if we have successfully read at least 1 file
+    all_files_not_found = all(item.status is False for item in response)
+    if all_files_not_found:
+        return response
+    elif to_df:
         return hf.hise_file_to_df(response)
     else:
         return response
@@ -596,7 +601,6 @@ def parse_hise_response(resp):
             msg = resp.reason
     except:
         msg = resp.reason
-
     if resp.status_code != 200:
         raise SystemError(
             "%s request to %s returned with status %d. %s" %
