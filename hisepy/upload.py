@@ -137,6 +137,12 @@ def upload_files(files: list,
             raise ValueError("Value for store must be in %s" %
                              (", ".join(valid_upload_stores)))
 
+    if destination is not None:
+        if type(destination) is not str:
+            raise ValueError("file destination directory must be a string")
+    else:
+        destinaton = ""
+
     def _user_prompt_upload(prompt_files: list):
         print(
             'you are trying to upload file_ids... {}. Do you truly want to proceed?'
