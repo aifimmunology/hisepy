@@ -7,6 +7,9 @@ from .project_store import (list_project_stores, list_files_in_project_store,
                             undo_promote_in_project_store,
                             delete_file_in_project_store,
                             undo_delete_in_project_store)
+from .project_folder import (list_project_folders,
+                             list_files_in_project_folder,
+                             download_from_project_folder)
 from .reader import (hise_file, read_files, read_subjects, read_samples,
                      query_files, get_file_descriptors, cache_filesets,
                      list_filesets)
@@ -48,6 +51,9 @@ __all__ = [
     'undo_promote_in_project_store',
     'delete_file_in_project_store',
     'undo_delete_in_project_store',
+    'list_project_folders',
+    'list_files_in_project_folder',
+    'download_from_project_folder',
     'upload_files',
     'save_static_image',
     'save_visualization',
