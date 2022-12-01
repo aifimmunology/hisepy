@@ -28,6 +28,9 @@ PROJECT_STORE:
   DELETED_TAG : marked_for_deletion
   PROMOTION_TAG : marked_for_promotion
 
+PROJECT_FOLDER: 
+  PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
+
 # hydration endpoints 
 HYDRATION:
   HYDRATION_NAME : hydration
