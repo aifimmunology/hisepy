@@ -141,7 +141,7 @@ def upload_files(files: list,
         if type(destination) is not str:
             raise ValueError("file destination directory must be a string")
     else:
-        destinaton = ""
+        destination = ""
 
     def _user_prompt_upload(prompt_files: list):
         print(
