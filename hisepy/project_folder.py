@@ -96,7 +96,7 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
                 url, resp.status_code))
         with open('{}/{}/{}'.format(os.getcwd(), foldern, truncate_file_name),
                   'wb') as f:
-            for chunk in resp.iter_content():
+            for chunk in resp.iter_content(1024 * 100):
                 f.write(chunk)
 
     # create directory
