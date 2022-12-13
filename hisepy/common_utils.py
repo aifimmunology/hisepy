@@ -201,7 +201,7 @@ def download_response_content(resp, dest):
         raise SystemError("unable to create path, %s" % (this_path))
 
     with open(dest, 'wb') as f:
-        for chunk in resp.iter_content():
+        for chunk in resp.iter_content(1024 * 100):
             f.write(chunk)
     print('file successfully downloaded: {}'.format(dest))
     return
