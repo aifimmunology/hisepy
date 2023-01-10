@@ -100,7 +100,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
                 url, resp.status_code))
         with open('{}/{}/{}'.format(os.getcwd(), store, truncate_file_name),
                   'wb') as f:
-            for chunk in resp.iter_content(1024 * 100):
+            for chunk in resp.iter_content(cu.chunk_size):
                 f.write(chunk)
 
     # create directory
