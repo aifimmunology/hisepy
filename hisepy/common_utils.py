@@ -19,6 +19,7 @@ import pathlib
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
+chunk_size = 100 * 1024
 
 
 def read_yaml(file_path):
@@ -201,7 +202,7 @@ def download_response_content(resp, dest):
         raise SystemError("unable to create path, %s" % (this_path))
 
     with open(dest, 'wb') as f:
-        for chunk in resp.iter_content(1024 * 100):
+        for chunk in resp.iter_content(chunk_size):
             f.write(chunk)
     print('file successfully downloaded: {}'.format(dest))
     return
