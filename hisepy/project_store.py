@@ -105,9 +105,14 @@ def download_from_project_store(store_name, file_name='', subdir=''):
 
     # create directory
     try:
-        os.mkdir('{}/{}'.format(os.getcwd(), store_name))
+        if subdir != '':
+            new_dir = '{}/{}/{}'.format(os.getcwd(), store_name, subdir)
+        else:
+            new_dir = '{}/{}'.format(os.getcwd(), store_name)
+        os.mkdir(new_dir)
     except:  # directory already exists, but we don't want to error out
         pass
+    ps_df = list_files_in_project_store(store_name)[['name', 'id']]
 
     # case where user wants to download all files within a subdir they uploaded
     if (file_name == '') & (subdir != ''):
@@ -129,6 +134,8 @@ def download_from_project_store(store_name, file_name='', subdir=''):
                 fil='files',
                 fn=i)
             _submit_url_download(this_url, store_name, i)
+            ps_file_id = ps_df.loc[ps_df['name'].eq(i), 'id'].item()
+            cu.log_project_download(ps_file_id)
     else:
         # create url download
         url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
@@ -139,6 +146,8 @@ def download_from_project_store(store_name, file_name='', subdir=''):
             fil='files',
             fn=file_name)
         _submit_url_download(url, store_name, file_name)
+        ps_file_id = ps_df.loc[ps_df['name'].eq(file_name), 'id'].item()
+        cu.log_project_download(ps_file_id)
     return True
 
 
