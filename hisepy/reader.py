@@ -80,7 +80,6 @@ def _add_prefix_to_query(user_query: dict):
     q_df = hl.lookup_queryable_fields()
     q_df = q_df.loc[~q_df[['field_type', 'field']].duplicated(),
                     ]  # drop duplicates
-
     # go through each key of user's dict and append the field_type as a prefix
     for k in list(new_query_dict):
         prefix = q_df.loc[q_df['field'].eq(k), 'field_type'].unique()[0]
@@ -160,20 +159,16 @@ def validate_user_query_fields(query):
     return
 
 
-def get_file_descriptors(file_list: list = None,
-                         query_id: str = None,
-                         query_dict: dict = None):
+def get_file_descriptors(query_dict: dict = None):
     """ 
     Retrieves file descriptors based on user's query.
 
     Parameters:
-        file_list (list): list of file_ids
-        query_id (str): query_id obtained from HISE's Advanced Search
         query_dict (dict): dictionary that contains query parameters
     Returns:
         dictionary of data.frame objects
     Examples:
-        df_dict = get_file_descriptors(file_list)
+        df_dict = get_file_descriptors(q_dict)
         df_dict.keys() # print keys of dict
         df_dict['descriptors'] # to view descriptors
         df_dict['labResults'] # lab results
@@ -189,31 +184,26 @@ def get_file_descriptors(file_list: list = None,
             [new_dict_desc['specimens'], dict_df['specimens']], axis=0)
         return dict_df
 
+    assert 'fileType' in query_dict.keys(
+    ), 'fileType field must be in the your query dictionary.'
     # get a list of descriptor objects
     if query_dict is not None:
         validate_user_query_fields(query_dict)
-    obj = post_query(file_list, query_id, query_dict)
-    descriptor_list = []
-    for f in obj:
-        descriptor_list += [f["descriptors"]]
+    obj = query_files(query_dict)
 
     dict_df = {
         'descriptors': pd.DataFrame(),
         'labResults': pd.DataFrame(),
         'specimens': pd.DataFrame()
     }
-    for this_desc in descriptor_list:
-        if type(this_desc) is list:
-            for olink_desc in this_desc:
-                olink_desc_df = hf.reshape_descriptors(olink_desc)
-                dict_df = _append_descriptors(dict_df, olink_desc_df)
-        elif type(this_desc) is dict:
-            desc_dict_df = hf.reshape_descriptors(this_desc)
-            dict_df = _append_descriptors(dict_df, desc_dict_df)
-        else:
-            raise TypeError(
-                "Received an unfamiliar type for descriptor object. Type: %s" %
-                type(this_desc))
+    for this_desc in obj:
+        try:
+            dict_df = _append_descriptors(dict_df,
+                                          hf.reshape_descriptors(this_desc))
+        except:
+            raise Exception(
+                "appending descriptor failed. descriptor: {}".format(
+                    this_desc))
     return dict_df
 
 
@@ -253,7 +243,6 @@ def post_query(file_list: list = None,
         for i in range(0, len(payload)):
             file_list += [payload[i]['file']['id']]
         file_list = set(file_list)
-
     # if user submits a query_id, grab all fileIds associated with that query
     if query_id is not None:
         q_endpoint = 'https://{s}/{q}/{qid}'.format(
@@ -274,7 +263,6 @@ def post_query(file_list: list = None,
                                      CONFIG['HYDRATION']['FILE_SEARCH_PATH'],
                                      qstr)
     resp = requests.request("GET", endpoint, headers=get_bearer_token_header())
-
     if resp.status_code != 200:
         raise SystemError("Request to %s failed with status %d. %s" %
                           (endpoint, resp.status_code, resp.text))
