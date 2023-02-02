@@ -293,10 +293,9 @@ def reshape_descriptors(this_desc):
     for dk in this_desc.keys():
         if (dk in [
                 'specimens', 'lab', 'emr', 'lastUpdated', 'labLastModified',
-                'surveyLastModified'
-        ]) | (this_desc[dk] is None):
+                'surveyLastModified', 'survey'
+        ]) | (this_desc[dk] is None) | (this_desc[dk] == []):
             continue
-
         # convert dictionary to dataframe
         copy_tmp = this_desc[dk].copy()
         copy_tmp.update((k, [v]) for k, v in copy_tmp.items())
