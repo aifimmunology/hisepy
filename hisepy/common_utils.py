@@ -180,6 +180,8 @@ def parse_hise_response(resp):
 
 
 def download_response_content(resp, dest):
+    CONFIG = read_yaml('{}/config.yaml'.format(_here))
+
     # check status
     if resp.status_code != 200:
         raise SystemError(
@@ -201,7 +203,7 @@ def download_response_content(resp, dest):
         raise SystemError("unable to create path, %s" % (this_path))
 
     with open(dest, 'wb') as f:
-        for chunk in resp.iter_content():
+        for chunk in resp.iter_content(CONFIG['IDE']['DOWNLOAD_CHUNK_SIZE']):
             f.write(chunk)
     print('file successfully downloaded: {}'.format(dest))
     return
