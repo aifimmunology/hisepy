@@ -62,6 +62,7 @@ IDE:
   CACHE_DIR : cache
   HOME_DIR : /home/jupyter
   CACHE_LOG_NAME : .hisefilelog.rds
+  DOWNLOAD_CHUNK_SIZE : 102400
 
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
