@@ -24,20 +24,21 @@ def schedule_notebook(output_files=None,
                       project=None,
                       prompt=True):
     """
-    Schedule a notebook to run on a seperate, and larger instance.
+    Schedule a notebook to run on a seperate, virtual machine instance.
 
-        Parameters:
-            output_files : list
-                List of expected outputs.
-            platform : str
-                Optional. Used to specify what platform the job should be scheuled on.
-            project : str
-                Optional. Specify the project short name for this job, if you belong to more than one.
-            prompt : bool
-                Optional. Print a prompt before scheduling the notebook.
-
-        Returns:
-            An instance of a job object.
+    Parameters:
+        output_files (list): List of expected outputs.
+        input_data (list): List of input datasets
+        platform (str) specify what platform the job should be scheuled on.
+        project (str): Specify the project short name for this job, if you belong to more than one.
+        prompt (bool): whether to prompt user before scheduling the notebook.
+    Returns:
+        An instance of a notebook_job class.
+    Example: 
+        hp.schedule_notebook(output_files=['/home/jupyter/output.rds'], 
+                             input_data=['/home/jupyter/input_data.h5'],
+                             platform='Seurat',
+                             project='cohorts')
     """
 
     if os.path.exists(job_record_file):
@@ -60,13 +61,14 @@ def schedule_notebook(output_files=None,
     elif is_derived_instance():
         #we're on a scheduled instance, so return an empty job
         return notebook_job()
-
+    notebook = current_notebook()
     payload = validate_schedule_input(output_files, input_data, platform,
-                                      project)
+                                      project, notebook)
 
     if prompt:
         if not prompt_for_platform(
-                payload[CONFIG['SCHEDULER']['PLATFORM_FIELD']]):
+                payload[CONFIG['SCHEDULER']['PLATFORM_FIELD']], output_files,
+                notebook):
             print("Not scheduling.")
             return None
 
@@ -89,8 +91,8 @@ def is_derived_instance():
     return os.path.exists(derived_instance_flag_file)
 
 
-def validate_schedule_input(output_files, input_data, platform, project):
-    notebook = current_notebook()
+def validate_schedule_input(output_files, input_data, platform, project,
+                            notebook):
     nbtokens = notebook.split("/")
 
     if platform is None:
@@ -148,7 +150,7 @@ def convert_and_normalize_dataframe(df):
     return dfcsv
 
 
-def prompt_for_platform(platform):
+def prompt_for_platform(platform, output_files, nb_file):
     if platform == CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']:
         print(
             "About to execute a louvain dimension reduction of your data on a DataProc cluster."
@@ -188,11 +190,11 @@ def get_notebook_job(job_id=None):
     """
     Get the instance of a particular notebook job.
 
-        Parameters:
-            job_id : str
-
-        Returns:
-            A job object (see documentation on notebook_job class).
+    Parameters:
+        job_id (str): string of job_id. This job_id is created when making a 
+            hp.schedule_notebook()
+    Returns:
+        A notebook_job object.
     """
 
     if job_id is None:
@@ -208,7 +210,7 @@ def get_notebook_job(job_id=None):
 def clear_notebook_job():
     """
     Clear the record of most recent job. This will not delete the job or have any effect on its status. Using this
-     function will allow to to schedule another job.
+    function will allow to to schedule another job.
     """
     if os.path.exists(job_record_file):
         job_id = open(job_record_file, "r").read().rstrip()
@@ -221,10 +223,6 @@ def clear_notebook_job():
 def current_notebook():
     """
     Return the name of a notebook.
-
-        Returns:
-            name : str
-                Name of notebook.
     """
     global the_current_notebook
     if the_current_notebook is not None:
@@ -270,22 +268,9 @@ class notebook_job:
     """
     A class representing a notebook job.
 
-    Attributes
-    __________
-    id : str
-        UUID for notebook job.
-    status : string
-        Status of notebook job.
-
-    Methods
-    _______
-
-    check_status():
-        Returns status of job.
-    is_completed():
-        Determines whether job is running or not.
-    download_output():
-        Downloads all expected outputs if job produced any.
+    Attributes:
+        id (str): UUID for notebook job.
+        status (str): Status of notebook job.
     """
 
     def __init__(self, id=None, obj=None):
@@ -354,17 +339,9 @@ class trace:
     """
     A class representing a trace object. Used to allow re-execution or file retrieval for a particular job id
 
-    Attributes
-    __________
-    id : str
-        UUID for scheduled notebook
-    file_ids : list
-        List of file_ids
-
-    Methods
-    _______
-    reload():
-        Reload job object
+    Attributes:
+        id (str): UUID for scheduled notebook
+        file_ids (list): List of file_ids
     """
 
     def __init__(self, id):

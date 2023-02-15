@@ -10,22 +10,47 @@ import plotly.graph_objects as go
 import requests
 
 import hisepy.common_utils as cu
+from hisepy import auth
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
+permanent_store = "permanent"
+project_store = "project"
+valid_upload_stores = [permanent_store, project_store]
+
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 
 
 def get_study_spaces():
+    """ Returns list of studies a user has access to """
     return parse_hise_response(
         requests.request("GET",
                          hise_url("tracer", "study_space_path"),
                          headers=get_bearer_token_header()))
 
 
+def get_result_files():
+    """ Returns available result files for the user's current account/projects """
+    return parse_hise_response(
+        requests.post(
+            hise_url("ledger", "result_file_search_path"),
+            json={"filter": {
+                "fileType": {
+                    "$not": {
+                        "$regex": "\#derived"
+                    }
+                }
+            }},
+            headers=get_bearer_token_header()))
+
+
 def get_files_for_query(query_id):
+    """ Returns a list of file_ids pertaining to a HISE query_id """
     resp = parse_hise_response(
         requests.post(hise_url("hydration", "query_search_path", query_id),
                       headers=get_bearer_token_header()))
@@ -33,6 +58,7 @@ def get_files_for_query(query_id):
 
 
 def get_trace(trace_id):
+    """ Returns trace object """
     trace = parse_hise_response(
         requests.request("GET",
                          hise_url("tracer", "trace_path", trace_id),
@@ -70,13 +96,52 @@ def upload_files(files: list,
                  input_file_ids=None,
                  input_sample_ids=None,
                  file_types=None,
+                 store=None,
+                 destination=None,
                  do_prompt: bool = True):
+    """
+    Uploads files to a specified study.
+
+    Parameters:
+        files (list): absolute filepath of file to be uploaded
+        study_space_id (str): ID that pertains to a study in the collaboration space 
+        title (str): 10+ character title for upload result 
+        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
+        input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
+        file_types (str): filetype of uploaded files 
+        store (str): Which store ('project' or 'permanent') to use for the files (default in 'project')
+        destination (str): Destination folder for the files 
+        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
+    Returns: 
+        dictionary with keys ["trace_id", "files"]
+    Example: 
+        hp.upload_files(files=['/home/jupyter/upload_file.csv'],
+                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                        title='a upload title',
+                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
+    """
     if input_file_ids is None:
         input_file_ids = []
     if input_sample_ids is None:
         input_sample_ids = []
     if file_types is None:
         file_types = []
+    elif type(file_types) is not list:
+        raise ValueError(
+            "File types must be a list with one type for each upload")
+    elif len(file_types) != len(files):
+        raise ValueError(
+            "File types must be a list with one type for each upload")
+    if store is not None:
+        if store not in valid_upload_stores:
+            raise ValueError("Value for store must be in %s" %
+                             (", ".join(valid_upload_stores)))
+
+    if destination is not None:
+        if type(destination) is not str:
+            raise ValueError("file destination directory must be a string")
+    else:
+        destination = ""
 
     def _user_prompt_upload(prompt_files: list):
         print(
@@ -94,51 +159,42 @@ def upload_files(files: list,
     if type(files) is not list or len(files) == 0:
         raise ValueError("No files specified for upload")
 
-    trace_id = None
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     study_space_id = validate_upload_data(study_space_id, title,
                                           input_file_ids)
-    uploaded = []
+    uploads = []
+    qargs = {
+        "studySpaceId": study_space_id,
+        "title": title,
+        "fileType": [],
+        "saveIDE": True,
+        "store": store,
+        "destination": destination,
+        "instanceId": get_from_metadata_server(instance_name_path),
+        "inputFileIds": input_file_ids,
+        "sampleIds": input_sample_ids,
+        "notebook": current_notebook(),
+        "homedir": IDE_HOME_DIR
+    }
     for i, f in enumerate(files):
         if not os.path.exists(f):
             raise ValueError("%s is not a valid file." % f)
 
-        file_dict = {
-            'file': (f, open(f, 'rb'), 'application/json', {
-                'Expires': '0'
-            })
-        }
-        file_type = cu.get_filetype(f)
-        if type(file_types) is list and len(file_types) > i:
-            file_type = file_types[i]
-        if trace_id is not None:
-            qargs = {"traceId": trace_id, "fileType": file_type}
-        else:
-            qargs = {
-                "studySpaceId": study_space_id,
-                "title": title,
-                "fileType": file_type,
-                "saveIDE": True,
-                "instanceId": get_from_metadata_server(instance_name_path),
-                "inputFileIds": input_file_ids,
-                "sampleIds": input_sample_ids,
-                "notebook": current_notebook()
-            }
+        uploads.append(('file', (f, open(f, 'rb'), 'application/json', {
+            'Expires': '0'
+        })))
+        qargs["fileType"].append(
+            file_types[i] if len(file_types) > i else cu.get_filetype(f))
 
-        url = hise_url("toolchain", "upload_file_path", args=qargs)
-        headers = get_bearer_token_header()
-        if not do_prompt or _user_prompt_upload(prompt_files=files):
-            df_data = parse_hise_response(
-                requests.post(url, headers=headers, files=file_dict))
-            if "TraceId" not in df_data:
-                raise SystemError("No trace found in file upload response.")
-            trace_id = df_data["TraceId"]
-            # don't verify with the user more than once
-            do_prompt = False
-            uploaded.append(df_data["FileId"])
-        else:
-            print('Uploading canceled.')
-            break
-    return {"trace_id": trace_id, "files": uploaded}
+    url = hise_url("toolchain", "upload_file_path", args=qargs)
+    headers = get_bearer_token_header()
+    if not do_prompt or _user_prompt_upload(prompt_files=files):
+        df_data = parse_hise_response(
+            requests.post(url, headers=headers, files=uploads))
+        return {"trace_id": df_data["TraceId"], "files": files}
+    else:
+        print('Uploading canceled.')
+        return {}
 
 
 # Save a plotly figure
@@ -152,6 +208,17 @@ def save_visualization(
         title=None,  # not actually optional
         input_file_ids=None,  # not optional
         input_sample_ids=None):  # optional
+    """
+    Save a plotly figure to a user's specified study. 
+
+    Parameters: 
+        pl_obj (plotly.Figure): (see LINK HERE)
+        study_space_id (str): UUID of study to save visualization to
+        title (str): 10+ character for visualization being uploaded
+        input_file_ids (list): list of file_ids from HISE that were utilized to generate visualization.
+    Returns: 
+        dictionary with keys ["trace_id", "files"]
+    """
     if input_file_ids is None:
         input_file_ids = []
     if input_sample_ids is None:
@@ -161,6 +228,7 @@ def save_visualization(
     tmp_img_file = "/tmp/plotly.png"
 
     pl_obj.write_image(tmp_img_file)
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     img_data = save_static_image(image=tmp_img_file,
                                  title=title,
                                  study_space_id=study_space_id)
@@ -178,6 +246,7 @@ def save_visualization(
                           input_file_ids=input_file_ids,
                           input_sample_ids=input_sample_ids,
                           file_types=[dataframe_file_type],
+                          store=permanent_store,
                           do_prompt=False)
 
     args = {"traceId": up_res["trace_id"], "images": img_data["id"]}
@@ -208,66 +277,45 @@ class DashAppImg:
     dash_app_name = 'app.py'
 
     def __init__(self,
-                 app_fpath: str,
-                 list_fnames: list,
+                 app_filepath: str,
+                 additional_files: list,
                  hero_image: str,
-                 my_study_id: str,
-                 my_file_ids: list,
+                 study_space_id: str,
+                 input_file_ids: list,
                  work_dir: str,
-                 title: str = None,
+                 title: str,
                  description: str = None,
-                 my_sample_ids=None):
+                 input_sample_ids=None):
 
-        if my_sample_ids is None:
-            my_sample_ids = []
-        if self.verify_app_path(app_fpath):
-            self.app_filepath = app_fpath
-        if self.verify_filenames(list_fnames):
-            self.filenames = list_fnames
-        self.hero_image = hero_image
-        self.study_space_id = my_study_id
-        self.input_file_ids = my_file_ids
-        self.input_sample_ids = my_sample_ids
+        if input_sample_ids is None:
+            input_sample_ids = []
+        self.app_filepath = os.path.abspath(app_filepath)
+        # store filepaths as set to automatically drop dupes
+        self.filepaths = {os.path.abspath(path) for path in additional_files}
+        self.hero_image = os.path.abspath(hero_image)
+        self.study_space_id = study_space_id
+        self.input_file_ids = input_file_ids
+        self.input_sample_ids = input_sample_ids
         self.title = title
         self.description = description
         self.work_dir = work_dir
 
-    def get_app_dir(self):
-        """ Sets working directory of dash app """
-        return os.path.dirname(self.app_filepath)
-
-    @staticmethod
-    def verify_app_path(path):
-        """ Verifies that user-submitted path is appropriate and actually exists """
-        assert path.split(
-            '/'
-        )[-1] == 'app.py', 'filename of your dash app must be app.py. Please rename your file and try again.'
-        if not os.path.exists(path):
-            raise ValueError("%s is not a valid file" % path)
-        return True
-
-    def verify_filenames(self, filenames):
-        """ Verifies that submitted input files are of appropriate type, and exists within the working directory
-
-        TODO: force just a single filetype per submission
-        """
-        filepaths = cu.find_files(self.get_app_dir(), filenames)
-        assert len(filepaths) == len(filenames
-        ), 'not all files listed under filenames were found. Please make sure the files listed exist in the same' \
-           ' directory as your app.py file'
-
-        return True
-
     def create_req_txt(self):
-        subprocess.run(
-            "pipreqs --savepath {wd}/requirements.in {wd} && pip-compile --no-annotate --no-header {wd}/requirements.in"
-            .format(wd=self.work_dir),
-            shell=True)
+        subprocess.run([
+            'pipreqs', '--savepath', '{wd}/{app}/requirements.in'.format(
+                wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
+            '{}'.format(self.work_dir)
+        ],
+                       check=True,
+                       capture_output=True)
+        subprocess.run([
+            'pip-compile', '--no-annotate', '--no-header', '--quiet',
+            '{wd}/{app}/requirements.in'.format(
+                wd=self.work_dir, app=os.path.dirname(self.app_filepath))
+        ],
+                       check=True)
 
     def upload_hero_image(self):
-        assert type(self.hero_image) == str and cu.get_filetype(
-            self.hero_image) == 'png', "image must be a PNG"
-
         # I don't think this title is ever user-visible, but save_static_image requires it
         image_title = self.title if len(
             self.title) >= 10 else "dash app static image"
@@ -277,21 +325,10 @@ class DashAppImg:
 
     def create_dash_image(self):
         """Creates image by bundling all required objects"""
-        source_dir = '{wd}'.format(wd=self.work_dir)
-        with tarfile.open('{wd}/dash_app.tar.gz'.format(wd=self.work_dir),
-                          "w:gz") as tar:
-            tar.add(source_dir, arcname="")
+        tarfile_path = '{wd}/dash_app.tar.gz'.format(wd=self.work_dir)
+        with tarfile.open(tarfile_path, "w:gz") as tar:
+            tar.add(self.work_dir, arcname="")
         return True
-
-    @staticmethod
-    def archive_style_sheet():
-        """ Requests submitted style sheet, and saves """
-        # TODO: does user submit this style sheet? what if user doesn't submit one?
-        resp = requests.request(
-            "GET",
-            "https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
-        )
-        return resp.text
 
     def export_dash_image(self):
         """ Uploads, saves and deploys Dash app """
@@ -309,6 +346,7 @@ class DashAppImg:
             title=self.title,
             input_file_ids=self.input_file_ids,
             input_sample_ids=self.input_sample_ids,
+            store=permanent_store,
             do_prompt=False)
 
         print("POST toolchain/file for dash app tarball:")
@@ -321,6 +359,7 @@ class DashAppImg:
             "inputFileIds": self.input_file_ids,
             "sampleIds": self.input_sample_ids,
             "notebook": current_notebook(),
+            "homedir": IDE_HOME_DIR,
             "images": img_resp['id'],
             "traceId": upload_resp['trace_id']
         }
@@ -346,6 +385,39 @@ class DashAppImg:
         return deploy_resp
 
 
+def validate_app_path(app_path):
+    if os.path.basename(app_path) != 'app.py':
+        raise ValueError("App file must be called `app.py`")
+    if not os.path.exists(app_path):
+        raise ValueError("%s is not a valid file" % app_path)
+    abspath = os.path.abspath(app_path)
+    if not abspath.startswith(IDE_HOME_DIR):
+        raise ValueError("App file must be within %s" % IDE_HOME_DIR)
+
+
+def validate_files(filenames):
+    """ Verifies that all submitted input files exist and are in /home/jupyter """
+    for this_f in filenames:
+        abs_path = os.path.abspath(this_f)
+        if not os.path.exists(abs_path):
+            # Echo user's input back to them for easy reference along with
+            # where we expected that file to be. It would be nicer to
+            # validate *all* the input and then mention *all* the problems,
+            # especially as this is coming after multiple other HISE calls,
+            # so retrying is kinda expensive, but here we are.
+            raise FileNotFoundError("Can't find '%s' (no such file: %s)" %
+                                    (this_f, abs_path))
+        if not abs_path.startswith(IDE_HOME_DIR):
+            raise Exception(
+                "Only files under %s can be included.  Not there: %s" %
+                (IDE_HOME_DIR, abs_path))
+
+
+def validate_hero_image(hero_image):
+    if type(hero_image) != str or cu.get_filetype(hero_image) != 'png':
+        raise ValueError("image must be a PNG")
+
+
 def save_dash_app(app_filepath: str,
                   additional_files: list,
                   input_file_ids: list,
@@ -358,65 +430,85 @@ def save_dash_app(app_filepath: str,
     Given a Dash app consisting of an entry point named `app.py` and a list of supporting files, upload and deploy that
     app to HISE as a visualization in the given study space.
 
-    :param app_filepath: path to file named app.py that serves your Dash app
-     (i.e., ends with `app.run_server(host='0.0.0.0')`)
-    :param additional_files: list of additional files used by your app (e.g., data files, custom CSS)
-    :param input_file_ids: list of HISE file UUIDs that this app visualizes
-    :param study_space_id: UUID of study space to save app to
-    :param title: a 10+ character title for the app
-    :param description:
-    :param image: png thumbnail image for app in study space
-    :param input_sample_ids: list of samples UUIDs that this app visualizes
-    :return: Response from server
-
+    Parameters:
+        app_filepath (str): path to file named app.py that serves your Dash app
+            (i.e., ends with `app.run_server(host='0.0.0.0')`)
+        additional_files (list): list of additional files used by your app (e.g., data files, custom CSS).
+            Only files under /home/jupyter can be included.
+        input_file_ids (list): list of HISE file UUIDs that this app visualizes
+        study_space_id (str): UUID of study space to save app to
+        title (str): a 10+ character title for the app
+        description (str): description of app being uploaded 
+        image (str): png thumbnail image for app in study space
+        input_sample_ids (list): list of samples UUIDs that this app visualizes
+    Returns:
+        Response from server
     Example:
-    hisepy.save_dash_app(app_filepath='dash_app/app.py',
-                         additional_files=['data/input-1.csv', 'data/input-2.csv'],
-                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
-                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                         title="Hello world Dash app",
-                         description="An amazingly complex data visualization",
-                         image="dash_app/thumbnail.png",
-                         input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
+        hisepy.save_dash_app(app_filepath='dash_app/app.py',
+                            additional_files=['data/input-1.csv', 'data/input-2.csv'],
+                            input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
+                            study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                            title="Hello world Dash app",
+                            description="An amazingly complex data visualization",
+                            image="dash_app/thumbnail.png",
+                            input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
     """
-
     if input_sample_ids is None:
         input_sample_ids = []
+
+    # validate ASAP to avoid making a couple network calls before failing
+    validate_app_path(app_filepath)
+    validate_files(additional_files)
+    validate_hero_image(image)
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create static dash image
-        dobj = DashAppImg(app_fpath=app_filepath,
-                          list_fnames=additional_files,
+        dobj = DashAppImg(app_filepath=app_filepath,
+                          additional_files=additional_files,
                           hero_image=image,
-                          my_study_id=study_space_id,
-                          my_file_ids=input_file_ids,
-                          work_dir=tmpdirname,
+                          study_space_id=study_space_id,
+                          input_file_ids=input_file_ids,
                           title=title,
                           description=description,
-                          my_sample_ids=input_sample_ids)
+                          input_sample_ids=input_sample_ids,
+                          work_dir=tmpdirname)
 
         # Insert UI widget code here:
-        # pull out all filenames
-        # determine what are input datasets vs. hero images
+        # move everything to a temporary dir while creating/preserving source
+        # directories
+        for f in dobj.filepaths.union({dobj.app_filepath}):
+            dst = os.path.normpath(tmpdirname + os.path.dirname(f))
+            if not os.path.exists(dst):
+                os.makedirs(dst)
+            shutil.copy(f, dst)
 
-        fpaths_list = dobj.filenames + [dobj.app_filepath]
-
-        # move everything to a temporary dir
-        for this_file in fpaths_list:
-            shutil.copy(this_file, tmpdirname)
-
-        # create .txt files that contains users' imported libraries
+        # create .txt files that contains user's imported libraries
         dobj.create_req_txt()
 
         # tar it up; upload; and clean up
         dobj.create_dash_image()
         resp = dobj.export_dash_image()
 
-        # now upload the images
         print('dash image was successfully uploaded!')
         return resp
 
 
 def save_static_image(image, title, study_space_id=None):
+    """
+    Saves a PNG image to a study
+    
+    Parameters: 
+        image (str): absolute path to image 
+        title (str): title of image being uploaded 
+        study_space_id (str): UUID of study
+    Returns: 
+        Response from server
+    Example: 
+        hp.save_static_image(image='/home/jupyter/imgs/viz_image.png', 
+                             title='visualization title',
+                             study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba')
+    """
     if not os.path.exists(image):
         raise ValueError("%s is not a valid file." % image)
 
@@ -446,6 +538,14 @@ def validate_upload_data(study_space_id, title, input_file_ids):
 
 
 def load_visualization(trace_id):
+    """ 
+    Loads a plotly visualization to user
+    
+    Parameters: 
+        trace_id (str): trace id of from a hp.save_visulization() call
+    Returns: 
+        plotly figure
+    """
     data = None
     trace = get_trace(trace_id)
     if "steps" in trace and "dataReference" in trace["steps"]:

@@ -22,17 +22,15 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 def lookup_queryable_fields(field_type='all'):
     """
-    Returns fields users can query on depending on the collection type (i.e file/subject/sample)
+    Returns fields users can query on depending on the collection type. 
+    Acceptable values are either 'file', 'sample', or 'subject'
 
-    NOTE: this will only work for the following values: [file, sample, subject]
-
-        Parameters:
-            field_type : str
-                field_type that determines what fields to return
-
-        Returns:
-            fields_df : pd.dataframe
-                data.frame containing all the field names users could query on
+    Parameters:
+        field_type (str): field_type that determines what fields to return
+    Returns:
+        data.frame containing all the field names users could query on
+    Example: 
+        hp.lookup_queryable_fields(field_type='subject')
     """
     assert field_type in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'] + [
         'all'
@@ -92,13 +90,15 @@ def lookup_queryable_fields(field_type='all'):
 
 def lookup_unique_entries(field):
     """
-    Gets unique values for a given field.
-        Parameters:
-            field : str
-                queryable field (e.g fileType, subjectGuid)
-        Returns:
-            unique_fields : np.array
-                all unique values for a given field that you can pass in when creating a query
+    Returns unique values for a given field.
+
+    Parameters:
+        field (str): queryable field (e.g fileType, subjectGuid)
+    Returns:
+        all unique values for a given field that you can pass in when creating a query
+    Examples: 
+        hp.lookup_unique_entries('fileType')
+        hp.lookup_unique_entries('cohortGuid') 
     """
     # create a data.frame of all searchable fields
     all_field_df = lookup_queryable_fields()
@@ -108,7 +108,7 @@ def lookup_unique_entries(field):
     ), "The field you submitted isn't a viable one. Make sure your requesting one of the following fields - {}".format(
         all_field_df['field'].unique())
 
-    # subset to users' field of interest
+    # subset to user's field of interest
     user_df = all_field_df.loc[all_field_df['field'] == field, ]
     field_type = user_df['field_type'].values[0]
 
@@ -137,3 +137,12 @@ def lookup_unique_entries(field):
     unique_fields = np.unique(np_unique_fields)
 
     return unique_fields
+
+
+def list_queryable_fields():
+    ''' Returns a list of fields user can use to create a query 
+    '''
+    df = lookup_queryable_fields()
+    df = df.loc[(~df['field_type'].isin(['emr', 'lab'])
+                 & ~df['field'].isin(['id', 'cohort'])), ]
+    return df['field'].unique().tolist()

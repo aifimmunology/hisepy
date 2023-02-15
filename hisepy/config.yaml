@@ -21,16 +21,20 @@ AUTHORIZE:
   SERVER_ID_PATH : attributes/hise-server
   TOKEN_ENV : TOKEN_GENERATOR
   
-PROJECT_FOLDER: 
+PROJECT_STORE: 
   TAG_FIELD_NAME : availability
-  PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
+  PROJECT_STORE_ENDPOINT : analysis/projectStore
   AVAILABLE_TAG : available
   DELETED_TAG : marked_for_deletion
-  ARCHIVE_TAG : marked_for_archival
+  PROMOTION_TAG : marked_for_promotion
+
+PROJECT_FOLDER: 
+  PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
 
 # hydration endpoints 
 HYDRATION:
   HYDRATION_NAME : hydration
+  USER_FOLDER_PATH : hydration/analysis/userFolder
   FILE_SEARCH_PATH : hydration/analysis/files
   DESCRIPTORS_PATH : hydration/analysis/descriptors
   DOWNLOAD_PATH : hydration/source/server
@@ -44,18 +48,20 @@ LEDGER:
   SAMPLE_SEARCH_PATH : ledger/sample/q
   SUBJECT_SEARCH_PATH : ledger/subject/q
   FILE_SEARCH_PATH : ledger/file/q
-
+  RESULT_FILE_SEARCH_PATH: ledger/resultfile/filter
 
 # tracer endpoints 
 TRACER: 
   TRACER_NAME : tracer 
   TRACE_PATH : tracer/trace
   STUDY_SPACE_PATH: tracer/studyspace
+  FILE_SET : tracer/fileset
   
 # globals specific for IDE 
 IDE: 
   CACHE_DIR : cache
-  HOME_DIR : home/jupyter
+  HOME_DIR : /home/jupyter
+  CACHE_LOG_NAME : .hisefilelog.rds
 
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
@@ -64,6 +70,7 @@ TOOLCHAIN:
   UPLOAD_FILE_PATH: toolchain/file
   SAVE_DASH_APP_PATH: toolchain/visualization/dash
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
+  TOOLCHAIN_IDE : toolchain/instances
   
 # scheduler endpoints and global... 
 SCHEDULER: 

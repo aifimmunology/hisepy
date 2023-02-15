@@ -1,7 +1,5 @@
 """ project_folder.py
-
 Description:
-
 Contributors: James Harvey
 """
 
@@ -23,10 +21,8 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 def list_project_folders():
     """
     Lists all project folders a user has access to
-
-        Returns:
-            project_list : list
-                list of project short-names
+    Returns:
+        list of project short-names user has access to
     """
     url = 'https://{ser}/{hy}/{pfe}'.format(
         ser=get_from_metadata_server(server_id_path),
@@ -48,13 +44,10 @@ def list_project_folders():
 def list_files_in_project_folder(folder_name):
     """
     Returns information about what files are present in a given project folder
-
-        Parameters:
-            folder_name : str
-                name of project folder
-        Returns:
-            df : pd.DataFrane
-                data.frame containing fileIds and fileNames
+    Parameters:
+        folder_name (str): name of project folder
+    Returns:
+        data.frame containing fileIds and fileNames
     """
     folder = {'folders': [folder_name]}
     url = 'https://{ser}/{hy}/{pfe}/{f}'.format(
@@ -82,32 +75,29 @@ def list_files_in_project_folder(folder_name):
 
 def download_from_project_folder(folder_name, file_name='', subdir=''):
     """
-    Downloads a given file onto a users' IDE. The filepath pattern is as follows:
+    Downloads a given file onto a user's IDE. The filepath pattern is as follows:
     '~/folder_name/file_name'.
-        NOTE: ~ denotes your home directory
-
-        Parameters:
-            folder_name : str
-                name of project folder
-            file_name : str
-                name of file that you see under 'name' when utilizing list_files_in_project_folder
-
-        Returns: bool
-            True if download was successful
+    Parameters:
+        folder_name (str): name of project folder
+        file_name (str): name of file that you see under 'name' when utilizing 
+            list_files_in_project_folder
+    Returns:
+        True if download was successful
     """
 
     def _submit_url_download(url: str, foldern: str, filen: str):
-        resp = requests.request("GET", url, headers=get_bearer_token_header())
+        truncate_file_name = filen.split('/', maxsplit=1)[1]
+        resp = requests.request("GET",
+                                url,
+                                headers=get_bearer_token_header(),
+                                stream=True)
         if resp.status_code != 200:
             raise SystemError("Request to {} failed with status {}".format(
                 url, resp.status_code))
-
-        # remove time-stamp info from file_name which is assumed to be the first string before the first '/' character
-        truncate_file_name = filen.split('/', maxsplit=1)[1]
-
         with open('{}/{}/{}'.format(os.getcwd(), foldern, truncate_file_name),
                   'wb') as f:
-            f.write(resp.content)
+            for chunk in resp.iter_content():
+                f.write(chunk)
 
     # create directory
     try:
@@ -145,100 +135,4 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
             fil='files',
             fn=file_name)
         _submit_url_download(url, folder_name, file_name)
-    return True
-
-
-def upload_to_project_folder(watchfolder_bucket_url, file_path):
-    """
-    Uploads file via watchfolder_bucket_url so that it becomes available in the linked Project Folder
-
-        Parameters:
-            watchfolder_bucket_url : str
-                url link to dedicated watch folder for the Project Folder of interest
-            file_path : str
-                path to your file
-
-        Returns : bool
-            True if file was downloaded
-    """
-
-    # ensure users' file actually exists
-    if not os.path.exists(file_path):
-        raise FileExistsError(
-            'submitted path {}, cannot be found'.format(file_path))
-
-    client = storage.Client()
-    bucket = client.bucket(watchfolder_bucket_url)
-    blob = bucket.blob(file_path)
-    blob.upload_from_filename(file_path)
-    return True
-
-
-def archive_file_in_project_folder(folder_name, file_name):
-    """
-    Mark a file in a project folder to be archived. This will not actually delete the file,
-    but will remove it from being seen or downloaded when utilizing any other project folder methods.
-
-    NOTE: you can unarchive a file by using undo_archive_in_project_folder() method
-
-        Parameters:
-            folder_name : str
-                name of project folder
-            file_name : str
-                name of project folder
-        Returns:
-            boolean : True if function call was a success
-    """
-
-    archive_tag = CONFIG['PROJECT_FOLDER']['ARCHIVE_TAG']
-    tag_field = CONFIG['PROJECT_FOLDER']['TAG_FIELD_NAME']
-    json_tag = {tag_field: archive_tag}
-    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-        ser=get_from_metadata_server(server_id_path),
-        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-        fol=folder_name,
-        fil='files',
-        fn=file_name)
-    resp = requests.request("PUT",
-                            url,
-                            data=json.dumps(json_tag),
-                            headers=get_bearer_token_header())
-    if resp.status_code != 200:
-        raise SystemError('Request to {} failed with status {}'.format(
-            url, resp.status_code))
-    return True
-
-
-def undo_archive_in_project_folder(folder_name, file_name):
-    """
-    Unarchives files. any files that were tagged to be archived will now be visible through list_files_in_project_folder()
-
-        Parameters:
-            folder_name : str
-                name of project folder
-            file_name : str
-                name of project folder that you want unarchived and visible
-        Returns:
-            boolean : True if function call was a success
-
-    """
-
-    available_tag = CONFIG['PROJECT_FOLDER']['AVAILABLE_TAG']
-    tag_field = CONFIG['PROJECT_FOLDER']['TAG_FIELD_NAME']
-    json_tag = {tag_field: available_tag}
-    url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-        ser=get_from_metadata_server(server_id_path),
-        hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-        pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
-        fol=folder_name,
-        fil='files',
-        fn=file_name)
-    resp = requests.request("PUT",
-                            url,
-                            data=json.dumps(json_tag),
-                            headers=get_bearer_token_header())
-    if resp.status_code != 200:
-        raise SystemError("Request to {} failed with status {}".format(
-            url, resp.status_code))
     return True
