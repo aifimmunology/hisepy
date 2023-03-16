@@ -89,17 +89,22 @@ def log_downloaded_files(hise_file):
     elif type(hise_file['descriptors']) is dict:
         this_sample_id = hise_file['descriptors']['sample']['id']
         this_file_id = hise_file['descriptors']['file']['id']
-    this_entry_df = pd.DataFrame(
-        data={
-            'fileId': [this_file_id],
-            'sampleId': [this_sample_id],
-            'downloadSourceDir': [download_workdir],
-            'downloadTimeStamp': [str(datetime.datetime.now())]
-        })
-    cache_df = pd.concat([cache_df, this_entry_df])
-    pyreadr.write_rds(
-        '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                         d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
+
+    # no need to append something a user has already downloaded and logged
+    if this_file_id in cache_df['fileId'].values:
+        pass
+    else:
+        this_entry_df = pd.DataFrame(
+            data={
+                'fileId': [this_file_id],
+                'sampleId': [this_sample_id],
+                'downloadSourceDir': [download_workdir],
+                'downloadTimeStamp': [str(datetime.datetime.now())]
+            })
+        cache_df = pd.concat([cache_df, this_entry_df])
+        pyreadr.write_rds(
+            '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
+                             d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
     return
 
 
@@ -206,4 +211,42 @@ def download_response_content(resp, dest):
         for chunk in resp.iter_content(CONFIG['IDE']['DOWNLOAD_CHUNK_SIZE']):
             f.write(chunk)
     print('file successfully downloaded: {}'.format(dest))
+    return
+
+
+# TODO: combine this log_downloaded_files()
+def log_project_download(file_id: str):
+    """
+    Attaches fileId for the project folder file that was downloaded 
+    
+    Parameters: 
+        file_id (str) : file_id of file in project folder 
+    """
+    CONFIG = read_yaml('{}/config.yaml'.format(_here))
+    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
+                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
+    cache_df = pd.DataFrame()
+    download_workdir = os.getcwd()
+    if os.path.exists(cache_file_path):
+        cache_file = pyreadr.read_r(cache_file_path)
+
+        # extract out the data.frame
+        cache_df = cache_file[None]
+
+    # check if the file_id is already logged
+    if file_id in cache_df['fileId'].values:
+        pass
+    else:
+        new_entry = pd.DataFrame(
+            data={
+                'fileId': [file_id],
+                'sampleId': [''],
+                'downloadSourceDir': [download_workdir],
+                'downloadTimeStamp': [str(datetime.datetime.now())]
+            })
+
+        cache_df = pd.concat([cache_df, new_entry])
+        pyreadr.write_rds(
+            '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
+                             d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
     return
