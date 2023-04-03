@@ -171,9 +171,11 @@ def sample_to_df_worker(sample_out):
     # add idenftifier columns to each data.frame object (subjectGuid & sampleKitGuid)
     this_subject_id = metadata_df.loc[:, 'subject.subjectGuid'].item()
     this_samplekit_id = metadata_df.loc[:, 'sample.sampleKitGuid'].item()
+    this_project_id = metadata_df.loc[:, 'projectGuid'].item()
     for this_obj in [lab_df, surv_df, specimen_df]:
         this_obj['subjectGuid'] = str(this_subject_id)
         this_obj['sampleKitGuid'] = str(this_samplekit_id)
+        this_obj['projectGuid'] = str(this_project_id)
 
     dict_df = {
         'metadata': metadata_df,
