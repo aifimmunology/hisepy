@@ -5,7 +5,7 @@ import subprocess
 import tarfile
 import tempfile
 import uuid
-
+from requests_toolbelt import MultipartEncoder
 import plotly.graph_objects as go
 import requests
 
@@ -146,7 +146,7 @@ def upload_files(files: list,
     def _user_prompt_upload(prompt_files: list):
         print(
             'you are trying to upload file_ids... {}. Do you truly want to proceed?'
-            .form(prompt_files))
+            .format(prompt_files))
         user_input = input('(y/n)')
         while user_input.lower() not in ['y', 'n']:
             print('please enter either "n" for no, or "y" for yes.')
@@ -159,7 +159,7 @@ def upload_files(files: list,
     if type(files) is not list or len(files) == 0:
         raise ValueError("No files specified for upload")
 
-    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
+    # cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     study_space_id = validate_upload_data(study_space_id, title,
                                           input_file_ids)
     uploads = []
@@ -186,14 +186,17 @@ def upload_files(files: list,
         qargs["fileType"].append(
             file_types[i] if len(file_types) > i else cu.get_filetype(f))
 
+    uploads = MultipartEncoder({
+        'file': (files[0], open(f, 'rb'), 'application/json', {
+            'Expires': '0'
+        })
+    })
     url = hise_url("toolchain", "upload_file_path", args=qargs)
     headers = get_bearer_token_header()
+    headers['Content-Type'] = uploads.content_type
     if not do_prompt or _user_prompt_upload(prompt_files=files):
-        with open(files, 'rb') as f:
-            resp = requests.post(url, headers=headers, data=f)
-        df_data = parse_hise_response(resp)
-        #df_data = parse_hise_response(
-        #requests.post(url, headers=headers, files=uploads))
+        df_data = parse_hise_response(
+            requests.post(url, headers=headers, data=uploads))
         return {"trace_id": df_data["TraceId"], "files": files}
     else:
         print('Uploading canceled.')
