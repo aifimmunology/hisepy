@@ -146,7 +146,7 @@ def upload_files(files: list,
     def _user_prompt_upload(prompt_files: list):
         print(
             'you are trying to upload file_ids... {}. Do you truly want to proceed?'
-            .format(prompt_files))
+            .form(prompt_files))
         user_input = input('(y/n)')
         while user_input.lower() not in ['y', 'n']:
             print('please enter either "n" for no, or "y" for yes.')
@@ -189,8 +189,11 @@ def upload_files(files: list,
     url = hise_url("toolchain", "upload_file_path", args=qargs)
     headers = get_bearer_token_header()
     if not do_prompt or _user_prompt_upload(prompt_files=files):
-        df_data = parse_hise_response(
-            requests.post(url, headers=headers, files=uploads))
+        with open(files, 'rb') as f:
+            resp = requests.post(url, headers=headers, data=f)
+        df_data = parse_hise_response(resp)
+        #df_data = parse_hise_response(
+        #requests.post(url, headers=headers, files=uploads))
         return {"trace_id": df_data["TraceId"], "files": files}
     else:
         print('Uploading canceled.')
