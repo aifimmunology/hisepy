@@ -72,6 +72,7 @@ TOOLCHAIN:
   SAVE_DASH_APP_PATH: toolchain/visualization/dash
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
   TOOLCHAIN_IDE : toolchain/instances
+  UPLOAD_HARVEST_LOWER_BOUND_MB: 10.0
   
 # scheduler endpoints and global... 
 SCHEDULER: 
