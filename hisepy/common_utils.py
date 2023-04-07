@@ -16,6 +16,7 @@ import pandas as pd
 import datetime
 import json
 import pathlib
+from hisepy.auth import debug
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -112,6 +113,10 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
     """ Checks that files associated with a result have 
         been seen in a user's IDE
     """
+    if debug():
+        #allow local testing of stuff
+        return
+
     if input_file_ids is not None:
         assert type(input_file_ids) is list
     if input_sample_ids is not None:

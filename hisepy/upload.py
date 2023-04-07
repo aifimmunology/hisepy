@@ -24,6 +24,8 @@ valid_upload_stores = [permanent_store, project_store]
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
+UPLOAD_HARVEST_LOWER_BOUND = CONFIG['TOOLCHAIN'][
+    'UPLOAD_HARVEST_LOWER_BOUND_MB']
 
 
 def get_study_spaces():
@@ -162,7 +164,8 @@ def upload_files(files: list,
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     study_space_id = validate_upload_data(study_space_id, title,
                                           input_file_ids)
-    uploads = []
+    uploads = None
+    body = None
     qargs = {
         "studySpaceId": study_space_id,
         "title": title,
@@ -176,21 +179,33 @@ def upload_files(files: list,
         "notebook": current_notebook(),
         "homedir": IDE_HOME_DIR
     }
-    for i, f in enumerate(files):
-        if not os.path.exists(f):
-            raise ValueError("%s is not a valid file." % f)
+    if get_size_in_megabytes(files) > UPLOAD_HARVEST_LOWER_BOUND:
+        #user is uploading big stuff.
+        #do this as a harvest
+        qargs["harvest"] = True
+        body = {"files": []}
+        for i, f in enumerate(files):
+            if not os.path.exists(f):
+                raise ValueError("%s is not a valid file." % f)
+            ft = file_types[i] if len(file_types) > i else cu.get_filetype(f)
+            body["files"].append({"name": os.path.abspath(f), "type": ft})
+    else:
+        uploads = []
+        for i, f in enumerate(files):
+            if not os.path.exists(f):
+                raise ValueError("%s is not a valid file." % f)
 
-        uploads.append(('file', (f, open(f, 'rb'), 'application/json', {
-            'Expires': '0'
-        })))
-        qargs["fileType"].append(
-            file_types[i] if len(file_types) > i else cu.get_filetype(f))
+            uploads.append(('file', (f, open(f, 'rb'), 'application/json', {
+                'Expires': '0'
+            })))
+            qargs["fileType"].append(
+                file_types[i] if len(file_types) > i else cu.get_filetype(f))
 
     url = hise_url("toolchain", "upload_file_path", args=qargs)
     headers = get_bearer_token_header()
     if not do_prompt or _user_prompt_upload(prompt_files=files):
         df_data = parse_hise_response(
-            requests.post(url, headers=headers, files=uploads))
+            requests.post(url, headers=headers, json=body, files=uploads))
         return {"trace_id": df_data["TraceId"], "files": files}
     else:
         print('Uploading canceled.')
@@ -571,3 +586,11 @@ def load_visualization(trace_id):
     if data is not None:
         obj["data"] = data
     return go.Figure(obj, skip_invalid=True)
+
+
+def get_size_in_megabytes(file_list):
+    total_size = 0
+    for file in file_list:
+        if os.path.isfile(file):
+            total_size += os.path.getsize(file)
+    return total_size / (1024 * 1024)  # convert bytes to megabytes
