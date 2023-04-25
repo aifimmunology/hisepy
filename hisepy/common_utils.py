@@ -72,7 +72,9 @@ def log_downloaded_files(hise_file):
     CONFIG = read_yaml('{}/config.yaml'.format(_here))
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
-    cache_df = pd.DataFrame()
+    cache_df = pd.DataFrame(columns=[
+        'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
+    ])
     download_workdir = os.getcwd()
 
     if os.path.exists(cache_file_path):
