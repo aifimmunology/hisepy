@@ -94,6 +94,7 @@ def default_study_space(must=True):
 
 def upload_files(files: list,
                  study_space_id: str = None,
+                 project: str = None,
                  title: str = None,
                  input_file_ids=None,
                  input_sample_ids=None,
@@ -106,7 +107,8 @@ def upload_files(files: list,
 
     Parameters:
         files (list): absolute filepath of file to be uploaded
-        study_space_id (str): ID that pertains to a study in the collaboration space 
+        study_space_id (str): ID that pertains to a study in the collaboration space (optional)
+        project (str): project short name (required if study space is not specified)
         title (str): 10+ character title for upload result 
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
@@ -162,12 +164,10 @@ def upload_files(files: list,
         raise ValueError("No files specified for upload")
 
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
-    study_space_id = validate_upload_data(study_space_id, title,
-                                          input_file_ids)
+    validate_upload_data(study_space_id, project, title, input_file_ids)
     uploads = None
     body = None
     qargs = {
-        "studySpaceId": study_space_id,
         "title": title,
         "fileType": [],
         "saveIDE": True,
@@ -179,6 +179,11 @@ def upload_files(files: list,
         "notebook": current_notebook(),
         "homedir": IDE_HOME_DIR
     }
+    if study_space_id is not None:
+        qargs["studySpaceId"] = study_space_id
+    if project is not None:
+        qargs["project"] = project
+
     if get_size_in_megabytes(files) > UPLOAD_HARVEST_LOWER_BOUND:
         #user is uploading big stuff.
         #do this as a harvest
@@ -220,6 +225,7 @@ def upload_files(files: list,
 def save_visualization(
         pl_obj,
         study_space_id=None,  # optional
+        project=None,  # optional unless study_space_id is not specified
         title=None,  # not actually optional
         input_file_ids=None,  # not optional
         input_sample_ids=None):  # optional
@@ -257,6 +263,7 @@ def save_visualization(
 
     up_res = upload_files(files=[tmp_data_file],
                           study_space_id=study_space_id,
+                          project=project,
                           title=title,
                           input_file_ids=input_file_ids,
                           input_sample_ids=input_sample_ids,
@@ -531,8 +538,7 @@ def save_static_image(image, title, study_space_id=None):
         'bytes': (image, open(image,
                               'rb'), "image/%s" % (cu.get_filetype(image)))
     }
-    study_space_id = validate_upload_data(study_space_id, title,
-                                          ["not a file"])
+    validate_upload_data(study_space_id, None, title, ["not a file"])
     args = {"studySpaceId": study_space_id, "title": title}
     return parse_hise_response(
         requests.post(hise_url("hydration", "upload_path", args=args),
@@ -540,16 +546,16 @@ def save_static_image(image, title, study_space_id=None):
                       files=img_dict))
 
 
-def validate_upload_data(study_space_id, title, input_file_ids):
+def validate_upload_data(study_space_id, project, title, input_file_ids):
     if study_space_id is None:
-        study_space_id = default_study_space_id()
+        if project is None:
+            raise ValueError("One of study space or project must be specified")
     if title is None:
         raise ValueError("Title cannot be empty")
     elif len(title) < 10:
         raise ValueError("Title must be at least 10 characters")
     if len(input_file_ids) == 0:
         raise ValueError("You must specify at least one input file UUID")
-    return study_space_id
 
 
 def load_visualization(trace_id):
