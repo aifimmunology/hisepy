@@ -4,6 +4,7 @@ import pathlib
 import urllib
 import uuid
 import pandas as pd
+from termcolor import colored
 
 import requests
 
@@ -295,7 +296,6 @@ def read_files(file_list: list = None,
     Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
     """
     obj = post_query(file_list, query_id, query_dict)
-
     #each object should be a set of descriptors and a url to download a file
     response = []
     for f in obj:
@@ -303,7 +303,7 @@ def read_files(file_list: list = None,
             f["id"] = uuid.UUID(int=0)
 
         if "error" in f:
-            fobj = hise_file(f["id"])
+            fobj = hise_file(f['error']['File'])
             fobj.message = f["error"]["Message"]
             response.append(fobj)
             continue
@@ -313,9 +313,17 @@ def read_files(file_list: list = None,
 
     # check if we have successfully read at least 1 file
     all_files_not_found = all(item.status is False for item in response)
+
+    # find which files where there were errors
+    # and print that information to the end-user
+    files_not_found = [str(f.id) for f in response if f.status is False]
     if all_files_not_found:
         return response
-    elif to_df:
+    elif len(files_not_found) > 0 and to_df:
+        print(
+            colored(
+                "The following files failed to download: {}".format(
+                    files_not_found), "red"))
         return hf.hise_file_to_df(response)
     else:
         return response
