@@ -90,7 +90,10 @@ def download_from_project_store(store_name, file_name='', subdir=''):
     """
 
     def _submit_url_download(url: str, store: str, filen: str):
-        truncate_file_name = filen.split('/', maxsplit=1)[1]
+        if '/' not in filen:
+            truncate_file_name = filen
+        else:
+            truncate_file_name = filen.split('/', maxsplit=1)[1]
         resp = requests.request("GET",
                                 url,
                                 headers=get_bearer_token_header(),
