@@ -28,7 +28,7 @@ setup(
         'pandas', 'numpy', 'PyYAML', 'scipy', 'anndata',
         'google-cloud-storage', 'importlib', 'plotly', 'dash', 'Frozen-Flask',
         'kaleido', 'requests', 'h5py', 'google', 'pipreqs', 'pip-tools',
-        'pyreadr'
+        'pyreadr', 'termcolor'
     ],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
