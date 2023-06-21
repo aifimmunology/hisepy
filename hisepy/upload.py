@@ -516,7 +516,7 @@ def save_dash_app(app_filepath: str,
         return resp
 
 
-def save_static_image(image, title, study_space_id=None):
+def save_static_image(image, title, study_space_id=None, project=None):
     """
     Saves a PNG image to a study
     
@@ -524,6 +524,7 @@ def save_static_image(image, title, study_space_id=None):
         image (str): absolute path to image 
         title (str): title of image being uploaded 
         study_space_id (str): UUID of study
+        project (str): project short name (required if study space is not specified)
     Returns: 
         Response from server
     Example: 
@@ -538,8 +539,12 @@ def save_static_image(image, title, study_space_id=None):
         'bytes': (image, open(image,
                               'rb'), "image/%s" % (cu.get_filetype(image)))
     }
-    validate_upload_data(study_space_id, None, title, ["not a file"])
-    args = {"studySpaceId": study_space_id, "title": title}
+    validate_upload_data(study_space_id, project, title, ["not a file"])
+    args = {"title": title}
+    if study_space_id is not None:
+        args['studySpaceId'] = study_space_id
+    if project is not None:
+        args["project"] = project
     return parse_hise_response(
         requests.post(hise_url("hydration", "upload_path", args=args),
                       headers=get_bearer_token_header(),
