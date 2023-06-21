@@ -250,9 +250,14 @@ def save_visualization(
 
     pl_obj.write_image(tmp_img_file)
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
-    img_data = save_static_image(image=tmp_img_file,
-                                 title=title,
-                                 study_space_id=study_space_id)
+    if study_space_id is None:
+        print(
+            "study space id was not submitted. Saving the static image will not happen"
+        )
+    else:
+        img_data = save_static_image(image=tmp_img_file,
+                                     title=title,
+                                     study_space_id=study_space_id)
     os.remove(tmp_img_file)
 
     exp_obj = json.loads(pl_obj.to_json())
@@ -516,7 +521,7 @@ def save_dash_app(app_filepath: str,
         return resp
 
 
-def save_static_image(image, title, study_space_id=None, project=None):
+def save_static_image(image, title, study_space_id=None):
     """
     Saves a PNG image to a study
     
@@ -524,7 +529,6 @@ def save_static_image(image, title, study_space_id=None, project=None):
         image (str): absolute path to image 
         title (str): title of image being uploaded 
         study_space_id (str): UUID of study
-        project (str): project short name (required if study space is not specified)
     Returns: 
         Response from server
     Example: 
@@ -539,12 +543,8 @@ def save_static_image(image, title, study_space_id=None, project=None):
         'bytes': (image, open(image,
                               'rb'), "image/%s" % (cu.get_filetype(image)))
     }
-    validate_upload_data(study_space_id, project, title, ["not a file"])
-    args = {"title": title}
-    if study_space_id is not None:
-        args['studySpaceId'] = study_space_id
-    if project is not None:
-        args["project"] = project
+    validate_upload_data(study_space_id, None, title, ["not a file"])
+    args = {"studySpaceId": study_space_id, "title": title}
     return parse_hise_response(
         requests.post(hise_url("hydration", "upload_path", args=args),
                       headers=get_bearer_token_header(),
