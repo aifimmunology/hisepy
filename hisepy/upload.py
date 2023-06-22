@@ -254,10 +254,12 @@ def save_visualization(
         print(
             "study space id was not submitted. Saving the static image will not happen"
         )
+        args = {}
     else:
         img_data = save_static_image(image=tmp_img_file,
                                      title=title,
                                      study_space_id=study_space_id)
+        args = {"images": img_data["id"]}
     os.remove(tmp_img_file)
 
     exp_obj = json.loads(pl_obj.to_json())
@@ -275,8 +277,7 @@ def save_visualization(
                           file_types=[dataframe_file_type],
                           store=permanent_store,
                           do_prompt=False)
-
-    args = {"traceId": up_res["trace_id"], "images": img_data["id"]}
+    args['traceId'] = up_res["trace_id"]
 
     # now null out the data and save the plotly without it
     exp_obj["data"] = []
