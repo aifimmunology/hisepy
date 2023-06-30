@@ -291,7 +291,6 @@ def save_visualization(
                                            'Expires': '0'
                                        })
     }
-
     url = hise_url("toolchain", "visualization_path", "json", args=args)
     parse_hise_response(
         requests.post(url, headers=get_bearer_token_header(), files=vis_dict))
@@ -490,7 +489,9 @@ def save_dash_app(app_filepath: str,
     validate_hero_image(image)
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
+    # temporary directory created needs to be prefixed with IDE mounted drive (e.g /home/jupyter)
+    with tempfile.TemporaryDirectory(
+            prefix='{}/'.format(IDE_HOME_DIR)) as tmpdirname:
         # create static dash image
         dobj = DashAppImg(app_filepath=app_filepath,
                           additional_files=additional_files,
