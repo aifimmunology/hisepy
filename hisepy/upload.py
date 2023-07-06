@@ -227,6 +227,7 @@ def save_visualization(
         study_space_id=None,  # optional
         project=None,  # optional unless study_space_id is not specified
         title=None,  # not actually optional
+        destination=None,  #optional 
         input_file_ids=None,  # not optional
         input_sample_ids=None):  # optional
     """
@@ -235,7 +236,9 @@ def save_visualization(
     Parameters: 
         pl_obj (plotly.Figure): (see LINK HERE)
         study_space_id (str): UUID of study to save visualization to
+        project (str) : projectShortName to save visuzliation to
         title (str): 10+ character for visualization being uploaded
+        destination (str):  Destination folder for the files 
         input_file_ids (list): list of file_ids from HISE that were utilized to generate visualization.
     Returns: 
         dictionary with keys ["trace_id", "files"]
@@ -254,7 +257,7 @@ def save_visualization(
         print(
             "study space id was not submitted. Saving the static image will not happen"
         )
-        args = {}
+        args = {"project": project}
     else:
         img_data = save_static_image(image=tmp_img_file,
                                      title=title,
@@ -276,6 +279,7 @@ def save_visualization(
                           input_sample_ids=input_sample_ids,
                           file_types=[dataframe_file_type],
                           store=permanent_store,
+                          destination=destination,
                           do_prompt=False)
     args['traceId'] = up_res["trace_id"]
 
@@ -291,7 +295,6 @@ def save_visualization(
                                            'Expires': '0'
                                        })
     }
-
     url = hise_url("toolchain", "visualization_path", "json", args=args)
     parse_hise_response(
         requests.post(url, headers=get_bearer_token_header(), files=vis_dict))
