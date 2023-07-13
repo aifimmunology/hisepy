@@ -82,7 +82,13 @@ def _add_prefix_to_query(user_query: dict):
     q_df = q_df.loc[~q_df[['field_type', 'field']].duplicated(),
                     ]  # drop duplicates
     # go through each key of user's dict and append the field_type as a prefix
+    id_fields = [
+        '{}.id'.format(i)
+        for i in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
+    ]
     for k in list(new_query_dict):
+        if k in id_fields:
+            continue
         prefix = q_df.loc[q_df['field'].eq(k), 'field_type'].unique()[0]
         new_query_dict.update({'{}.{}'.format(prefix, k): new_query_dict[k]})
 
