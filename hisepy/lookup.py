@@ -79,13 +79,11 @@ def lookup_queryable_fields(field_type='all'):
                                       ignore_index=True)
 
     if field_type == 'all':
-        return all_fields_df.loc[
-            ~all_fields_df['field'].eq('id'), ].drop_duplicates()
+        return all_fields_df.drop_duplicates()
     else:
-        return all_fields_df.loc[
-            ((all_fields_df['field_type'].eq(field_type)) |
-             (all_fields_df['field_type'].eq('cohort'))) &
-            (~all_fields_df['field'].eq('id')), ].drop_duplicates()
+        return all_fields_df.loc[(
+            (all_fields_df['field_type'].eq(field_type)) |
+            (all_fields_df['field_type'].eq('cohort'))), ].drop_duplicates()
 
 
 def lookup_unique_entries(field):
@@ -144,5 +142,9 @@ def list_queryable_fields():
     '''
     df = lookup_queryable_fields()
     df = df.loc[(~df['field_type'].isin(['emr', 'lab'])
-                 & ~df['field'].isin(['id', 'cohort'])), ]
-    return df['field'].unique().tolist()
+                 & ~df['field'].isin(['cohort'])), ]
+    id_fields = [
+        '{}.id'.format(i)
+        for i in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
+    ]
+    return df['field'].unique().tolist() + id_fields
