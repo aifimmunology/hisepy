@@ -494,7 +494,6 @@ def save_dash_app(app_filepath: str,
     validate_hero_image(image)
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     tmpdirname = tempfile.TemporaryDirectory()
-
     # create static dash image
     dobj = DashAppImg(app_filepath=app_filepath,
                       additional_files=additional_files,
@@ -504,13 +503,13 @@ def save_dash_app(app_filepath: str,
                       title=title,
                       description=description,
                       input_sample_ids=input_sample_ids,
-                      work_dir=tmpdirname)
+                      work_dir=tmpdirname.name)
 
     # Insert UI widget code here:
     # move everything to a temporary dir while creating/preserving source
     # directories
     for f in dobj.filepaths.union({dobj.app_filepath}):
-        dst = os.path.normpath(tmpdirname + os.path.dirname(f))
+        dst = os.path.normpath(tmpdirname.name + os.path.dirname(f))
         if not os.path.exists(dst):
             os.makedirs(dst)
         shutil.copy(f, dst)
