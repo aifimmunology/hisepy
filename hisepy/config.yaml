@@ -10,6 +10,7 @@ MATERIALIZED_VIEW:
 
 FILETYPES: 
   SCRNA_RESULT : scRNA-seq-labeled 
+  DASH_APP: dash_app.tar.gz
 
 # Authorization config
 AUTHORIZE: 
