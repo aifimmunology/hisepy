@@ -493,7 +493,7 @@ def save_dash_app(app_filepath: str,
     validate_files(additional_files)
     validate_hero_image(image)
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
-    tmpdirname = tempfile.TemporaryDirectory()
+    tmpdirname = tempfile.mkdtemp()
     # create static dash image
     dobj = DashAppImg(app_filepath=app_filepath,
                       additional_files=additional_files,
