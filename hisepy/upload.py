@@ -496,6 +496,10 @@ def save_dash_app(app_filepath: str,
     validate_hero_image(image)
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(IDE_HOME_DIR))
+
+    # set permissions so toolchain can read and copy this file
+    os.chmod(tmpdirname, 0o777)
+
     # create static dash image
     dobj = DashAppImg(app_filepath=app_filepath,
                       additional_files=additional_files,
