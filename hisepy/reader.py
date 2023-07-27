@@ -94,6 +94,8 @@ def _add_prefix_to_query(user_query: dict):
 
     # remove old keys
     for ok in list(user_query):
+        if ok in id_fields:
+            continue
         new_query_dict.pop(ok)
     return new_query_dict
 
@@ -130,7 +132,6 @@ def query_files(user_query: dict):
     ), "fileType must be in your query dictionary"
     query_dict = user_query.copy()
     query_dict = _add_prefix_to_query(query_dict)
-
     for d in query_dict.keys():
         assert type(
             query_dict[d]) == list, "key {} has values not in a list".format(d)
