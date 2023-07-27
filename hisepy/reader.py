@@ -94,6 +94,8 @@ def _add_prefix_to_query(user_query: dict):
 
     # remove old keys
     for ok in list(user_query):
+        if ok in id_fields:
+            continue
         new_query_dict.pop(ok)
     return new_query_dict
 
@@ -130,7 +132,6 @@ def query_files(user_query: dict):
     ), "fileType must be in your query dictionary"
     query_dict = user_query.copy()
     query_dict = _add_prefix_to_query(query_dict)
-
     for d in query_dict.keys():
         assert type(
             query_dict[d]) == list, "key {} has values not in a list".format(d)
@@ -325,11 +326,12 @@ def read_files(file_list: list = None,
     files_not_found = [str(f.id) for f in response if f.status is False]
     if all_files_not_found:
         return response
-    elif len(files_not_found) > 0 and to_df:
-        print(
-            colored(
-                "The following files failed to download: {}".format(
-                    files_not_found), "red"))
+    elif to_df:
+        if len(files_not_found) > 0:
+            print(
+                colored(
+                    "The following files failed to download: {}".format(
+                        files_not_found), "red"))
         return hf.hise_file_to_df(response)
     else:
         return response
