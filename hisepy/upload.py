@@ -303,6 +303,89 @@ def save_visualization(
     return up_res
 
 
+def _validate_abstraction_params(config: str, title: str, description: str,
+                                 input_ids: list):
+    """ validates parameters are coming in as expected """
+
+    # required params check
+    if config is None:
+        raise ValueError("Cannot save an abstraction without a config")
+    if title is None:
+        raise ValueError("must provide a title for the abstraction")
+    if description is None:
+        raise ValueError("A description for the abstraction is required")
+    if input_ids is None or len(input_ids) < 1:
+        raise ValueError("You must provide at least 1 input file ID")
+
+    # type check
+    if type(config) is not str:
+        raise TypeError("layout config must be a filepath string")
+    if type(title) is not str:
+        raise TypeError("title must be a string")
+    if type(description) is not str:
+        raise TypeError("description must be a string")
+    if type(input_ids) is not list:
+        raise TypeError("input file Ids must be a list")
+
+    # filepaths truly exist check
+    if not os.path.exists(config):
+        raise ValueError("%s is not a valid file." % config)
+    return
+
+
+# TODO: what is this layout config going to look like for vitessce vs dash vs other viz frameworks??
+# for dash-apps, we require a layout.py script, but it only defines layout of dashboard...?
+# what about
+# for vitessce, require a config_view.json file and it defines layout as well as as where data lives in remote server
+def save_abstraction(layout_config: str = None,
+                     title: str = None,
+                     description: str = None,
+                     input_file_ids: list = None,
+                     image: str = None):  # optional
+    """ 
+    Save an abstraction to current user's account.
+    
+    Parameters:
+
+    Returns:
+        server response 
+    Example: 
+        hp.save_abstraction()
+    """
+    # parameter check
+    _validate_abstraction_params(layout_config, title, description,
+                                 input_file_ids)
+
+    # prompt user that they're creating an abstraction
+    cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
+
+    # set up POST request
+    qargs = {
+        "title": title,
+        "description": description,
+        "appDetails": layout_config,
+        "inputResultFiles": input_file_ids,
+        "notebook": current_notebook(),
+        "homedir": IDE_HOME_DIR,
+        "instanceId": get_from_metadata_server(instance_name_path)
+    }
+
+    # save static image if user passes some in
+    if image is not None:
+        img_resp = save_static_image(image=image, title=title)
+        if img_resp['error'] is not False:
+            raise SystemError(
+                "Something went wrong when saving the static image")
+        qargs['heroImages'] = img_resp['id']
+
+    # send it; parse response
+    url = hise_url("toolchain", "abstraction_path", args=qargs)
+    resp = parse_hise_response(
+        requests.post(url, headers=get_bearer_token_header()))
+    print(resp)
+    return resp
+
+
 class DashAppImg:
     """ Class representing a Dash App Object """
     dash_app_name = 'app.py'
