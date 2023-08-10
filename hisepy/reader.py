@@ -326,11 +326,12 @@ def read_files(file_list: list = None,
     files_not_found = [str(f.id) for f in response if f.status is False]
     if all_files_not_found:
         return response
-    elif len(files_not_found) > 0 and to_df:
-        print(
-            colored(
-                "The following files failed to download: {}".format(
-                    files_not_found), "red"))
+    elif to_df:
+        if len(files_not_found) > 0:
+            print(
+                colored(
+                    "The following files failed to download: {}".format(
+                        files_not_found), "red"))
         return hf.hise_file_to_df(response)
     else:
         return response
