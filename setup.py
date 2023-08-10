@@ -25,7 +25,7 @@ setup(
     url='https://github.com/aifimmunology/hisepy',
     packages=['hisepy'],
     install_requires=[
-        'pandas', 'numpy', 'PyYAML', 'scipy', 'anndata',
+        'pandas', 'numpy', 'PyYAML', 'scipy', 'anndata', 'Cython',
         'google-cloud-storage', 'importlib', 'plotly', 'dash', 'Frozen-Flask',
         'kaleido', 'requests', 'h5py', 'google', 'pipreqs', 'pip-tools',
         'pyreadr', 'termcolor'
