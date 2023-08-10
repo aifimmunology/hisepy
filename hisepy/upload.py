@@ -183,11 +183,14 @@ def upload_files(files: list,
         qargs["studySpaceId"] = study_space_id
     if project is not None:
         qargs["project"] = project
-
     if get_size_in_megabytes(files) > UPLOAD_HARVEST_LOWER_BOUND:
         #user is uploading big stuff.
         #do this as a harvest
         qargs["harvest"] = True
+
+        # flag to tell toolchain to clean up any temporary directories that a SDK call creates
+        if CONFIG['FILETYPES']['DASH_APP'] in files[0]:
+            qargs['deleteFiles'] = True
         body = {"files": []}
         for i, f in enumerate(files):
             if not os.path.exists(f):
@@ -492,37 +495,40 @@ def save_dash_app(app_filepath: str,
     validate_files(additional_files)
     validate_hero_image(image)
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
+    tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(IDE_HOME_DIR))
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # create static dash image
-        dobj = DashAppImg(app_filepath=app_filepath,
-                          additional_files=additional_files,
-                          hero_image=image,
-                          study_space_id=study_space_id,
-                          input_file_ids=input_file_ids,
-                          title=title,
-                          description=description,
-                          input_sample_ids=input_sample_ids,
-                          work_dir=tmpdirname)
+    # set permissions so toolchain can read and copy this file
+    os.chmod(tmpdirname, 0o777)
 
-        # Insert UI widget code here:
-        # move everything to a temporary dir while creating/preserving source
-        # directories
-        for f in dobj.filepaths.union({dobj.app_filepath}):
-            dst = os.path.normpath(tmpdirname + os.path.dirname(f))
-            if not os.path.exists(dst):
-                os.makedirs(dst)
-            shutil.copy(f, dst)
+    # create static dash image
+    dobj = DashAppImg(app_filepath=app_filepath,
+                      additional_files=additional_files,
+                      hero_image=image,
+                      study_space_id=study_space_id,
+                      input_file_ids=input_file_ids,
+                      title=title,
+                      description=description,
+                      input_sample_ids=input_sample_ids,
+                      work_dir=tmpdirname)
 
-        # create .txt files that contains user's imported libraries
-        dobj.create_req_txt()
+    # Insert UI widget code here:
+    # move everything to a temporary dir while creating/preserving source
+    # directories
+    for f in dobj.filepaths.union({dobj.app_filepath}):
+        dst = os.path.normpath(tmpdirname + os.path.dirname(f))
+        if not os.path.exists(dst):
+            os.makedirs(dst)
+        shutil.copy(f, dst)
 
-        # tar it up; upload; and clean up
-        dobj.create_dash_image()
-        resp = dobj.export_dash_image()
+    # create .txt files that contains user's imported libraries
+    dobj.create_req_txt()
 
-        print('dash image was successfully uploaded!')
-        return resp
+    # tar it up; upload; and clean up
+    dobj.create_dash_image()
+    resp = dobj.export_dash_image()
+
+    print('dash image was successfully uploaded!')
+    return resp
 
 
 def save_static_image(image, title, study_space_id=None):
