@@ -333,6 +333,51 @@ def _validate_abstraction_params(config: str, title: str, description: str,
     return
 
 
+# TODO: combine this with the original save_static.
+# this is only separated because one is uploading to an account-specific location
+def save_abstraction_static_image(image, title):
+    """
+    Saves PNG image to a hise-wide bucket
+    
+    Parameters: 
+        image (str): absolute path to image 
+        title (str): title of image being uploaded 
+    Returns:
+        Response from server 
+
+    Example: 
+        hp.save_static_image()
+    """
+
+    # TODO: I think I need a hydration endpoint...?
+    # an endpoint that points to the bucket or some download url
+    """
+    if not os.path.exists(image):
+        raise ValueError("%s is not a valid file." % image)
+
+    img_dict = {
+        'bytes': (image, open(image,
+                              'rb'), "image/%s" % (cu.get_filetype(image)))
+    }
+    args = {"title": title}
+    return parse_hise_response(
+        requests.post(hise_url("hydration", "hise-wide-upload-path", args=args),
+                      headers=get_bearer_token_header(),
+                      files=img_dict))
+    """
+
+    # For now... I'll just hard-code where these files live
+    return 'https://storage.googleapis.com/aifi-static-assets/abstraction-static-images-test/flow-abs.png'
+
+
+# TODO: placeholder
+def create_abstraction_image():
+    """
+    TODO: this info has to persist somewhere and not just in the abstraction payload, right...? 
+    """
+    return
+
+
 # TODO: what is this layout config going to look like for vitessce vs dash vs other viz frameworks??
 # for dash-apps, we require a layout.py script, but it only defines layout of dashboard...?
 # what about
@@ -340,7 +385,7 @@ def _validate_abstraction_params(config: str, title: str, description: str,
 def save_abstraction(layout_config: str = None,
                      title: str = None,
                      description: str = None,
-                     input_file_ids: list = None,
+                     result_file_ids: list = None,
                      image: str = None):  # optional
     """ 
     Save an abstraction to current user's account.
@@ -352,9 +397,16 @@ def save_abstraction(layout_config: str = None,
     Example: 
         hp.save_abstraction()
     """
+    # TODO: bundling and creating the image based of user's framework selection
+    # for now... nothing
+    layout_config = ''
+
+    # TODO: users are not going to know the result ids.
+    # can we have the widget handle this conversion of result-filetype to ID?
+
     # parameter check
     _validate_abstraction_params(layout_config, title, description,
-                                 input_file_ids)
+                                 result_file_ids)
 
     # prompt user that they're creating an abstraction
     cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
@@ -364,7 +416,7 @@ def save_abstraction(layout_config: str = None,
         "title": title,
         "description": description,
         "appDetails": layout_config,
-        "inputResultFiles": input_file_ids,
+        "inputResultFiles": result_file_ids,
         "notebook": current_notebook(),
         "homedir": IDE_HOME_DIR,
         "instanceId": get_from_metadata_server(instance_name_path)
@@ -372,11 +424,11 @@ def save_abstraction(layout_config: str = None,
 
     # save static image if user passes some in
     if image is not None:
-        img_resp = save_static_image(image=image, title=title)
+        img_resp = save_abstraction_static_image(image=image, title=title)
         if img_resp['error'] is not False:
             raise SystemError(
                 "Something went wrong when saving the static image")
-        qargs['heroImages'] = img_resp['id']
+        qargs['heroImages'] = img_resp
 
     # send it; parse response
     url = hise_url("toolchain", "abstraction_path", args=qargs)
