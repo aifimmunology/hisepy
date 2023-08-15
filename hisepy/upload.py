@@ -328,14 +328,14 @@ def _validate_abstraction_params(config: str, title: str, description: str,
         raise TypeError("input file Ids must be a list")
 
     # filepaths truly exist check
-    if not os.path.exists(config):
-        raise ValueError("%s is not a valid file." % config)
+    #if not os.path.exists(config):
+    #    raise ValueError("%s is not a valid file." % config)
     return
 
 
 # TODO: combine this with the original save_static.
 # this is only separated because one is uploading to an account-specific location
-def save_abstraction_static_image(image, title):
+def save_abstraction_static_image(image, title, viz_type):
     """
     Saves PNG image to a hise-wide bucket
     
@@ -365,9 +365,15 @@ def save_abstraction_static_image(image, title):
                       headers=get_bearer_token_header(),
                       files=img_dict))
     """
-
+    result_img_dict = {
+        'scRNA-seq-labeled':
+        'https://storage.googleapis.com/aifi-static-assets/abstraction-static-images-test/scrna-abstraction.png',
+        'Cytometry - Supervised Gating Population Counts':
+        'https://storage.googleapis.com/aifi-static-assets/abstraction-static-images-test/flow-abs.png'
+    }
     # For now... I'll just hard-code where these files live
-    return 'https://storage.googleapis.com/aifi-static-assets/abstraction-static-images-test/flow-abs.png'
+    # cyto image used: return 'https://storage.googleapis.com/aifi-static-assets/abstraction-static-images-test/flow-abs.png'
+    return result_img_dict[viz_type]
 
 
 # TODO: placeholder
@@ -384,6 +390,7 @@ def create_abstraction_image():
 # for vitessce, require a config_view.json file and it defines layout as well as as where data lives in remote server
 def save_abstraction(layout_config: str = None,
                      title: str = None,
+                     viz_framework: str = None,
                      description: str = None,
                      result_file_ids: list = None,
                      image: str = None):  # optional
@@ -399,8 +406,9 @@ def save_abstraction(layout_config: str = None,
     """
     # TODO: bundling and creating the image based of user's framework selection
     # for now... nothing
-    layout_config = ''
+    layout_config = "fake config"
 
+    # some stuff I hard-coded at the time
     # TODO: users are not going to know the result ids.
     # can we have the widget handle this conversion of result-filetype to ID?
 
@@ -424,17 +432,20 @@ def save_abstraction(layout_config: str = None,
 
     # save static image if user passes some in
     if image is not None:
-        img_resp = save_abstraction_static_image(image=image, title=title)
+        img_resp = save_abstraction_static_image(image=image,
+                                                 title=title,
+                                                 viz_type=viz_framework)
+        """ comment out until this imaginary endpoint exists...
         if img_resp['error'] is not False:
             raise SystemError(
                 "Something went wrong when saving the static image")
+        """
         qargs['heroImages'] = img_resp
 
     # send it; parse response
     url = hise_url("toolchain", "abstraction_path", args=qargs)
     resp = parse_hise_response(
         requests.post(url, headers=get_bearer_token_header()))
-    print(resp)
     return resp
 
 
