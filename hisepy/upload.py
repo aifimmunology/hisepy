@@ -427,6 +427,12 @@ def validate_app_path(app_path):
     abspath = os.path.abspath(app_path)
     if not abspath.startswith(IDE_HOME_DIR):
         raise ValueError("App file must be within %s" % IDE_HOME_DIR)
+    levels_away_from_home = len(os.path.split(app_path)[0].rsplit('/')) - len(
+        IDE_HOME_DIR.rsplit('/'))
+    if levels_away_from_home > 1:
+        raise ValueError(
+            "App file cannot be saved more than 1 subdirectory away from %s" %
+            IDE_HOME_DIR)
 
 
 def validate_files(filenames):
