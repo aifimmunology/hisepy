@@ -4,6 +4,7 @@ import pathlib
 import urllib
 import uuid
 import pandas as pd
+import copy
 from termcolor import colored
 
 import requests
@@ -305,6 +306,7 @@ def read_files(file_list: list = None,
     obj = post_query(file_list, query_id, query_dict)
     #each object should be a set of descriptors and a url to download a file
     response = []
+    idx = 0
     for f in obj:
         if "id" not in f:
             f["id"] = uuid.UUID(int=0)
@@ -317,6 +319,14 @@ def read_files(file_list: list = None,
         else:
             response.append(cache_and_convert_file_data(f))
             cu.log_downloaded_files(f)
+
+            # if the response's fileId is different than the ID we original made the request with, then toolchain
+            # noticed the request came from a guest account. if that's the case, we just log both files
+            if f["id"] != file_list[idx]:
+                tmp_hise_file = copy.deepcopy(f)
+                tmp_hise_file["id"] = file_list[idx]
+                cu.log_downloaded_files(tmp_hise_file)
+        idx += 1
 
     # check if we have successfully read at least 1 file
     all_files_not_found = all(item.status is False for item in response)
