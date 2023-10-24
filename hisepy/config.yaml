@@ -45,6 +45,7 @@ HYDRATION:
   UPLOAD_PATH: hydration/source/studyspace/file
   QUERY_SEARCH_PATH : hydration/analysis/query
   WEBSOCKET_PATH: hydration/source/stream/open
+  HISE_WIDE_STATIC_IMG_PATH: hydration/source/abstraction/save
 
 # ledger endpoints 
 LEDGER: 

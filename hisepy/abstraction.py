@@ -91,9 +91,9 @@ def _validate_abstraction_params(config: str, title: str, description: str,
     return
 
 
-# TODO: combine this with the original save_static.
+# TODO: combine this with the original save_static() method.
 # this is only separated because one is uploading to an account-specific location
-def save_abstraction_static_image(image, title, viz_type):
+def save_abstraction_static_image(image, title):
     """
     Saves PNG image to a hise-wide bucket
     
@@ -106,32 +106,18 @@ def save_abstraction_static_image(image, title, viz_type):
     Example: 
         hp.save_static_image()
     """
-
-    # TODO: I think I need a hydration endpoint...?
-    # an endpoint that points to the bucket or some download url
-    """
     if not os.path.exists(image):
         raise ValueError("%s is not a valid file." % image)
-
     img_dict = {
         'bytes': (image, open(image,
                               'rb'), "image/%s" % (cu.get_filetype(image)))
     }
     args = {"title": title}
+    hh = get_bearer_token_header()
     return parse_hise_response(
-        requests.post(hise_url("hydration", "hise-wide-upload-path", args=args),
+        requests.post(hise_url("hydration", "hise_wide_static_img_path"),
                       headers=get_bearer_token_header(),
                       files=img_dict))
-    """
-    result_img_dict = {
-        'scRNA-seq-labeled':
-        'https://storage.googleapis.com/aifi-static-assets/abstraction-static-images-test/scrna-abstraction.png',
-        'Cytometry - Supervised Gating Population Counts':
-        'https://storage.googleapis.com/aifi-static-assets/abstraction-static-images-test/flow-abs.png'
-    }
-    # For now... I'll just hard-code where these files live
-    # cyto image used: return 'https://storage.googleapis.com/aifi-static-assets/abstraction-static-images-test/flow-abs.png'
-    return result_img_dict[viz_type]
 
 
 # TODO: placeholder
@@ -166,10 +152,6 @@ def save_abstraction(layout_config: str = None,
     # for now... nothing
     layout_config = "fake config"
 
-    # some stuff I hard-coded at the time
-    # TODO: users are not going to know the result ids.
-    # can we have the widget handle this conversion of result-filetype to ID?
-
     # parameter check
     _validate_abstraction_params(layout_config, title, description,
                                  result_file_ids)
@@ -190,14 +172,9 @@ def save_abstraction(layout_config: str = None,
 
     # save static image if user passes some in
     if image is not None:
-        img_resp = save_abstraction_static_image(image=image,
-                                                 title=title,
-                                                 viz_type=viz_framework)
-        """ comment out until this imaginary endpoint exists...
-        if img_resp['error'] is not False:
-            raise SystemError(
-                "Something went wrong when saving the static image")
-        """
+        img_resp = save_abstraction_static_image(image=image, title=title)
+        import pdb
+        pdb.set_trace()
         qargs['heroImages'] = img_resp
 
     # send it; parse response
