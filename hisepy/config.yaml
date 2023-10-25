@@ -80,6 +80,9 @@ TOOLCHAIN:
   TOOLCHAIN_IDE : toolchain/instances
   UPLOAD_HARVEST_LOWER_BOUND_MB: 10.0
   
+ABSTRACTION: 
+  VIZ_CONFIGS_PATH : /root/.jupyter/templates/abstraction_configs
+
 # scheduler endpoints and global... 
 SCHEDULER: 
   PLATFORM_DEFAULT : Notebook
