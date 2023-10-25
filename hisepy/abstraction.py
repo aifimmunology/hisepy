@@ -1,9 +1,13 @@
 import json
 import os
 import requests
+import tempfile
+import tarfile
+import shutil
 import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
 from hisepy.reader import parse_hise_response, hise_url
+from hisepy.scheduler import current_notebook
 
 from hisepy import auth
 
@@ -61,13 +65,11 @@ def map_result_friendly_name_to_id(result_name: str):
         return accepted_abstraction_results[result_name]
 
 
-def _validate_abstraction_params(config: str, title: str, description: str,
+def _validate_abstraction_params(title: str, description: str,
                                  input_ids: list):
     """ validates parameters are coming in as expected """
 
     # required params check
-    if config is None:
-        raise ValueError("Cannot save an abstraction without a config")
     if title is None:
         raise ValueError("must provide a title for the abstraction")
     if description is None:
@@ -76,65 +78,123 @@ def _validate_abstraction_params(config: str, title: str, description: str,
         raise ValueError("You must provide at least 1 input file ID")
 
     # type check
-    if type(config) is not str:
-        raise TypeError("layout config must be a filepath string")
     if type(title) is not str:
         raise TypeError("title must be a string")
     if type(description) is not str:
         raise TypeError("description must be a string")
     if type(input_ids) is not list:
         raise TypeError("input file Ids must be a list")
-
-    # filepaths truly exist check
-    #if not os.path.exists(config):
-    #    raise ValueError("%s is not a valid file." % config)
-    return
+    return True
 
 
-# TODO: combine this with the original save_static() method.
-# this is only separated because one is uploading to an account-specific location
-def save_abstraction_static_image(image, title):
-    """
-    Saves PNG image to a hise-wide bucket
-    
-    Parameters: 
-        image (str): absolute path to image 
-        title (str): title of image being uploaded 
-    Returns:
-        Response from server 
+class AbstractionAppImg:
+    """ Class representing an Abstraction App Object """
+    abstraction_app_name = 'app.py'
+    abstraction_image_name = 'abstraction_app.tar.gz'
 
-    Example: 
-        hp.save_static_image()
-    """
-    if not os.path.exists(image):
-        raise ValueError("%s is not a valid file." % image)
-    img_dict = {
-        'bytes': (image, open(image,
-                              'rb'), "image/%s" % (cu.get_filetype(image)))
-    }
-    args = {"title": title}
-    hh = get_bearer_token_header()
-    return parse_hise_response(
-        requests.post(hise_url("hydration", "hise_wide_static_img_path"),
-                      headers=get_bearer_token_header(),
-                      files=img_dict))
+    def __init__(self,
+                 app_filepath: str,
+                 hero_image: str,
+                 title: str,
+                 description: str,
+                 work_dir: str,
+                 result_file_ids: list = None):
+
+        self.result_file_ids = result_file_ids
+        self.app_filepath = os.path.abspath(app_filepath)
+        self.hero_image = os.path.abspath(hero_image)
+        self.title = title
+        self.description = description
+        self.work_dir = work_dir
+        self.viz_configs_path = CONFIG['ABSTRACTION']['VIZ_CONFIGS_PATH']
+        self.filepaths = {
+            os.path.abspath(path)
+            for path in [self.viz_configs_path, self.app_filepath]
+        }
+
+    def save_abstraction_static_image(self):
+        """
+        Saves PNG image to a hise-wide bucket
+        
+        Parameters: 
+            image (str): absolute path to image 
+            title (str): title of image being uploaded 
+        Returns:
+            Response from server 
+
+        Example: 
+            hp.save_static_image()
+        """
+        if not os.path.exists(self.hero_image):
+            raise ValueError("%s is not a valid file." % self.hero_image)
+        img_dict = {
+            'bytes': (self.hero_image, open(self.hero_image, 'rb'),
+                      "image/%s" % (cu.get_filetype(self.hero_image)))
+        }
+        args = {"title": self.title}
+        hh = get_bearer_token_header()
+        return parse_hise_response(
+            requests.post(hise_url("hydration", "hise_wide_static_img_path"),
+                          headers=get_bearer_token_header(),
+                          files=img_dict))
+
+    def create_abstraction_image(self):
+        """
+        TODO: this info has to persist somewhere and not just in the abstraction payload, right...? 
+        """
+        tarfile_path = '{wd}/{an}'.format(wd=self.work_dir,
+                                          an=self.abstraction_image_name)
+        with tarfile.open(tarfile_path, 'w:gz') as tar:
+            tar.add(self.work_dir, arcname="")
+        return True
+
+    def export_abstraction_image(self):
+        img_resp = self.save_abstraction_static_image()
+        if img_resp['error'] is not False:
+            print("Error uploading image: ", img_resp['error'])
+
+        # set up POST request
+        qargs = {
+            "title": self.title,
+            "description": self.description,
+            "inputResultFiles": self.result_file_ids,
+            "notebook": current_notebook(),
+            "homedir": IDE_HOME_DIR,
+            "instanceId": get_from_metadata_server(instance_name_path)
+        }
+        app_path = '{wd}/{an}'.format(wd=self.work_dir,
+                                      an=self.abstraction_image_name)
+        abstraction_img = {
+            'file': (app_path, open(app_path, 'rb'), 'application/json', {
+                'Expires': '0'
+            })
+        }
+        url = hise_url('toolchain', 'abstraction_path', args=qargs)
+
+        # prompt user; send it; parse response
+        cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
+        url = hise_url("toolchain",
+                       "abstraction_path",
+                       args=qargs,
+                       files=abstraction_img)
+        resp = parse_hise_response(
+            requests.post(url, headers=get_bearer_token_header()))
+        return resp
 
 
-# TODO: placeholder
-def create_abstraction_image():
-    """
-    TODO: this info has to persist somewhere and not just in the abstraction payload, right...? 
-    """
-    return
+def validate_abstraction_app_path(app_path):
+    if os.path.basename(app_path) != 'app.py':
+        raise ValueError("App file must be called `app.py`")
+    if not os.path.exists(app_path):
+        raise ValueError("%s is not a valid file" % app_path)
+    abspath = os.path.abspath(app_path)
+    if not abspath.startswith(IDE_HOME_DIR):
+        raise ValueError("App file must be within %s" % IDE_HOME_DIR)
 
 
-# TODO: what is this layout config going to look like for vitessce vs dash vs other viz frameworks??
-# for dash-apps, we require a layout.py script, but it only defines layout of dashboard...?
-# what about
-# for vitessce, require a config_view.json file and it defines layout as well as as where data lives in remote server
-def save_abstraction(layout_config: str = None,
+# TODO: are users still passing in additional files? what else would they need to send for release 1?
+def save_abstraction(app_filepath: str = None,
                      title: str = None,
-                     viz_framework: str = None,
                      description: str = None,
                      result_file_ids: list = None,
                      image: str = None):  # optional
@@ -148,37 +208,27 @@ def save_abstraction(layout_config: str = None,
     Example: 
         hp.save_abstraction()
     """
-    # TODO: bundling and creating the image based of user's framework selection
-    # for now... nothing
-    layout_config = "fake config"
-
     # parameter check
-    _validate_abstraction_params(layout_config, title, description,
-                                 result_file_ids)
+    _validate_abstraction_params(title, description, result_file_ids)
+    validate_abstraction_app_path(app_filepath)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        aobj = AbstractionAppImg(app_filepath=app_filepath,
+                                 hero_image=image,
+                                 title=title,
+                                 description=description,
+                                 work_dir=tmpdirname,
+                                 result_file_ids=result_file_ids)
 
-    # prompt user that they're creating an abstraction
-    cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
+        shutil.copytree(aobj.viz_configs_path, tmpdirname, dirs_exist_ok=True)
+        app_dst = os.path.normpath(tmpdirname +
+                                   os.path.dirname(aobj.app_filepath))
+        if not os.path.exists(app_dst):
+            os.makedirs(app_dst)
+        shutil.copy(aobj.app_filepath, app_dst)
 
-    # set up POST request
-    qargs = {
-        "title": title,
-        "description": description,
-        "appDetails": layout_config,
-        "inputResultFiles": result_file_ids,
-        "notebook": current_notebook(),
-        "homedir": IDE_HOME_DIR,
-        "instanceId": get_from_metadata_server(instance_name_path)
-    }
+        # tar the bad boy up and upload
+        aobj.create_abstraction_image()
+        resp = aobj.export_abstraction_image()
 
-    # save static image if user passes some in
-    if image is not None:
-        img_resp = save_abstraction_static_image(image=image, title=title)
-        import pdb
-        pdb.set_trace()
-        qargs['heroImages'] = img_resp
-
-    # send it; parse response
-    url = hise_url("toolchain", "abstraction_path", args=qargs)
-    resp = parse_hise_response(
-        requests.post(url, headers=get_bearer_token_header()))
-    return resp
+        print("abstraction image was successfully uploaded!")
+        return resp
