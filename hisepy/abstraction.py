@@ -5,6 +5,7 @@ import tempfile
 import tarfile
 import shutil
 import hisepy.common_utils as cu
+import hisepy.upload as cup
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
@@ -138,23 +139,8 @@ class AbstractionAppImg:
                           headers=get_bearer_token_header(),
                           files=img_dict))
 
-    def create_abstraction_image(self):
-        """
-        TODO: this info has to persist somewhere and not just in the abstraction payload, right...? 
-        """
-        tarfile_path = '{wd}/{an}'.format(wd=self.work_dir,
-                                          an=self.abstraction_image_name)
-        with tarfile.open(tarfile_path, 'w:gz') as tar:
-            tar.add(self.work_dir, arcname="")
-        return True
-
-    def export_abstraction_image(self):
-        img_resp = self.save_abstraction_static_image()
-        if img_resp['error'] is not False:
-            print("Error uploading image: ", img_resp['error'])
-
-        # set up POST request
-        qargs = {
+    def create_args(self):
+        return {
             "title": self.title,
             "description": self.description,
             "inputResultFiles": self.result_file_ids,
@@ -162,6 +148,27 @@ class AbstractionAppImg:
             "homedir": IDE_HOME_DIR,
             "instanceId": get_from_metadata_server(instance_name_path)
         }
+
+    def create_tarball(self):
+
+        # copy configs to the temporary directory
+        shutil.copytree(self.viz_configs_path,
+                        self.work_dir,
+                        dirs_exist_ok=True)
+        app_dst = os.path.normpath(self.work_dir +
+                                   os.path.dirname(self.app_filepath))
+        if not os.path.exists(app_dst):
+            os.makedirs(app_dst)
+        shutil.copy(self.app_filepath, app_dst)
+
+        # create tarball
+        tarfile_path = '{wd}/{an}'.format(wd=self.work_dir,
+                                          an=self.abstraction_image_name)
+        with tarfile.open(tarfile_path, 'w:gz') as tar:
+            tar.add(self.work_dir, arcname="")
+        return True
+
+    def create_file_arg(self):
         app_path = '{wd}/{an}'.format(wd=self.work_dir,
                                       an=self.abstraction_image_name)
         abstraction_img = {
@@ -169,16 +176,15 @@ class AbstractionAppImg:
                 'Expires': '0'
             })
         }
-        url = hise_url('toolchain', 'abstraction_path', args=qargs)
+        return abstraction_img
 
-        # prompt user; send it; parse response
-        cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
-        url = hise_url("toolchain",
-                       "abstraction_path",
-                       args=qargs,
-                       files=abstraction_img)
-        resp = parse_hise_response(
-            requests.post(url, headers=get_bearer_token_header()))
+    def create_url(self, args):
+        return hise_url("toolchain", "abstraction_path", args=args)
+
+    def send_post(self, url, file):
+        resp = requests.post(url,
+                             headers=get_bearer_token_header(),
+                             files=file)
         return resp
 
 
@@ -219,16 +225,12 @@ def save_abstraction(app_filepath: str = None,
                                  work_dir=tmpdirname,
                                  result_file_ids=result_file_ids)
 
-        shutil.copytree(aobj.viz_configs_path, tmpdirname, dirs_exist_ok=True)
-        app_dst = os.path.normpath(tmpdirname +
-                                   os.path.dirname(aobj.app_filepath))
-        if not os.path.exists(app_dst):
-            os.makedirs(app_dst)
-        shutil.copy(aobj.app_filepath, app_dst)
-
         # tar the bad boy up and upload
-        aobj.create_abstraction_image()
-        resp = aobj.export_abstraction_image()
+        cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
+        aobj.create_tarball()
+        resp = parse_hise_response(
+            aobj.send_post(aobj.create_url(aobj.create_args()),
+                           aobj.create_file_arg()))
 
         print("abstraction image was successfully uploaded!")
         return resp
