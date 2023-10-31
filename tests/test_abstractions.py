@@ -26,10 +26,10 @@ class TestAbstractionAppImg:
         self.tmpdirname = self.tmpdir.name
 
         # create temporary files and instantiate abstractionAppImg
-        self.app_path = os.path.normpath("{}/app.py".format(os.getcwd()))
-        self.img_path = os.path.normpath("{}/img.png".format(os.getcwd()))
-        os.system("touch {}/app.py".format(os.getcwd()))
-        os.system("touch {}/img.png".format(os.getcwd()))
+        self.app_path = os.path.normpath("{}/app.py".format(self.tmpdirname))
+        self.img_path = os.path.normpath("{}/img.png".format(self.tmpdirname))
+        os.system("touch {}/app.py".format(self.tmpdirname))
+        os.system("touch {}/img.png".format(self.tmpdirname))
         self.abstraction_img = AbstractionAppImg(
             app_filepath=self.app_path,
             hero_image=self.img_path,
@@ -38,7 +38,8 @@ class TestAbstractionAppImg:
             work_dir=self.tmpdirname)
 
         # create tarball
-        self.abstraction_img.copy_files_to_tmp()
+        self.abstraction_img.copy_files_to_tmp(
+            self.abstraction_img.abstraction_config_filenames)
         self.abstraction_img.create_tarball()
 
     def cleanup(self, init_test):
