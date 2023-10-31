@@ -92,6 +92,10 @@ class AbstractionAppImg:
     """ Class representing an Abstraction App Object """
     abstraction_app_name = 'app.py'
     abstraction_image_name = 'abstraction_app.tar.gz'
+    abstraction_config_filenames = [
+        'config.toml', 'build.sh', 'entrypoint.sh', 'environment.yml'
+    ]
+    user_files = ['app.py', 'img.png']
 
     def __init__(self,
                  app_filepath: str,
@@ -108,36 +112,21 @@ class AbstractionAppImg:
         self.description = description
         self.work_dir = work_dir
         self.viz_configs_path = CONFIG['ABSTRACTION']['VIZ_CONFIGS_PATH']
-        self.filepaths = {
-            os.path.abspath(path)
-            for path in [self.viz_configs_path, self.app_filepath]
-        }
 
-    def save_abstraction_static_image(self):
-        """
-        Saves PNG image to a hise-wide bucket
-        
-        Parameters: 
-            image (str): absolute path to image 
-            title (str): title of image being uploaded 
-        Returns:
-            Response from server 
+    def create_static_image_url(self):
+        return hise_url("hydration", "hise_wide_static_img_path")
 
-        Example: 
-            hp.save_static_image()
-        """
-        if not os.path.exists(self.hero_image):
-            raise ValueError("%s is not a valid file." % self.hero_image)
-        img_dict = {
+    def send_static_image_post(self, url, img_dict):
+        resp = requests.post(url,
+                             headers=get_bearer_token_header(),
+                             files=img_dict)
+        return resp
+
+    def create_image_dict(self):
+        return {
             'bytes': (self.hero_image, open(self.hero_image, 'rb'),
                       "image/%s" % (cu.get_filetype(self.hero_image)))
         }
-        args = {"title": self.title}
-        hh = get_bearer_token_header()
-        return parse_hise_response(
-            requests.post(hise_url("hydration", "hise_wide_static_img_path"),
-                          headers=get_bearer_token_header(),
-                          files=img_dict))
 
     def create_args(self):
         return {
@@ -149,17 +138,21 @@ class AbstractionAppImg:
             "instanceId": get_from_metadata_server(instance_name_path)
         }
 
-    def create_tarball(self):
+    def copy_files_to_tmp(self):
 
         # copy configs to the temporary directory
-        shutil.copytree(self.viz_configs_path,
-                        self.work_dir,
-                        dirs_exist_ok=True)
-        app_dst = os.path.normpath(self.work_dir +
-                                   os.path.dirname(self.app_filepath))
-        if not os.path.exists(app_dst):
-            os.makedirs(app_dst)
-        shutil.copy(self.app_filepath, app_dst)
+        for f in self.abstraction_config_filenames:
+            dst = os.path.normpath(self.work_dir + os.path.dirname(f))
+            if not os.path.exists(dst):
+                os.makedirs(dst)
+            shutil.copy('{}/{}'.format(self.viz_configs_path, f), dst)
+        for f in [self.app_filepath, self.hero_image]:
+            dst = os.path.normpath(self.work_dir + '/' +
+                                   os.path.basename(os.path.realpath(f)))
+            shutil.copy(f, dst)
+        return
+
+    def create_tarball(self):
 
         # create tarball
         tarfile_path = '{wd}/{an}'.format(wd=self.work_dir,
@@ -225,8 +218,13 @@ def save_abstraction(app_filepath: str = None,
                                  work_dir=tmpdirname,
                                  result_file_ids=result_file_ids)
 
-        # tar the bad boy up and upload
+        # POST to hydration and save the static image
+        aobj.send_static_image_post(aobj.create_static_image_url(),
+                                    aobj.create_image_dict())
+
+        # copy files to tmp dir and tar the bad boy up and upload
         cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
+        aobj.copy_files_to_tmp()
         aobj.create_tarball()
         resp = parse_hise_response(
             aobj.send_post(aobj.create_url(aobj.create_args()),

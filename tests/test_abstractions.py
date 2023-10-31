@@ -24,13 +24,12 @@ class TestAbstractionAppImg:
         # create temporary directory
         self.tmpdir = tempfile.TemporaryDirectory()
         self.tmpdirname = self.tmpdir.name
-        print(self.tmpdir.name)
 
         # create temporary files and instantiate abstractionAppImg
-        self.app_path = "{}/app.py".format(self.tmpdirname)
-        self.img_path = "{}/img.png".format(self.tmpdirname)
-        os.system("touch {}/app.py".format(self.tmpdirname))
-        os.system("touch {}/img.png".format(self.tmpdirname))
+        self.app_path = os.path.normpath("{}/app.py".format(os.getcwd()))
+        self.img_path = os.path.normpath("{}/img.png".format(os.getcwd()))
+        os.system("touch {}/app.py".format(os.getcwd()))
+        os.system("touch {}/img.png".format(os.getcwd()))
         self.abstraction_img = AbstractionAppImg(
             app_filepath=self.app_path,
             hero_image=self.img_path,
@@ -39,6 +38,7 @@ class TestAbstractionAppImg:
             work_dir=self.tmpdirname)
 
         # create tarball
+        self.abstraction_img.copy_files_to_tmp()
         self.abstraction_img.create_tarball()
 
     def cleanup(self, init_test):
@@ -87,6 +87,33 @@ class TestAbstractionAppImg:
         assert resp.json() == {"status": "success"}
         return
 
+    def test_tarball_creation(self, init_test):
+        # init_test() method should have created the tarball, so we just check for it
+        assert os.path.isfile('{}/{}'.format(
+            self.tmpdirname, self.abstraction_img.abstraction_image_name))
+        return
+
+    def test_post_static_image(self, mocker, init_test):
+        mock_post = mocker.patch('requests.post')
+        mock_response = mock_post.return_value
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"status": "success"}
+
+        # send it
+        resp = self.abstraction_img.send_static_image_post(
+            self.abstraction_img.create_static_image_url(),
+            self.abstraction_img.create_image_dict())
+
+        # assertion checks
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "success"}
+        return
+
+    def test_config_files_exist(self, init_test):
+        for f in self.abstraction_img.abstraction_config_filenames:
+            assert os.path.isfile('{}/{}'.format(self.abstraction_img.work_dir,
+                                                 f))
+
     def test_cleanup(self, init_test):
         self.cleanup(init_test)
-        assert os.path.isdir(self.tmpdirname) == False
+        assert os.path.isdir(self.abstraction_img.work_dir) == False
