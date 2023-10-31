@@ -259,3 +259,21 @@ def log_project_download(file_id: str):
             '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
                              d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
     return
+
+
+def prompt_user(msg: str = None, additional_fields=None):
+    """ Prompts end users in order to continue """
+    if msg is None:
+        raise ValueError("Must provide a contextual message")
+    if additional_fields is None:
+        additional_fields = ""
+    print("{m}: {af}. Do you want to Proceed? [Y/N]".format(
+        m=msg, af=additional_fields))
+    user_input = input('(y/n')
+    while user_input.lower() not in ['y', 'n']:
+        print('please enter either "n" for no, or "y" for yes.')
+        user_input = input('(y/n)')
+    if user_input.lower() == 'y':
+        return True
+    elif user_input.lower() == 'n':
+        return False
