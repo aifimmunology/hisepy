@@ -95,7 +95,7 @@ class AbstractionAppImg:
     abstraction_config_filenames = [
         'config.toml', 'build.sh', 'entrypoint.sh', 'environment.yml'
     ]
-    user_files = ['app.py', 'img.png']
+    user_filenames = ['app.py', 'img.png']
 
     def __init__(self,
                  app_filepath: str,
@@ -138,18 +138,28 @@ class AbstractionAppImg:
             "instanceId": get_from_metadata_server(instance_name_path)
         }
 
-    def copy_files_to_tmp(self):
+    def copy_files_to_tmp(self, filename_list):
+        # copy configs and/or user's app files to the temporary directory
+        for f in filename_list:
+            dst = os.path.normpath(self.work_dir + '/' + f)
 
-        # copy configs to the temporary directory
-        for f in self.abstraction_config_filenames:
-            dst = os.path.normpath(self.work_dir + os.path.dirname(f))
-            if not os.path.exists(dst):
-                os.makedirs(dst)
-            shutil.copy('{}/{}'.format(self.viz_configs_path, f), dst)
-        for f in [self.app_filepath, self.hero_image]:
-            dst = os.path.normpath(self.work_dir + '/' +
-                                   os.path.basename(os.path.realpath(f)))
-            shutil.copy(f, dst)
+            if f in self.abstraction_config_filenames:
+                shutil.copy(os.path.normpath(self.viz_configs_path + '/' + f),
+                            dst)
+            elif f in self.user_filenames:
+                if f in self.app_filepath:
+                    shutil.copy(
+                        '{}/{}'.format(os.path.dirname(self.app_filepath), f),
+                        dst)
+                elif f in self.hero_image:
+                    shutil.copy(
+                        '{}/{}'.format(os.path.dirname(self.hero_image), f),
+                        dst)
+
+            # TODO: can also copy a list of additional files here
+            else:
+                continue
+
         return
 
     def create_tarball(self):
@@ -224,7 +234,8 @@ def save_abstraction(app_filepath: str = None,
 
         # copy files to tmp dir and tar the bad boy up and upload
         cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
-        aobj.copy_files_to_tmp()
+        aobj.copy_files_to_tmp(aobj.abstraction_config_filenames +
+                               aobj.user_filenames)
         aobj.create_tarball()
         resp = parse_hise_response(
             aobj.send_post(aobj.create_url(aobj.create_args()),
