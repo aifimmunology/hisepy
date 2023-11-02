@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_namespace_packages, find_packages
 import os
 import sys
 
@@ -12,7 +12,7 @@ else:
         long_description = f.read()
 
 version = {}
-with open(os.path.join(_here, 'hisepy', 'version.py')) as f:
+with open(os.path.join(_here, 'src', 'hisepy', 'version.py')) as f:
     exec(f.read(), version)
 
 setup(
@@ -23,14 +23,13 @@ setup(
     author='Paul Mariz',
     author_email='paul.mariz@alleninstitute.org',
     url='https://github.com/aifimmunology/hisepy',
-    packages=['hisepy'],
     install_requires=[
         'pandas', 'numpy', 'PyYAML', 'plotly', 'dash', 'kaleido',
         'google-cloud-storage', 'importlib', 'Frozen-Flask', 'requests',
         'h5py', 'google', 'pipreqs==0.4.12', 'pip-tools', 'pyreadr',
         'termcolor'
     ],
-    scripts=['hisepy/config.yaml'],
+    scripts=['src/hisepy/config.yaml'],
     include_package_data=True,
     classifiers=[
         'Immunology', 'Statistical Regression',
