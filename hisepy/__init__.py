@@ -12,8 +12,7 @@ from .project_folder import (list_project_folders,
                              download_from_project_folder)
 from .reader import (hise_file, read_files, read_subjects, read_samples,
                      query_files, get_file_descriptors, cache_filesets,
-                     list_filesets)
-from .scRNA_utils import (read_obs, read_mat, read_genes, create_AnnData)
+                     list_filesets, cache_files)
 from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
                         clear_notebook_job)
 from .upload import (upload_files, save_static_image, save_visualization,
