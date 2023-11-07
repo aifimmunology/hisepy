@@ -10,9 +10,9 @@ from .project_store import (list_project_stores, list_files_in_project_store,
 from .project_folder import (list_project_folders,
                              list_files_in_project_folder,
                              download_from_project_folder)
-from .reader import (hise_file, read_files, read_subjects, read_samples,
-                     query_files, get_file_descriptors, cache_filesets,
-                     list_filesets)
+from .reader import (hise_file, cache_files, read_files, read_subjects,
+                     read_samples, query_files, get_file_descriptors,
+                     cache_filesets, list_filesets)
 from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
                         clear_notebook_job)
 from .upload import (upload_files, save_static_image, save_visualization,
