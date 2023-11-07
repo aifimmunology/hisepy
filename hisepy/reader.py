@@ -252,6 +252,7 @@ def post_query(file_list: list = None,
         for i in range(0, len(payload)):
             file_list += [payload[i]['file']['id']]
         file_list = set(file_list)
+
     # if user submits a query_id, grab all fileIds associated with that query
     if query_id is not None:
         q_endpoint = 'https://{s}/{q}/{qid}'.format(
@@ -414,6 +415,49 @@ def cache_and_convert_file_data(file_data: dict):
                      data_values=this_file_values)
 
 
+def cache_files(file_ids: list = None, query_id: list = None):
+
+    # verify input parameters are sane
+    if file_ids is not None and type(file_ids) is not list:
+        raise Exception("file_ids parameter must be a list")
+    if query_id is not None and type(query_id) is not list:
+        raise Exception("query_id parameter must be a list")
+    if query_id is not None and len(query_id) > 1:
+        raise Exception(
+            "You can only specify a single query_if per function call")
+    if file_ids is None and query_id is None:
+        raise Exception("One of file_ids, or query_id must be non-null")
+
+    # check if user submitted a query_id vs file_id
+    if query_id is not None:
+        # expand file_ids from query_id, if needed
+        resp_obj = post_query(query_id=query_id[0])
+    else:
+        resp_obj = post_query(file_list=file_ids)
+
+    # make request to hydration to download every file
+    idx = 0
+    for f in resp_obj:
+        download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
+                                             c=CONFIG['IDE']['CACHE_DIR'],
+                                             id=f['descriptors']['file']['id'])
+        f_name = os.path.basename(f['descriptors']['file']['name'])
+        cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
+
+        # if the user passes in a file_list, make sure they didn't get redirected because they
+        # downloaded from a guest account
+        if file_ids is not None and f['descriptors']['file']["id"] != file_ids[
+                idx]:
+            tmp_hise_file = copy.deepcopy(f)
+            tmp_hise_file['descriptors']['file']["id"] = file_ids[idx]
+            cu.log_downloaded_files(tmp_hise_file)
+        else:
+            cu.log_downloaded_files(f)
+        idx += 1
+    print("Files have been successfully downloaded!")
+    return
+
+
 def cache_file(url: str, file_name: str, file_dir: str):
     if not os.path.exists(file_dir):
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
@@ -424,6 +468,7 @@ def cache_file(url: str, file_name: str, file_dir: str):
         raise SystemError("Request to get file %s failed with status %d. %s" %
                           (file_name, resp.status_code, resp.text))
     open(f_path, 'wb').write(resp.content)
+    return
 
 
 def read_samples(sample_ids=None, query_dict=None, to_df=True):
