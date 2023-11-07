@@ -442,6 +442,7 @@ def cache_files(file_ids: list = None, query_id: list = None):
                                              c=CONFIG['IDE']['CACHE_DIR'],
                                              id=f['descriptors']['file']['id'])
         f_name = os.path.basename(f['descriptors']['file']['name'])
+        print("downloading fileID: {}".format(f['descriptors']['file']['id']))
         cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
