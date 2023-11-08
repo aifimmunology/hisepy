@@ -322,7 +322,8 @@ def read_files(file_list: list = None,
 
             # if the response's fileId is different than the ID we original made the request with, then toolchain
             # noticed the request came from a guest account. if that's the case, we just log both files
-            if f['descriptors']['file']["id"] != file_list[idx]:
+            if file_list is not None and f['descriptors']['file'][
+                    "id"] != file_list[idx]:
                 tmp_hise_file = copy.deepcopy(f)
                 tmp_hise_file['descriptors']['file']["id"] = file_list[idx]
                 cu.log_downloaded_files(tmp_hise_file)
@@ -444,6 +445,7 @@ def cache_files(file_ids: list = None, query_id: list = None):
         f_name = os.path.basename(f['descriptors']['file']['name'])
         print("downloading fileID: {}".format(f['descriptors']['file']['id']))
         cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
+        cu.log_downloaded_files(f)
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
         # downloaded from a guest account
@@ -452,8 +454,7 @@ def cache_files(file_ids: list = None, query_id: list = None):
             tmp_hise_file = copy.deepcopy(f)
             tmp_hise_file['descriptors']['file']["id"] = file_ids[idx]
             cu.log_downloaded_files(tmp_hise_file)
-        else:
-            cu.log_downloaded_files(f)
+
         idx += 1
     print("Files have been successfully downloaded!")
     return
