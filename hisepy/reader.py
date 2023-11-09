@@ -610,12 +610,15 @@ def get_server(service):
     test_hydration_server = os.getenv("TEST_HYDRATION_SERVER")
     test_toolchain_server = os.getenv("TEST_TOOLCHAIN_SERVER")
     test_tracer_server = os.getenv("TEST_TRACER_SERVER")
+    test_ledger_server = os.getenv("TEST_LEDGER_SERVER")
     if service == "hydration" and test_hydration_server is not None:
         return test_hydration_server
     elif service == "toolchain" and test_toolchain_server is not None:
         return test_toolchain_server
     elif service == "tracer" and test_tracer_server is not None:
         return test_tracer_server
+    elif service == "ledger" and test_ledger_server is not None:
+        return test_ledger_server
     else:
         return get_from_metadata_server(server_id_path)
 
@@ -645,7 +648,6 @@ def hise_url(service: str,
             raise ValueError("query string argument was a %s, not a dict" %
                              (type(args)))
         url += "?%s" % (urllib.parse.urlencode(args, doseq=True))
-
     return url
 
 
