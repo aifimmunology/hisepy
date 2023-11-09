@@ -12,6 +12,10 @@ FILETYPES:
   SCRNA_RESULT : scRNA-seq-labeled 
   DASH_APP: dash_app.tar.gz
 
+PROMPTS: 
+  UPLOAD : You are trying to upload file IDs.
+  ABSTRACTION: You are about to save an abstract visualization template.
+
 # Authorization config
 AUTHORIZE: 
   METADATA_SERVER_ROOT : http://metadata.google.internal/computeMetadata/v1/instance
@@ -42,6 +46,7 @@ HYDRATION:
   UPLOAD_PATH: hydration/source/studyspace/file
   QUERY_SEARCH_PATH : hydration/analysis/query
   WEBSOCKET_PATH: hydration/source/stream/open
+  HISE_WIDE_STATIC_IMG_PATH: hydration/source/abstraction/save
 
 # ledger endpoints 
 LEDGER: 
@@ -69,12 +74,16 @@ IDE:
 TOOLCHAIN: 
   SCHEDULER_PATH : toolchain/scheduler
   VISUALIZATION_PATH: toolchain/visualization
+  ABSTRACTION_PATH: toolchain/abstraction
   UPLOAD_FILE_PATH: toolchain/file
   SAVE_DASH_APP_PATH: toolchain/visualization/dash
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
   TOOLCHAIN_IDE : toolchain/instances
   UPLOAD_HARVEST_LOWER_BOUND_MB: 10.0
   
+ABSTRACTION: 
+  VIZ_CONFIGS_PATH : /root/.jupyter/templates/abstraction_configs
+
 # scheduler endpoints and global... 
 SCHEDULER: 
   PLATFORM_DEFAULT : Notebook
