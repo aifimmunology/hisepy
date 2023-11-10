@@ -132,6 +132,7 @@ class AbstractionAppImg:
         return {
             "title": self.title,
             "description": self.description,
+            "appDetails": self.abstraction_image_name,
             "inputResultFiles": self.result_file_ids,
             "notebook": current_notebook(),
             "homedir": IDE_HOME_DIR,
