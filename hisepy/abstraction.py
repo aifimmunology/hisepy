@@ -75,16 +75,16 @@ def _validate_abstraction_params(title: str, description: str,
         raise ValueError("must provide a title for the abstraction")
     if description is None:
         raise ValueError("A description for the abstraction is required")
-    if input_ids is None or len(input_ids) < 1:
-        raise ValueError("You must provide at least 1 input file ID")
+    #if input_ids is None or len(input_ids) < 1:
+    #    raise ValueError("You must provide at least 1 input file ID")
 
     # type check
     if type(title) is not str:
         raise TypeError("title must be a string")
     if type(description) is not str:
         raise TypeError("description must be a string")
-    if type(input_ids) is not list:
-        raise TypeError("input file Ids must be a list")
+    #if type(input_ids) is not list:
+    #    raise TypeError("input file Ids must be a list")
     return True
 
 
@@ -104,7 +104,6 @@ class AbstractionAppImg:
                  description: str,
                  work_dir: str,
                  result_file_ids: list = None):
-
         self.result_file_ids = result_file_ids
         self.app_filepath = os.path.abspath(app_filepath)
         self.hero_image = os.path.abspath(hero_image)
@@ -117,9 +116,10 @@ class AbstractionAppImg:
         return hise_url("hydration", "hise_wide_static_img_path")
 
     def send_static_image_post(self, url, img_dict):
-        resp = requests.post(url,
-                             headers=get_bearer_token_header(),
-                             files=img_dict)
+        resp = parse_hise_response(
+            requests.post(url,
+                          headers=get_bearer_token_header(),
+                          files=img_dict))
         return resp
 
     def create_image_dict(self):
@@ -128,7 +128,7 @@ class AbstractionAppImg:
                       "image/%s" % (cu.get_filetype(self.hero_image)))
         }
 
-    def create_args(self):
+    def create_args(self, img_resp):
         return {
             "title": self.title,
             "description": self.description,
@@ -136,6 +136,7 @@ class AbstractionAppImg:
             "inputResultFiles": self.result_file_ids,
             "notebook": current_notebook(),
             "homedir": IDE_HOME_DIR,
+            "heroImages": [img_resp['url']],
             "instanceId": get_from_metadata_server(instance_name_path)
         }
 
@@ -152,7 +153,7 @@ class AbstractionAppImg:
                     shutil.copy(
                         '{}/{}'.format(os.path.dirname(self.app_filepath), f),
                         dst)
-                elif f in self.hero_image:
+                elif f in self.hero_image:  # we save the image.. probably don't need to bundle it up
                     shutil.copy(
                         '{}/{}'.format(os.path.dirname(self.hero_image), f),
                         dst)
@@ -230,8 +231,8 @@ def save_abstraction(app_filepath: str = None,
                                  result_file_ids=result_file_ids)
 
         # POST to hydration and save the static image
-        aobj.send_static_image_post(aobj.create_static_image_url(),
-                                    aobj.create_image_dict())
+        resp = aobj.send_static_image_post(aobj.create_static_image_url(),
+                                           aobj.create_image_dict())
 
         # copy files to tmp dir and tar the bad boy up and upload
         cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
@@ -239,7 +240,7 @@ def save_abstraction(app_filepath: str = None,
                                aobj.user_filenames)
         aobj.create_tarball()
         resp = parse_hise_response(
-            aobj.send_post(aobj.create_url(aobj.create_args()),
+            aobj.send_post(aobj.create_url(aobj.create_args(resp)),
                            aobj.create_file_arg()))
 
         print("abstraction image was successfully uploaded!")
