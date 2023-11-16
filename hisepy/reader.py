@@ -417,7 +417,12 @@ def cache_and_convert_file_data(file_data: dict):
 
 
 def cache_files(file_ids: list = None, query_id: list = None):
-
+    """ 
+    Downloads requested files to the following directory: "./cache/<fileID>"
+    Parameters: 
+        file_ids (list): list of file IDs
+        query_id (list): list of a single query ID
+    """
     # verify input parameters are sane
     if file_ids is not None and type(file_ids) is not list:
         raise Exception("file_ids parameter must be a list")
