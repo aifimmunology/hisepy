@@ -82,7 +82,7 @@ TOOLCHAIN:
   UPLOAD_HARVEST_LOWER_BOUND_MB: 10.0
   
 ABSTRACTION: 
-  VIZ_CONFIGS_PATH : /root/.jupyter/templates/abstraction_configs
+  VIZ_CONFIGS_PATH : /home/jupyter/demo-hise-api/demos/Visualization_apps/dash/configs
 
 # scheduler endpoints and global... 
 SCHEDULER: 
