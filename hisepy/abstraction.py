@@ -95,7 +95,7 @@ class AbstractionAppImg:
     abstraction_config_filenames = [
         'config.toml', 'build.sh', 'entrypoint.sh', 'environment.yml'
     ]
-    user_filenames = ['app.py', 'img.png']
+    user_filenames = ['app.py']
 
     def __init__(self,
                  app_filepath: str,
