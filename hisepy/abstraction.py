@@ -177,7 +177,7 @@ class AbstractionAppImg:
         app_path = '{wd}/{an}'.format(wd=self.work_dir,
                                       an=self.abstraction_image_name)
         abstraction_img = {
-            'file': (app_path, open(app_path, 'rb'), 'application/json', {
+            'file': (app_path, open(app_path, 'rb'), 'application/gzip', {
                 'Expires': '0'
             })
         }
