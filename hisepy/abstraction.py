@@ -88,6 +88,11 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
         raise TypeError("additional_files must be a list")
     #if type(input_ids) is not list:
     #    raise TypeError("input file Ids must be a list")
+
+    # check that each file exists
+    for f in additional_files:
+        if not os.path.exists(f):
+            raise ValueError("%s is not a valid file" % f)
     return True
 
 
