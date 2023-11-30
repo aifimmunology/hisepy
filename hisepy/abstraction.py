@@ -4,6 +4,7 @@ import requests
 import tempfile
 import tarfile
 import shutil
+import pathlib as pl
 import hisepy.common_utils as cu
 import hisepy.upload as cup
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
@@ -66,8 +67,8 @@ def map_result_friendly_name_to_id(result_name: str):
         return accepted_abstraction_results[result_name]
 
 
-def _validate_abstraction_params(title: str, description: str,
-                                 input_ids: list):
+def _validate_abstraction_params(title: str, description: str, input_ids: list,
+                                 additional_files: list):
     """ validates parameters are coming in as expected """
 
     # required params check
@@ -83,8 +84,15 @@ def _validate_abstraction_params(title: str, description: str,
         raise TypeError("title must be a string")
     if type(description) is not str:
         raise TypeError("description must be a string")
+    if type(additional_files) is not list:
+        raise TypeError("additional_files must be a list")
     #if type(input_ids) is not list:
     #    raise TypeError("input file Ids must be a list")
+
+    # check that each file exists
+    for f in additional_files:
+        if not os.path.exists(f):
+            raise ValueError("%s is not a valid file" % f)
     return True
 
 
@@ -157,11 +165,21 @@ class AbstractionAppImg:
                     shutil.copy(
                         '{}/{}'.format(os.path.dirname(self.hero_image), f),
                         dst)
-
-            # TODO: can also copy a list of additional files here
             else:
-                continue
-
+                # we need to preserve the directory tree since app.py may reference a custom module
+                # take the relative path app.py and make that the destination
+                try:
+                    rel_dst = pl.PurePath(self.work_dir).joinpath(
+                        pl.PurePath(os.path.dirname(f)).relative_to(
+                            os.path.dirname(self.app_filepath)))
+                except:
+                    raise ValueError(
+                        "{} in additional_files must be relative to the path specified in the app_filepath parameter. If you want this file included in your application, please move the file somewhere in {}"
+                        .format(f, os.path.dirname(self.app_filepath)))
+                if not os.path.exists(rel_dst):
+                    os.makedirs(rel_dst)
+                dst = rel_dst.joinpath(pl.PurePath(os.path.basename(f)))
+                shutil.copy(f, dst)
         return
 
     def create_tarball(self):
@@ -203,8 +221,8 @@ def validate_abstraction_app_path(app_path):
         raise ValueError("App file must be within %s" % IDE_HOME_DIR)
 
 
-# TODO: are users still passing in additional files? what else would they need to send for release 1?
 def save_abstraction(app_filepath: str = None,
+                     additional_files: list = None,
                      title: str = None,
                      description: str = None,
                      result_file_ids: list = None,
@@ -213,14 +231,20 @@ def save_abstraction(app_filepath: str = None,
     Save an abstraction to current user's account.
     
     Parameters:
-
+        app_filepath (str) : path to file named app.py 
+        additional_files (list) : list of additional files required for your app
+        title (str) : a title for your app 
+        description (str) : description of the app
+        result_file_ids (list) : UUID of Result File Type (e.g Olink, fixed-RNA-seq-labeled, scRNA-seq-labeled, etc)
+        image (str) : filepath to png thumbnail image for app 
     Returns:
         server response 
     Example: 
         hp.save_abstraction()
     """
     # parameter check
-    _validate_abstraction_params(title, description, result_file_ids)
+    _validate_abstraction_params(title, description, result_file_ids,
+                                 additional_files)
     validate_abstraction_app_path(app_filepath)
     with tempfile.TemporaryDirectory() as tmpdirname:
         aobj = AbstractionAppImg(app_filepath=app_filepath,
@@ -237,7 +261,7 @@ def save_abstraction(app_filepath: str = None,
         # copy files to tmp dir and tar the bad boy up and upload
         cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
         aobj.copy_files_to_tmp(aobj.abstraction_config_filenames +
-                               aobj.user_filenames)
+                               aobj.user_filenames + additional_files)
         aobj.create_tarball()
         resp = parse_hise_response(
             aobj.send_post(aobj.create_url(aobj.create_args(resp)),
