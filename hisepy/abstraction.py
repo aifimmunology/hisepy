@@ -174,8 +174,8 @@ class AbstractionAppImg:
                             os.path.dirname(self.app_filepath)))
                 except:
                     raise ValueError(
-                        "{} in additional_files must be relative to the path specified in the app_filepath parameter"
-                        .format(f))
+                        "{} in additional_files must be relative to the path specified in the app_filepath parameter. If you want this file included in your application, please move the file somewhere in {}"
+                        .format(f, os.path.dirname(self.app_filepath)))
                 if not os.path.exists(rel_dst):
                     os.makedirs(rel_dst)
                 dst = rel_dst.joinpath(pl.PurePath(os.path.basename(f)))
