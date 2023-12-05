@@ -243,5 +243,4 @@ def save_abstraction(app_filepath: str = None,
             aobj.send_post(aobj.create_url(aobj.create_args(resp)),
                            aobj.create_file_arg()))
 
-        print("abstraction image was successfully uploaded!")
-        return resp
+        return{"message": resp["Message"], "configFileId": resp["ConfigFileId"]}
