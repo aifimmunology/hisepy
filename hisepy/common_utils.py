@@ -16,6 +16,7 @@ import pandas as pd
 import datetime
 import json
 import pathlib
+import copy
 from hisepy.auth import debug
 
 # directory of hisepy package
@@ -60,6 +61,43 @@ def remove_dir(directory):
     """ Removes entire directory, including any child files """
     shutil.rmtree(directory)
     return True
+
+
+def parse_file_descriptor_from_hise_file(hise_file):
+    """
+    Takes a hise_file object and returns its file_id, file_name and the descriptor object
+
+    Parameters:
+        hise_file (hise_file): hisepy.reader.hise_file object 
+    Returns: 
+        a tuple (file_id, file_name, descriptor object)
+    """
+    if type(hise_file['descriptors']) is list:
+        this_file_id = hise_file['descriptors'][0]['file']['id']
+        this_file_name = hise_file['descriptors'][0]['file']['name']
+        this_desc = hise_file['descriptors'][0]
+    elif type(hise_file['descriptors']) is dict:
+        this_file_id = hise_file['descriptors']['file']['id']
+        this_file_name = hise_file['descriptors']['file']['name']
+        this_desc = hise_file['descriptors']
+    return this_file_id, this_file_name, this_desc
+
+
+def log_replica_file_download(hise_file, file_id):
+    """
+    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged 
+
+    Parameters: 
+        hise_file (hise_file): hisepy.reader.hise_file object 
+        file_id (str): original file_id that's passed in to read_files() or cache_files() 
+    """
+    this_file_id, this_file_name, this_desc = parse_file_descriptor_from_hise_file(
+        hise_file)
+    if (this_file_id != file_id):
+        tmp_hise_file = copy.deepcopy(this_desc)
+        tmp_hise_file["id"] = file_id
+        log_downloaded_files(tmp_hise_file)
+    return
 
 
 def log_downloaded_files(hise_file):
