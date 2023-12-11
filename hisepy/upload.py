@@ -265,7 +265,12 @@ def save_visualization(
         img_data = save_static_image(image=tmp_img_file,
                                      title=title,
                                      study_space_id=study_space_id)
-        args = {"images": img_data["id"]}
+
+        # if-else clause to handle if user is calling method from a guest workspace
+        if img_data is None:
+            args = {}
+        else:
+            args = {"images": img_data["id"]}
     os.remove(tmp_img_file)
 
     exp_obj = json.loads(pl_obj.to_json())
