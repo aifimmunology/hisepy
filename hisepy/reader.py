@@ -143,16 +143,11 @@ def query_files(user_query: dict):
     endpoint = "https://{s}/{de}".format(
         s=get_from_metadata_server(server_id_path),
         de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
-    resp = requests.post(endpoint,
-                         data=json.dumps({"filter": query_dict}),
-                         headers=get_bearer_token_header())
-    obj = json.loads(resp.text)
-    if type(obj) is not dict:
-        raise TypeError("Response %s is not a list, it is a %s." %
-                        (resp.text, type(obj)))
-    elif "payload" not in obj:
-        raise TypeError("Response %s contained an empty payload!" % resp.text)
-    return obj["payload"]
+    obj = parse_hise_response(
+        requests.post(endpoint,
+                      data=json.dumps({"filter": query_dict}),
+                      headers=get_bearer_token_header()))
+    return obj['payload']
 
 
 def validate_user_query_fields(query):
@@ -234,10 +229,13 @@ def post_query(file_list: list = None,
     """
     # make sure users only use 1 parameter
     if file_list is not None:
+        assert type(file_list) is list
         assert (query_id is None) & (query_dict is None)
     elif query_id is not None:
+        assert type(query_id) is list
         assert (file_list is None) & (query_dict is None)
     elif query_dict is not None:
+        assert type(query_dict) is dict
         assert (file_list is None) & (query_id is None)
 
     if (file_list != None) & (type(file_list) is not list):
@@ -258,11 +256,11 @@ def post_query(file_list: list = None,
         q_endpoint = 'https://{s}/{q}/{qid}'.format(
             s=get_from_metadata_server(server_id_path),
             q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
-            qid=query_id)
-        resp = requests.request('POST',
-                                q_endpoint,
-                                headers=get_bearer_token_header())
-        resp_obj = json.loads(resp.text)
+            qid=query_id[0])
+        resp_obj = parse_hise_response(
+            requests.request('POST',
+                             q_endpoint,
+                             headers=get_bearer_token_header()))
         file_list = []
         for o in resp_obj:
             file_list += [o['file']['id']]
@@ -284,7 +282,7 @@ def post_query(file_list: list = None,
 
 
 def read_files(file_list: list = None,
-               query_id: str = None,
+               query_id: list = None,
                query_dict: dict = None,
                to_df: bool = True):
     """
