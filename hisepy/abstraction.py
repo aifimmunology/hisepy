@@ -243,6 +243,8 @@ def save_abstraction(app_filepath: str = None,
         hp.save_abstraction()
     """
     # parameter check
+    if additional_files is None:
+        additional_files = []
     _validate_abstraction_params(title, description, result_file_ids,
                                  additional_files)
     validate_abstraction_app_path(app_filepath)
@@ -267,4 +269,7 @@ def save_abstraction(app_filepath: str = None,
             aobj.send_post(aobj.create_url(aobj.create_args(resp)),
                            aobj.create_file_arg()))
 
-        return{"message": resp["Message"], "configFileId": resp["ConfigFileId"]}
+        return {
+            "message": resp["Message"],
+            "configFileId": resp["ConfigFileId"]
+        }
