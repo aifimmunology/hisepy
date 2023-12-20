@@ -271,5 +271,6 @@ def save_abstraction(app_filepath: str = None,
 
         return {
             "message": resp["Message"],
+            "AbstractionId": resp["AbstractionId"],
             "configFileId": resp["ConfigFileId"]
         }
