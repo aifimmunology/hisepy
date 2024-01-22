@@ -54,7 +54,7 @@ LEDGER:
   SAMPLE_SEARCH_PATH : ledger/sample/q
   SUBJECT_SEARCH_PATH : ledger/subject/q
   FILE_SEARCH_PATH : ledger/file/q
-  RESULT_FILE_SEARCH_PATH: ledger/resultfile/filter
+  RESULT_FILE_SEARCH_PATH: ledger/resultfile
 
 # tracer endpoints 
 TRACER: 
