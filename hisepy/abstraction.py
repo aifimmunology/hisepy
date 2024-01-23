@@ -19,8 +19,14 @@ IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 
 
 def get_result_files(to_df=True):
-    """ Returns available result files for the user's current account/projects.
-        The object returned will be a json object, or a data.frame.
+    """ 
+    Returns available result files for the user's current account/projects.
+    The object returned will be a json object, or a data.frame.
+
+    Parameters: 
+        to_df (bool) : boolean, where if true, output will be a data.frame. Otherwise, 
+        the object returned will be a json response. 
+
     """
     keep_cols = ['id', 'fileType', 'description', 'isSearchable']
     resp = parse_hise_response(
@@ -98,7 +104,8 @@ def result_filetype_to_guid(filetype: str):
 
 
 def _validate_abstraction_params(title: str, description: str, input_ids: list,
-                                 additional_files: list):
+                                 additional_files: list,
+                                 data_contract_id: str):
     """ validates parameters are coming in as expected """
 
     # required params check
@@ -106,6 +113,9 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
         raise ValueError("must provide a title for the abstraction")
     if description is None:
         raise ValueError("A description for the abstraction is required")
+    if data_contract_id is None:
+        raise ValueError(
+            "A data contract must be submitted when saving an Abstraction")
 
     # type check
     if type(title) is not str:
@@ -114,6 +124,10 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
         raise TypeError("description must be a string")
     if type(additional_files) is not list:
         raise TypeError("additional_files must be a list")
+    if type(input_ids) is not list:
+        raise TypeError("result_file_type must be of type list")
+    if type(data_contract_id) is not str:
+        raise TypeError("data_contract_id must be of type string")
 
     # check that each file exists
     for f in additional_files:
@@ -136,6 +150,7 @@ class AbstractionAppImg:
                  hero_image: str,
                  title: str,
                  description: str,
+                 data_contract_id: list,
                  work_dir: str,
                  result_file_ids: list = None):
         self.result_file_ids = result_file_ids
@@ -143,6 +158,7 @@ class AbstractionAppImg:
         self.hero_image = os.path.abspath(hero_image)
         self.title = title
         self.description = description
+        self.data_contract_id = data_contract_id
         self.work_dir = work_dir
         self.viz_configs_path = CONFIG['ABSTRACTION']['VIZ_CONFIGS_PATH']
 
@@ -150,10 +166,9 @@ class AbstractionAppImg:
         return hise_url("hydration", "hise_wide_static_img_path")
 
     def send_static_image_post(self, url, img_dict):
-        resp = parse_hise_response(
-            requests.post(url,
-                          headers=get_bearer_token_header(),
-                          files=img_dict))
+        resp = requests.post(url,
+                             headers=get_bearer_token_header(),
+                             files=img_dict)
         return resp
 
     def create_image_dict(self):
@@ -168,6 +183,7 @@ class AbstractionAppImg:
             "description": self.description,
             "appDetails": self.abstraction_image_name,
             "inputResultFiles": self.result_file_ids,
+            "dataContractId": self.data_contract_id,
             "notebook": current_notebook(),
             "homedir": IDE_HOME_DIR,
             "heroImages": [img_resp['url']],
@@ -251,6 +267,7 @@ def save_abstraction(app_filepath: str = None,
                      additional_files: list = None,
                      title: str = None,
                      description: str = None,
+                     data_contract_id: str = None,
                      result_file_type: list = None,
                      image: str = None):  # optional
     """ 
@@ -261,7 +278,9 @@ def save_abstraction(app_filepath: str = None,
         additional_files (list) : list of additional files required for your app
         title (str) : a title for your app 
         description (str) : description of the app
-        result_file_ids (list) : UUID of Result File Type (e.g Olink, fixed-RNA-seq-labeled, scRNA-seq-labeled, etc)
+        data_contract_id (str) : UUID of data contract. This data contract defines the column names of an input data.frame
+                                 that's used as input for a visualization application.
+        result_file_type (list) : Result fileType name (e.g Olink, fixed-RNA-seq-labeled, scRNA-seq-labeled, etc)
         image (str) : filepath to png thumbnail image for app 
     Returns:
         server response 
@@ -278,19 +297,21 @@ def save_abstraction(app_filepath: str = None,
         for r in result_file_type:
             result_file_ids.append(result_filetype_to_guid(r))
     _validate_abstraction_params(title, description, result_file_ids,
-                                 additional_files)
+                                 additional_files, data_contract_id)
     validate_abstraction_app_path(app_filepath)
     with tempfile.TemporaryDirectory() as tmpdirname:
         aobj = AbstractionAppImg(app_filepath=app_filepath,
                                  hero_image=image,
                                  title=title,
                                  description=description,
+                                 data_contract_id=data_contract_id,
                                  work_dir=tmpdirname,
                                  result_file_ids=result_file_ids)
 
         # POST to hydration and save the static image
-        resp = aobj.send_static_image_post(aobj.create_static_image_url(),
-                                           aobj.create_image_dict())
+        resp = parse_hise_response(
+            aobj.send_static_image_post(aobj.create_static_image_url(),
+                                        aobj.create_image_dict()))
 
         # copy files to tmp dir and tar the bad boy up and upload
         cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
