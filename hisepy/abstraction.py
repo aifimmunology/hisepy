@@ -10,61 +10,91 @@ import hisepy.upload as cup
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
-
+import pandas as pd
 from hisepy import auth
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 
-accepted_abstraction_results = {
-    "Cytometry - Supervised Gating Population Counts":
-    "264d2dae-0934-423f-88a1-1e1d348db653",
-    "scRNA seq labeled": "58e1b1fd-3cd8-408e-868e-a22104d86b12"
-}
 
-
-def get_abstraction_result_files(result_names: list):
-    """ Returns available result files for the user's current account/projects """
-    assert type(result_names) is list, "input must be a list of strings"
-
-    # make sure we support abstractions for the selected result
-    ids = []
-    for rn in result_names:
-        this_id = map_result_friendly_name_to_id(rn)
-        ids += [this_id]
-    tmp = "%s" % (', '.join(['"{}"'.format(v) for v in ids]))
-    resp = requests.post(hise_url("ledger", "result_file_search_path"),
-                         json={"filter": {
-                             "id": {
-                                 "$in": ids
-                             }
-                         }},
-                         headers=get_bearer_token_header())
-    return parse_hise_response(resp)
-
-
-def is_result_supported(result_name: str):
-    """ Returns a boolean determining whether a result file is allowed to be used for abstractions
+def get_result_files(to_df=True):
+    """ Returns available result files for the user's current account/projects.
+        The object returned will be a json object, or a data.frame.
     """
-    if result_name not in accepted_abstraction_results.keys():
-        return False
+    keep_cols = ['id', 'fileType', 'description', 'isSearchable']
+    resp = parse_hise_response(
+        requests.get(hise_url("ledger", "result_file_search_path"),
+                     headers=get_bearer_token_header()))
+    if to_df:
+        result_df = result_json_to_df(resp)
+        return result_df[keep_cols]
     else:
-        return True
+        return resp
 
 
-def map_result_friendly_name_to_id(result_name: str):
-    """ 
-    this function will take a resultFile.FriendName string value and return you 
-    its corresponding resultFile.ID 
+def result_json_to_df(json_obj):
+    '''
+    flatten nested structure of a JSON object and creates a data.frame 
+    '''
+    agg_df = pd.DataFrame()
+    for o in json_obj:
+        agg_df = pd.concat([agg_df, pd.json_normalize(o)])
+    return agg_df
+
+
+def user_prompt_select_result(rf_df: pd.DataFrame, filetype):
     """
-    if not is_result_supported(result_name):
-        raise SystemError(
-            "The result file type is not current supported for visualization work. The following are supported results for visualizations: %s"
-            % (accepted_abstraction_results.keys()))
-        return
+    Prompt user to select resultFile.fileType of interest
+    """
+    # determine number of possibilities
+    num_dups = len(rf_df)
+    input_range = list(range(num_dups))
+
+    # prompt user
+    msg = "filetype {f} contains more than 1 entry. Please select one out of the following data.frame: ".format(
+        f=filetype)
+    print(msg)
+    print(rf_df)
+    user_input = input(
+        "Enter entry index of interest. Possible values to enter are {}: ".
+        format(input_range))
+
+    # no escaping unless you choose a valid value
+    while int(user_input) not in input_range:
+        print("please enter a value from the following list: {}".format(
+            input_range))
+        user_input = input()
+    return rf_df.loc[int(user_input), 'id']
+
+
+def result_filetype_to_guid(filetype: str):
+    ''' 
+    Given a ResultFile.fileType, return the corresponding resultFile.ID
+    '''
+
+    # get all the resultFiles and concat
+    agg_df = get_result_files()
+
+    # check that the result file exists
+    if filetype not in agg_df['fileType'].values:
+        raise ValueError(
+            "%s is not a valid resultFile name. The following is a list of valid resultFile names: %s"
+            % (filetype, agg_df['fileType'].values))
     else:
-        return accepted_abstraction_results[result_name]
+        # additional filter on isSearchable because you can only create visualizations on data you're able to find/download
+        desired_result = agg_df.loc[
+            agg_df['fileType'].eq(filetype)
+            & agg_df['isSearchable'].eq("true"),
+            ['id', 'fileType', 'description']].reset_index(drop=True)
+
+    # handle potential name collisions
+    if len(desired_result) > 1:
+        guid_val = user_prompt_select_result(desired_result, filetype)
+        return guid_val
+    else:
+        guid_val = desired_result.loc[0, 'id']
+        return guid_val
 
 
 def _validate_abstraction_params(title: str, description: str, input_ids: list,
@@ -76,8 +106,6 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
         raise ValueError("must provide a title for the abstraction")
     if description is None:
         raise ValueError("A description for the abstraction is required")
-    #if input_ids is None or len(input_ids) < 1:
-    #    raise ValueError("You must provide at least 1 input file ID")
 
     # type check
     if type(title) is not str:
@@ -86,8 +114,6 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
         raise TypeError("description must be a string")
     if type(additional_files) is not list:
         raise TypeError("additional_files must be a list")
-    #if type(input_ids) is not list:
-    #    raise TypeError("input file Ids must be a list")
 
     # check that each file exists
     for f in additional_files:
@@ -225,7 +251,7 @@ def save_abstraction(app_filepath: str = None,
                      additional_files: list = None,
                      title: str = None,
                      description: str = None,
-                     result_file_ids: list = None,
+                     result_file_type: list = None,
                      image: str = None):  # optional
     """ 
     Save an abstraction to current user's account.
@@ -245,6 +271,12 @@ def save_abstraction(app_filepath: str = None,
     # parameter check
     if additional_files is None:
         additional_files = []
+
+    # convert each filetype to its' corresponding guid
+    if result_file_type is not None:
+        result_file_ids = []
+        for r in result_file_type:
+            result_file_ids.append(result_filetype_to_guid(r))
     _validate_abstraction_params(title, description, result_file_ids,
                                  additional_files)
     validate_abstraction_app_path(app_filepath)

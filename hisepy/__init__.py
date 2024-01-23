@@ -16,9 +16,10 @@ from .reader import (hise_file, read_files, read_subjects, read_samples,
 from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
                         clear_notebook_job)
 from .upload import (upload_files, save_static_image, save_visualization,
-                     load_visualization, get_trace, get_result_files,
-                     get_study_spaces, get_files_for_query, save_dash_app)
-from .abstraction import (save_abstraction)
+                     load_visualization, get_trace, get_study_spaces,
+                     get_files_for_query, save_dash_app)
+from .abstraction import (save_abstraction, result_filetype_to_guid,
+                          get_result_files)
 from .private_folders import (
     create_private_folder, delete_file_in_private_folder,
     list_files_in_all_private_folders, list_files_in_private_folder,
