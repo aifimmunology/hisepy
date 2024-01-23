@@ -35,6 +35,7 @@ class TestAbstractionAppImg:
             hero_image=self.img_path,
             title='test abstraction',
             description='a description worth reading',
+            data_contract_id='fakeGUID123',
             work_dir=self.tmpdirname)
 
         # create tarball
