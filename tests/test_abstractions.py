@@ -36,6 +36,7 @@ class TestAbstractionAppImg:
             title='test abstraction',
             description='a description worth reading',
             data_contract_id='fakeGUID123',
+            project_guid='projgu12d',
             work_dir=self.tmpdirname)
 
         # create tarball
@@ -60,6 +61,7 @@ class TestAbstractionAppImg:
             "title": "mock title",
             "description": "descibing what an abstraction is",
             "inputResultFiles": ['d2700632-4ce8-44df-95ba-9290be3c86b6'],
+            "projectGuid": 'project123',
             "notebook": "mock_notebook.ipynb",
             "appDetails": "random text",
             "homedir": "/home/jupyter",
