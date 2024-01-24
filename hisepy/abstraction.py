@@ -16,6 +16,56 @@ from hisepy import auth
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
+any_project_urn = "urn:hise:project:any"
+
+
+def get_projects(to_df: bool = True):
+    """
+    Returns information on all projects in the current account
+
+    Parameters: 
+        to_df (bool): reshape to tabular, if True
+    """
+    keep_cols = ['guid', 'short_name', 'name']
+    resp = parse_hise_response(
+        requests.get(hise_url("amds", "project_path"),
+                     headers=get_bearer_token_header()))
+
+    # reshape to tabular format and concatenate each entry
+    if to_df:
+        proj_df = pd.DataFrame()
+        for p in resp:
+            proj_df = pd.concat([proj_df, pd.json_normalize(p)[keep_cols]])
+    return proj_df
+
+
+def project_shortname_to_guid(proj_name):
+    """
+    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding 
+    guid. Otherwise, let the user know the Project doesn't exist.
+
+    Parameters: 
+        proj_name (str) : the short-name of a HISE Project
+    """
+    proj_df = get_projects()
+
+    # chosen project must be in there, right?
+    if proj_name not in proj_df['short_name'].values:
+        raise ValueError(
+            "%s is not a valid project name. The following is a list of valid projects: %s"
+            % (proj_name, proj_df['short_name'].values))
+    else:
+        this_proj = proj_df.loc[
+            proj_df['short_name'].eq(proj_name), ].reset_index(drop=True)
+
+    # error if collisions exist
+    if len(this_proj) > 1:
+        raise SystemError(
+            "Looks like there multiple Projects named %s. Please contact the software team."
+            % (proj_name))
+    else:
+        proj_guid = this_proj.loc[0, 'guid']
+        return proj_guid
 
 
 def get_result_files(to_df=True):
@@ -28,7 +78,9 @@ def get_result_files(to_df=True):
         the object returned will be a json response. 
 
     """
-    keep_cols = ['id', 'fileType', 'description', 'isSearchable']
+    keep_cols = [
+        'id', 'fileType', 'description', 'projectGuid', 'isSearchable'
+    ]
     resp = parse_hise_response(
         requests.get(hise_url("ledger", "result_file_search_path"),
                      headers=get_bearer_token_header()))
@@ -74,7 +126,7 @@ def user_prompt_select_result(rf_df: pd.DataFrame, filetype):
     return rf_df.loc[int(user_input), 'id']
 
 
-def result_filetype_to_guid(filetype: str):
+def result_filetype_to_guid(filetype: str, proj_guid):
     ''' 
     Given a ResultFile.fileType, return the corresponding resultFile.ID
     '''
@@ -92,10 +144,16 @@ def result_filetype_to_guid(filetype: str):
         desired_result = agg_df.loc[
             agg_df['fileType'].eq(filetype)
             & agg_df['isSearchable'].eq("true"),
-            ['id', 'fileType', 'description']].reset_index(drop=True)
+            ['id', 'fileType', 'description', 'projectGuid']].reset_index(
+                drop=True)
 
     # handle potential name collisions
     if len(desired_result) > 1:
+
+        # try subsetting on project
+        desired_result = desired_result.loc[
+            desired_result['projectGuid'].isin([proj_guid, any_project_urn]),
+            ['id', 'fileType', 'description']].reset_index(drop=True)
         guid_val = user_prompt_select_result(desired_result, filetype)
         return guid_val
     else:
@@ -104,8 +162,8 @@ def result_filetype_to_guid(filetype: str):
 
 
 def _validate_abstraction_params(title: str, description: str, input_ids: list,
-                                 additional_files: list,
-                                 data_contract_id: str):
+                                 additional_files: list, data_contract_id: str,
+                                 project: str):
     """ validates parameters are coming in as expected """
 
     # required params check
@@ -116,6 +174,9 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
     if data_contract_id is None:
         raise ValueError(
             "A data contract must be submitted when saving an Abstraction")
+    if project is None:
+        raise ValueError(
+            "A project must be specified when saving an Abstraction")
 
     # type check
     if type(title) is not str:
@@ -128,6 +189,8 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
         raise TypeError("result_file_type must be of type list")
     if type(data_contract_id) is not str:
         raise TypeError("data_contract_id must be of type string")
+    if type(project) is not str:
+        raise TypeError("project must be of type string")
 
     # check that each file exists
     for f in additional_files:
@@ -151,9 +214,11 @@ class AbstractionAppImg:
                  title: str,
                  description: str,
                  data_contract_id: list,
+                 project_guid: str,
                  work_dir: str,
                  result_file_ids: list = None):
         self.result_file_ids = result_file_ids
+        self.project_guid = project_guid
         self.app_filepath = os.path.abspath(app_filepath)
         self.hero_image = os.path.abspath(hero_image)
         self.title = title
@@ -178,17 +243,19 @@ class AbstractionAppImg:
         }
 
     def create_args(self, img_resp):
-        return {
+        pargs = {
             "title": self.title,
             "description": self.description,
             "appDetails": self.abstraction_image_name,
             "inputResultFiles": self.result_file_ids,
             "dataContractId": self.data_contract_id,
+            "projectGuid": self.project_guid,
             "notebook": current_notebook(),
             "homedir": IDE_HOME_DIR,
             "heroImages": [img_resp['url']],
             "instanceId": get_from_metadata_server(instance_name_path)
         }
+        return pargs
 
     def copy_files_to_tmp(self, filename_list):
         # copy configs and/or user's app files to the temporary directory
@@ -267,8 +334,9 @@ def save_abstraction(app_filepath: str = None,
                      additional_files: list = None,
                      title: str = None,
                      description: str = None,
+                     project: str = None,
                      data_contract_id: str = None,
-                     result_file_type: list = None,
+                     result_file_types: list = None,
                      image: str = None):  # optional
     """ 
     Save an abstraction to current user's account.
@@ -290,21 +358,24 @@ def save_abstraction(app_filepath: str = None,
     # parameter check
     if additional_files is None:
         additional_files = []
-
-    # convert each filetype to its' corresponding guid
-    if result_file_type is not None:
-        result_file_ids = []
-        for r in result_file_type:
-            result_file_ids.append(result_filetype_to_guid(r))
-    _validate_abstraction_params(title, description, result_file_ids,
-                                 additional_files, data_contract_id)
+    _validate_abstraction_params(title, description, result_file_types,
+                                 additional_files, data_contract_id, project)
     validate_abstraction_app_path(app_filepath)
+
+    # convert project to its' guid
+    proj_guid = project_shortname_to_guid(project)
+
+    # also convert resultFile.fileTypes to their guid
+    result_file_ids = []
+    for r in result_file_types:
+        result_file_ids.append(result_filetype_to_guid(r, proj_guid))
     with tempfile.TemporaryDirectory() as tmpdirname:
         aobj = AbstractionAppImg(app_filepath=app_filepath,
                                  hero_image=image,
                                  title=title,
                                  description=description,
                                  data_contract_id=data_contract_id,
+                                 project_guid=proj_guid,
                                  work_dir=tmpdirname,
                                  result_file_ids=result_file_ids)
 
