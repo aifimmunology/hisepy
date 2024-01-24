@@ -48,6 +48,10 @@ HYDRATION:
   WEBSOCKET_PATH: hydration/source/stream/open
   HISE_WIDE_STATIC_IMG_PATH: hydration/source/abstraction/save
 
+AMDS: 
+  AMDS_NAME : accountmanager
+  PROJECT_PATH : accountmanager/project
+
 # ledger endpoints 
 LEDGER: 
   LEDGER_NAME : ledger
