@@ -15,7 +15,8 @@ from hisepy import auth
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
-IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
+IDE_HOME_DIR = CONFIG['IDE'][
+    'HOME_DIR']  # if not auth.debug() else os.getcwd()
 any_project_urn = "urn:hise:project:any"
 
 
@@ -134,26 +135,20 @@ def result_filetype_to_guid(filetype: str, proj_guid):
     # get all the resultFiles and concat
     agg_df = get_result_files()
 
-    # check that the result file exists
-    if filetype not in agg_df['fileType'].values:
+    # check that the result file exists for the chosen project, or if the project is set to "urn:hise:project:any"
+    results_in_proj_df = agg_df.loc[
+        agg_df['projectGuid'].isin([proj_guid, any_project_urn]), ]
+    if filetype not in results_in_proj_df[['fileType']].values:
         raise ValueError(
-            "%s is not a valid resultFile name. The following is a list of valid resultFile names: %s"
-            % (filetype, agg_df['fileType'].values))
+            "%s is not a valid resultFile name for project guid, %s. The following is a list of valid resultFile names for this project: %s"
+            % (filetype, proj_guid, results_in_proj_df[['fileType']].values))
     else:
-        # additional filter on isSearchable because you can only create visualizations on data you're able to find/download
-        desired_result = agg_df.loc[
-            agg_df['fileType'].eq(filetype)
-            & agg_df['isSearchable'].eq("true"),
-            ['id', 'fileType', 'description', 'projectGuid']].reset_index(
-                drop=True)
+        # now filter on ResultFile.fileType
+        desired_result = results_in_proj_df.loc[
+            results_in_proj_df['fileType'].eq(filetype), ]
 
     # handle potential name collisions
     if len(desired_result) > 1:
-
-        # try subsetting on project
-        desired_result = desired_result.loc[
-            desired_result['projectGuid'].isin([proj_guid, any_project_urn]),
-            ['id', 'fileType', 'description']].reset_index(drop=True)
         guid_val = user_prompt_select_result(desired_result, filetype)
         return guid_val
     else:
