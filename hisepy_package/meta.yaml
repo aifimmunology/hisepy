@@ -1,0 +1,71 @@
+{% set name = "hisepy" %}
+{% set version = "0.2.7" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  path: ../hisepy
+  # url: "https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz"
+  # sha256: 1b6a36a554b3b315a9a96d19159f1ae39d9dad75bef510b1dc084c5aa9a4489b
+
+build:
+  number: 0
+  # comment out line below if using build.sh script to build the package
+  script: "{{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation"
+
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+  - plotly
+
+requirements:
+  host:
+    - python
+    - google-cloud-storage
+    - h5py
+    - numpy
+    - pandas
+    - plotly
+    - pyreadr
+    - PyYAML
+    - termcolor
+    - requests
+    - pytest
+    - flake8
+    - pip
+    - pip-tools
+    - pipreqs
+  run:
+    - python
+    - google-cloud-storage
+    - h5py
+    - numpy
+    - pandas
+    - plotly
+    - pyreadr
+    - PyYAML
+    - termcolor
+    - requests
+    - flake8
+    - pip
+
+about:
+  home: "https://github.com/aifimmunology/hisepy"
+  license: "GNU Lesser General Public v3 or later (LGPLv3+)"
+  license_family: LGPL
+  license_file: 
+  summary: "Python Interface to the Allen Institute For Immunology's Human Immune System Explorer (HISE)"
+  doc_url: 
+  dev_url:
+
+test:
+  # Python imports
+  imports:
+    - hisepy
+
+extra:
+  recipe-maintainers:
+    - aifimmunology

@@ -56,3 +56,31 @@ Scheduling General Notebook Jobs
    job.status
    #when it is completed...
    file_refs = job.download_output()
+
+Building the HISEPY Package
+---------------------------
+
+::
+
+  # add channels to the build environment
+  conda config --env --add channels conda-forge
+
+  # install grayskull -- the skeleton generator
+  conda install -c conda-forge grayskull
+
+  # build the package, create the meta.yaml file
+  conda skeleton pypi --extra-specs cython sep
+  
+
+  # note that Pinning is important for SEP for packages
+  # that use C API through Cython should use the same package 
+  # version at runtime that was used at build time.
+
+  # 1. set up custom discovery (`find` directive with `include` or `exclude`)
+  # 2. use a `src-layout`
+  # 3. explicitly set `py_modules` or `packages` with a list of names
+
+  # To find more information, look for "package discovery" on setuptools docs.
+
+
+"""
