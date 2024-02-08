@@ -149,7 +149,7 @@ def upload_files(files: list,
         raise ValueError("No files specified for upload")
 
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
-    validate_upload_data(study_space_id, project, title, input_file_ids)
+    validate_upload_data(files, study_space_id, project, title, input_file_ids)
     uploads = None
     body = None
     qargs = {
@@ -551,7 +551,17 @@ def save_static_image(image, title, study_space_id=None):
                       files=img_dict))
 
 
-def validate_upload_data(study_space_id, project, title, input_file_ids):
+def validate_upload_data(files, study_space_id, project, title,
+                         input_file_ids):
+    files_not_found = []
+    for f in files:
+        print(f)
+        if not os.path.exists(f):
+            files_not_found.append(f)
+    if len(files_not_found) > 0:
+        raise ValueError(
+            "Cannot find the following file(s): {}. Please verify you have the correct filepath(s)"
+            .format(files_not_found))
     if study_space_id is None:
         if project is None:
             raise ValueError("One of study space or project must be specified")
