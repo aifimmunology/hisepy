@@ -563,40 +563,20 @@ def validate_upload_data(study_space_id, project, title, input_file_ids):
         raise ValueError("You must specify at least one input file UUID")
 
 
-def load_visualization(trace_id):
+def load_visualization(id):
     """ 
     Loads a plotly visualization to user
     
     Parameters: 
-        trace_id (str): trace id of from a hp.save_visulization() call
+        id (str): trace id or visualization id 
     Returns: 
         plotly figure
     """
-    data = None
-    trace = get_trace(trace_id)
-    if "steps" in trace and "dataReference" in trace["steps"]:
-        ref = trace["steps"]["dataReference"]
-        try:
-            datauuid = uuid.UUID(ref)
-            if datauuid != uuid.UUID(int=0):
-                data = parse_hise_response(
-                    requests.request("GET",
-                                     hise_url("hydration", "download_path",
-                                              format(datauuid)),
-                                     headers=get_bearer_token_header()))
-            else:
-                # dataReference was empty UUID. Ignore
-                pass
-        except Exception as e:
-            print("Failed to load data reference %s: %s" % (ref, format(e)))
-
-    obj = parse_hise_response(
+    return go.Figure(parse_hise_response(
         requests.request("GET",
-                         hise_url("toolchain", "visualization_path", trace_id),
-                         headers=get_bearer_token_header()))
-    if data is not None:
-        obj["data"] = data
-    return go.Figure(obj, skip_invalid=True)
+                         hise_url("toolchain", "visualization_path", id),
+                         headers=get_bearer_token_header())),
+                     skip_invalid=True)
 
 
 def get_size_in_megabytes(file_list):
