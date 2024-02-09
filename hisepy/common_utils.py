@@ -315,3 +315,13 @@ def prompt_user(msg: str = None, additional_fields=None):
         return True
     elif user_input.lower() == 'n':
         return False
+
+
+def string_contains_whitespaces(file_str):
+    """ returns True if a string contains whitespaces"""
+
+    # loop through the each string character and check if it's a whitespace
+    if any(s.isspace() for s in file_str):
+        return True
+    else:
+        return False
