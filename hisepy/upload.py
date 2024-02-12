@@ -417,12 +417,20 @@ def validate_app_path(app_path):
     abspath = os.path.abspath(app_path)
     if not abspath.startswith(IDE_HOME_DIR):
         raise ValueError("App file must be within %s" % IDE_HOME_DIR)
+    if cu.string_contains_whitespaces(app_path):
+        raise ValueError(
+            "Your filepath contains whitespaces. Please try again after removing whitespaces from the following file: {}"
+            .format(app_path))
 
 
 def validate_files(filenames):
     """ Verifies that all submitted input files exist and are in /home/jupyter """
     for this_f in filenames:
         abs_path = os.path.abspath(this_f)
+        if cu.string_contains_whitespaces(abs_path):
+            raise ValueError(
+                "The following additional_file contains whitespaces. Please remove all whitespaces for the following filepath: {}"
+                .format(abs_path))
         if not os.path.exists(abs_path):
             # Echo user's input back to them for easy reference along with
             # where we expected that file to be. It would be nicer to
