@@ -79,7 +79,8 @@ def get_result_files(to_df=True):
 
     """
     keep_cols = [
-        'id', 'fileType', 'description', 'projectGuid', 'isSearchable'
+        'id', 'fileType', 'friendlyName', 'description', 'projectGuid',
+        'isSearchable'
     ]
     resp = parse_hise_response(
         requests.get(hise_url("ledger", "result_file_search_path"),
@@ -123,6 +124,7 @@ def user_prompt_select_result(rf_df: pd.DataFrame, filetype):
         print("please enter a value from the following list: {}".format(
             input_range))
         user_input = input()
+
     return rf_df.loc[int(user_input), 'id']
 
 
@@ -144,7 +146,8 @@ def result_filetype_to_guid(filetype: str, proj_guid):
     else:
         # now filter on ResultFile.fileType
         desired_result = results_in_proj_df.loc[
-            results_in_proj_df['fileType'].eq(filetype), ]
+            results_in_proj_df['fileType'].eq(filetype), ].reset_index(
+                drop=True)
 
     # handle potential name collisions
     if len(desired_result) > 1:
@@ -379,15 +382,18 @@ def save_abstraction(app_filepath: str = None,
                                         aobj.create_image_dict()))
 
         # copy files to tmp dir and tar the bad boy up and upload
-        cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"])
-        aobj.copy_files_to_tmp(aobj.abstraction_config_filenames +
-                               aobj.user_filenames + additional_files)
-        aobj.create_tarball()
-        resp = parse_hise_response(
-            aobj.send_post(aobj.create_url(aobj.create_args(resp)),
-                           aobj.create_file_arg()))
+        if cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"]):
+            aobj.copy_files_to_tmp(aobj.abstraction_config_filenames +
+                                   aobj.user_filenames + additional_files)
+            aobj.create_tarball()
+            resp = parse_hise_response(
+                aobj.send_post(aobj.create_url(aobj.create_args(resp)),
+                               aobj.create_file_arg()))
 
-        return {
-            "message": resp["Message"],
-            "AbstractionId": resp["AbstractionId"]
-        }
+            return {
+                "message": resp["Message"],
+                "AbstractionId": resp["AbstractionId"]
+            }
+        else:
+            print("canceling save abstraction call")
+            return
