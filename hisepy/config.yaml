@@ -14,7 +14,7 @@ FILETYPES:
 
 PROMPTS: 
   UPLOAD : You are trying to upload file IDs.
-  ABSTRACTION: You are about to save an abstract visualization template.
+  ABSTRACTION: You are about to save an abstract visualization template
 
 # Authorization config
 AUTHORIZE: 
