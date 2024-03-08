@@ -9,3 +9,5 @@ hisepy.egg-info
 __pycache__
 cache
 *.ipynb
+.DS_Store
+.idea/*
