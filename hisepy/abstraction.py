@@ -158,44 +158,6 @@ def result_filetype_to_guid(filetype: str, proj_guid):
         return guid_val
 
 
-def _validate_abstraction_params(title: str, description: str, input_ids: list,
-                                 additional_files: list, data_contract_id: str,
-                                 project: str):
-    """ validates parameters are coming in as expected """
-
-    # required params check
-    if title is None:
-        raise ValueError("must provide a title for the abstraction")
-    if description is None:
-        raise ValueError("A description for the abstraction is required")
-    if data_contract_id is None:
-        raise ValueError(
-            "A data contract must be submitted when saving an Abstraction")
-    if project is None:
-        raise ValueError(
-            "A project must be specified when saving an Abstraction")
-
-    # type check
-    if type(title) is not str:
-        raise TypeError("title must be a string")
-    if type(description) is not str:
-        raise TypeError("description must be a string")
-    if type(additional_files) is not list:
-        raise TypeError("additional_files must be a list")
-    if type(input_ids) is not list:
-        raise TypeError("result_file_type must be of type list")
-    if type(data_contract_id) is not str:
-        raise TypeError("data_contract_id must be of type string")
-    if type(project) is not str:
-        raise TypeError("project must be of type string")
-
-    # check that each file exists
-    for f in additional_files:
-        if not os.path.exists(f):
-            raise ValueError("%s is not a valid file" % f)
-    return True
-
-
 class AbstractionAppImg:
     """ Class representing an Abstraction App Object """
     abstraction_app_name = 'app.py'
@@ -213,8 +175,12 @@ class AbstractionAppImg:
                  data_contract_id: list,
                  project_guid: str,
                  work_dir: str,
-                 result_file_ids: list = None):
+                 result_file_ids: list = None,
+                 is_sample_metadata_app: bool = None,
+                 is_subject_metadata_app: bool = None):
         self.result_file_ids = result_file_ids
+        self.is_sample_metadata_app = is_sample_metadata_app
+        self.is_subject_metadata_app = is_subject_metadata_app
         self.project_guid = project_guid
         self.app_filepath = os.path.abspath(app_filepath)
         self.hero_image = os.path.abspath(hero_image)
@@ -239,12 +205,21 @@ class AbstractionAppImg:
                       "image/%s" % (cu.get_filetype(self.hero_image)))
         }
 
+    def determine_app_type(self):
+        if self.result_file_ids is not None and len(self.result_file_ids) > 0:
+            return self.result_file_ids
+        elif self.is_sample_metadata_app:
+            return [CONFIG['ABSTRACTION']['SAMPLE_METADATA_URN']]
+        elif self.is_subject_metadata_app:
+            return [CONFIG["ABSTRACTION"]['SUBJECT_METADATA_URN']]
+
     def create_args(self, img_resp):
+
         pargs = {
             "title": self.title,
             "description": self.description,
             "appDetails": self.abstraction_image_name,
-            "inputResultFiles": self.result_file_ids,
+            "inputResultFiles": self.determine_app_type(),
             "dataContractId": self.data_contract_id,
             "projectGuid": self.project_guid,
             "notebook": current_notebook(),
@@ -327,6 +302,72 @@ def validate_abstraction_app_path(app_path):
         raise ValueError("App file must be within %s" % IDE_HOME_DIR)
 
 
+def param_app_type_check(result_types, is_sample_app, is_subject_app):
+    result_file_set = False
+    sample_bool_set = False
+    subject_bool_set = False
+    if result_types is not None and len(result_types) != 0:
+        result_file_set = True
+    if is_sample_app is not None and is_sample_app is not False:
+        sample_bool_set = True
+    if is_subject_app is not None and is_subject_app is not False:
+        subject_bool_set = True
+    return (result_file_set, sample_bool_set, subject_bool_set)
+
+
+def _validate_abstraction_params(title: str, description: str, input_ids: list,
+                                 additional_files: list, data_contract_id: str,
+                                 project: str, is_sample_app: bool,
+                                 is_subject_app: bool):
+    """ validates parameters are coming in as expected """
+
+    # required params check
+    if title is None:
+        raise ValueError("must provide a title for the abstraction")
+    if description is None:
+        raise ValueError("A description for the abstraction is required")
+    if data_contract_id is None:
+        raise ValueError(
+            "A data contract must be submitted when saving an Abstraction")
+    if project is None:
+        raise ValueError(
+            "A project must be specified when saving an Abstraction")
+
+    # one of input_ids, is_sample_app, or is_subject_app must be set.
+    input_ids_set, sample_app_bool_set, subject_app_bool_set = param_app_type_check(
+        input_ids, is_sample_app, is_subject_app)
+    app_type_list = [input_ids_set, sample_app_bool_set, subject_app_bool_set]
+    if app_type_list.count(True) != 1:
+        raise ValueError(
+            "One of result_file_types, is_sample_metadata_app, is_subject_metadata_app must be specified. Please try again by specifying only one of these parameters."
+        )
+
+    # type check
+    if type(title) is not str:
+        raise TypeError("title must be a string")
+    if type(description) is not str:
+        raise TypeError("description must be a string")
+    if additional_files is not None and type(additional_files) is not list:
+        raise TypeError("additional_files must be a list")
+    if input_ids is not None and type(input_ids) is not list:
+        raise TypeError("result_file_type must be of type list")
+    if is_sample_app is not None and type(is_sample_app) is not bool:
+        raise TypeError("is_sample_metadata_app must be of type boolean")
+    if is_subject_app is not None and type(is_subject_app) is not bool:
+        raise TypeError("is_subject_metadata_app must be of type boolean")
+    if type(data_contract_id) is not str:
+        raise TypeError("data_contract_id must be of type string")
+    if type(project) is not str:
+        raise TypeError("project must be of type string")
+
+    # check that each file exists
+    if additional_files is not None and len(additional_files) > 0:
+        for f in additional_files:
+            if not os.path.exists(f):
+                raise ValueError("%s is not a valid file" % f)
+    return True
+
+
 def save_abstraction(app_filepath: str = None,
                      additional_files: list = None,
                      title: str = None,
@@ -334,6 +375,8 @@ def save_abstraction(app_filepath: str = None,
                      project: str = None,
                      data_contract_id: str = None,
                      result_file_types: list = None,
+                     is_sample_metadata_app: bool = None,
+                     is_subject_metadata_app: bool = None,
                      image: str = None):  # optional
     """ 
     Save an abstraction to current user's account.
@@ -353,10 +396,10 @@ def save_abstraction(app_filepath: str = None,
         hp.save_abstraction()
     """
     # parameter check
-    if additional_files is None:
-        additional_files = []
     _validate_abstraction_params(title, description, result_file_types,
-                                 additional_files, data_contract_id, project)
+                                 additional_files, data_contract_id, project,
+                                 is_sample_metadata_app,
+                                 is_subject_metadata_app)
     validate_abstraction_app_path(app_filepath)
 
     # convert project to its' guid
@@ -367,14 +410,17 @@ def save_abstraction(app_filepath: str = None,
     for r in result_file_types:
         result_file_ids.append(result_filetype_to_guid(r, proj_guid))
     with tempfile.TemporaryDirectory() as tmpdirname:
-        aobj = AbstractionAppImg(app_filepath=app_filepath,
-                                 hero_image=image,
-                                 title=title,
-                                 description=description,
-                                 data_contract_id=data_contract_id,
-                                 project_guid=proj_guid,
-                                 work_dir=tmpdirname,
-                                 result_file_ids=result_file_ids)
+        aobj = AbstractionAppImg(
+            app_filepath=app_filepath,
+            hero_image=image,
+            title=title,
+            description=description,
+            data_contract_id=data_contract_id,
+            project_guid=proj_guid,
+            work_dir=tmpdirname,
+            result_file_ids=result_file_ids,
+            is_sample_metadata_app=is_sample_metadata_app,
+            is_subject_metadata_app=is_subject_metadata_app)
 
         # POST to hydration and save the static image
         resp = parse_hise_response(

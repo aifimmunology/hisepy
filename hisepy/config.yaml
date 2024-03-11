@@ -87,6 +87,8 @@ TOOLCHAIN:
   
 ABSTRACTION: 
   VIZ_CONFIGS_PATH : /home/jupyter/examples/Visualization_apps/dash/configs
+  SUBJECT_METADATA_URN: urn:hise:metadata:subject
+  SAMPLE_METADATA_URN: urn:hise:metadata:sample
 
 # scheduler endpoints and global... 
 SCHEDULER: 
