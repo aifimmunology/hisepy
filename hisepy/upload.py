@@ -521,12 +521,17 @@ def save_dash_app(app_filepath: str,
     app_files = app_files.union(dobj.directories)
     for f in app_files:
         rel_path = os.path.relpath(f, '/')
-        dst = os.path.join(tmpdirname, rel_path)
         if os.path.isfile(f):
+            dst = os.path.normpath(
+                tmpdirname +
+                os.path.dirname(f))  # create path up until the filename
             if not os.path.exists(dst):
                 os.makedirs(dst)
             shutil.copy(f, dst)
         elif os.path.isdir(f):
+            dst = os.path.join(
+                tmpdirname,
+                rel_path)  # we want to keep the entire path that's passed in
             shutil.copytree(f, dst)
 
     # create .txt files that contains user's imported libraries
