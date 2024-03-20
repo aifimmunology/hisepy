@@ -521,7 +521,9 @@ def save_dash_app(app_filepath: str,
     app_files = app_files.union(dobj.directories)
     for f in app_files:
         rel_path = os.path.relpath(f, '/')
-        dst = os.path.join(tmpdirname, rel_path)
+        dst = os.path.normpath(
+            tmpdirname +
+            os.path.dirname(f))  #os.path.join(tmpdirname, rel_path)
         if os.path.isfile(f):
             if not os.path.exists(dst):
                 os.makedirs(dst)
