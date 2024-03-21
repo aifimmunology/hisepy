@@ -12,9 +12,10 @@ import hisepy
 import tempfile
 from hisepy.reader import hise_url, parse_hise_response
 from hisepy.auth import get_bearer_token_header
-from hisepy.abstraction import AbstractionAppImg
+from hisepy.abstraction import AbstractionAppImg, _validate_abstraction_params
 from unittest.mock import Mock
 from pathlib import Path
+import hisepy.common_utils as cu
 
 
 class TestAbstractionAppImg:
@@ -35,8 +36,20 @@ class TestAbstractionAppImg:
             hero_image=self.img_path,
             title='test abstraction',
             description='a description worth reading',
+            data_contract_id='fakeGUID123',
+            result_file_ids=['scRNA-guid'],
+            project_guid='projgu12d',
             work_dir=self.tmpdirname)
 
+        self.metadata_abstraction = AbstractionAppImg(
+            app_filepath=self.app_path,
+            hero_image=self.img_path,
+            title='test abstraction',
+            description='a description worth reading',
+            data_contract_id='fakeGUID123',
+            is_sample_metadata_app=True,
+            project_guid='projgu12d',
+            work_dir=self.tmpdirname)
         # create tarball
         self.abstraction_img.copy_files_to_tmp(
             self.abstraction_img.abstraction_config_filenames)
@@ -44,6 +57,45 @@ class TestAbstractionAppImg:
 
     def cleanup(self, init_test):
         self.tmpdir.cleanup()
+
+    def test_validate_abstraction_params(self):
+        generic_title = 'mocking a title'
+        generic_description = "describing stuff"
+        generic_contract_id = 'contract-123'
+        proj = 'cohorts'
+        # test1: trying to create an abstraction using a resultFile
+        assert _validate_abstraction_params(
+            title=generic_title,
+            description=generic_description,
+            input_ids=['fake scRNA GUID'],
+            data_contract_id=generic_contract_id,
+            project=proj,
+            additional_files=None,
+            is_sample_app=False,
+            is_subject_app=False
+        ), "Failed validation check. should have passed with a guid being passed in"
+
+    # decorator that marks the test as expected to fail if we raise a ValueError
+    @pytest.mark.xfail(raises=ValueError)
+    def test_failed_param_validation(self):
+        generic_title = 'mocking a title'
+        generic_description = "describing stuff"
+        generic_contract_id = 'contract-123'
+        proj = 'cohorts'
+        with pytest.raises(
+                ValueError,
+                match=
+                "One of result_file_types, is_sample_metadata_app, is_subject_metadata_app must be specified. Please try again by specifying only one of these parameters."
+        ):
+            _validate_abstraction_params(title=generic_title,
+                                         description=generic_description,
+                                         input_ids=['fake scRNA GUID'],
+                                         data_contract_id=generic_contract_id,
+                                         project=proj,
+                                         additional_files=None,
+                                         is_sample_app=True,
+                                         is_subject_app=False)
+        return
 
     # arrange mock object for post request to toolchain
     @pytest.fixture
@@ -59,6 +111,7 @@ class TestAbstractionAppImg:
             "title": "mock title",
             "description": "descibing what an abstraction is",
             "inputResultFiles": ['d2700632-4ce8-44df-95ba-9290be3c86b6'],
+            "projectGuid": 'project123',
             "notebook": "mock_notebook.ipynb",
             "appDetails": "random text",
             "homedir": "/home/jupyter",
@@ -114,6 +167,14 @@ class TestAbstractionAppImg:
         for f in self.abstraction_img.abstraction_config_filenames:
             assert os.path.isfile('{}/{}'.format(self.abstraction_img.work_dir,
                                                  f))
+
+    def test_determine_app_type(self, init_test):
+        app_type = self.abstraction_img.determine_app_type()
+        assert app_type == self.abstraction_img.result_file_ids, "didn't determine the correct app type based on how the Abstraction class was initiailized"
+
+        sample_app = self.metadata_abstraction.determine_app_type()
+        assert sample_app == ['urn:hise:metadata:sample']
+        return
 
     def test_cleanup(self, init_test):
         self.cleanup(init_test)

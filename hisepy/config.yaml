@@ -14,7 +14,7 @@ FILETYPES:
 
 PROMPTS: 
   UPLOAD : You are trying to upload file IDs.
-  ABSTRACTION: You are about to save an abstract visualization template.
+  ABSTRACTION: You are about to save an abstract visualization template
 
 # Authorization config
 AUTHORIZE: 
@@ -48,13 +48,17 @@ HYDRATION:
   WEBSOCKET_PATH: hydration/source/stream/open
   HISE_WIDE_STATIC_IMG_PATH: hydration/source/abstraction/save
 
+AMDS: 
+  AMDS_NAME : accountmanager
+  PROJECT_PATH : accountmanager/project
+
 # ledger endpoints 
 LEDGER: 
   LEDGER_NAME : ledger
   SAMPLE_SEARCH_PATH : ledger/sample/q
   SUBJECT_SEARCH_PATH : ledger/subject/q
   FILE_SEARCH_PATH : ledger/file/q
-  RESULT_FILE_SEARCH_PATH: ledger/resultfile/filter
+  RESULT_FILE_SEARCH_PATH: ledger/resultfile
 
 # tracer endpoints 
 TRACER: 
@@ -82,7 +86,9 @@ TOOLCHAIN:
   UPLOAD_HARVEST_LOWER_BOUND_MB: 10.0
   
 ABSTRACTION: 
-  VIZ_CONFIGS_PATH : /root/.jupyter/templates/abstraction_configs
+  VIZ_CONFIGS_PATH : /home/jupyter/examples/Visualization_apps/dash/configs
+  SUBJECT_METADATA_URN: urn:hise:metadata:subject
+  SAMPLE_METADATA_URN: urn:hise:metadata:sample
 
 # scheduler endpoints and global... 
 SCHEDULER: 
