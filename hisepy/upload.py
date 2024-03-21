@@ -303,6 +303,7 @@ class DashAppImg:
     def __init__(self,
                  app_filepath: str,
                  additional_files: list,
+                 additional_dirs: list,
                  hero_image: str,
                  study_space_id: str,
                  input_file_ids: list,
@@ -316,6 +317,7 @@ class DashAppImg:
         self.app_filepath = os.path.abspath(app_filepath)
         # store filepaths as set to automatically drop dupes
         self.filepaths = {os.path.abspath(path) for path in additional_files}
+        self.directories = {os.path.abspath(path) for path in additional_dirs}
         self.hero_image = os.path.abspath(hero_image)
         self.study_space_id = study_space_id
         self.input_file_ids = input_file_ids
@@ -415,6 +417,7 @@ def validate_app_path(app_path):
     if not os.path.exists(app_path):
         raise ValueError("%s is not a valid file" % app_path)
     abspath = os.path.abspath(app_path)
+
     if not abspath.startswith(IDE_HOME_DIR):
         raise ValueError("App file must be within %s" % IDE_HOME_DIR)
     if cu.string_contains_whitespaces(app_path):
@@ -450,8 +453,30 @@ def validate_hero_image(hero_image):
         raise ValueError("image must be a PNG")
 
 
+def create_temp_directory_files(list_paths: list, tmpdirname: str):
+    """ Takes a list of filepaths, and creates a temporary directory that contains all files. 
+        paths are preserved when copying files to the temporary directory. 
+    """
+    for f in list_paths:
+        rel_path = os.path.relpath(f, '/')
+        if os.path.isfile(f):
+            dst = os.path.normpath(
+                tmpdirname +
+                os.path.dirname(f))  # create path up until the filename
+            if not os.path.exists(dst):
+                os.makedirs(dst)
+            shutil.copy(f, dst)
+        elif os.path.isdir(f):
+            dst = os.path.join(
+                tmpdirname,
+                rel_path)  # we want to keep the entire path that's passed in
+            shutil.copytree(f, dst)
+    return
+
+
 def save_dash_app(app_filepath: str,
                   additional_files: list,
+                  additional_dirs: list,
                   input_file_ids: list,
                   study_space_id: str,
                   title: str,
@@ -501,6 +526,7 @@ def save_dash_app(app_filepath: str,
     # create static dash image
     dobj = DashAppImg(app_filepath=app_filepath,
                       additional_files=additional_files,
+                      additional_dirs=additional_dirs,
                       hero_image=image,
                       study_space_id=study_space_id,
                       input_file_ids=input_file_ids,
@@ -512,11 +538,9 @@ def save_dash_app(app_filepath: str,
     # Insert UI widget code here:
     # move everything to a temporary dir while creating/preserving source
     # directories
-    for f in dobj.filepaths.union({dobj.app_filepath}):
-        dst = os.path.normpath(tmpdirname + os.path.dirname(f))
-        if not os.path.exists(dst):
-            os.makedirs(dst)
-        shutil.copy(f, dst)
+    app_files = dobj.filepaths.union({dobj.app_filepath})
+    app_files = app_files.union(dobj.directories)
+    create_temp_directory_files(app_files, tmpdirname)
 
     # create .txt files that contains user's imported libraries
     dobj.create_req_txt()
@@ -551,7 +575,11 @@ def save_static_image(image, title, study_space_id=None):
         'bytes': (image, open(image,
                               'rb'), "image/%s" % (cu.get_filetype(image)))
     }
-    validate_upload_data(study_space_id, None, title, ["not a file"])
+    validate_upload_data(files=[image],
+                         study_space_id=study_space_id,
+                         project=None,
+                         title=title,
+                         input_file_ids=["not a file"])
     args = {"studySpaceId": study_space_id, "title": title}
     return parse_hise_response(
         requests.post(hise_url("hydration", "upload_path", args=args),
