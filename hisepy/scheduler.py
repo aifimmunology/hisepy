@@ -16,6 +16,7 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 derived_instance_flag_file = "/%s/.derivedinstance" % (
     CONFIG['IDE']['HOME_DIR'])
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
+num_printed_notebooks = 3  # number of options user gets when a save call is invoked
 
 
 def schedule_notebook(output_files=None,
@@ -237,11 +238,10 @@ def current_notebook():
     test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
     if test_notebook is not None and test_notebook != "":
         return test_notebook
-
     ambiguitySeconds = 15 * 60
     notebooks = os.popen(
-        "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n 3 | cut -f2- -d ' '"
-    ).read().rstrip().split("\n")
+        "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n {} | cut -f2- -d ' '"
+        .format(num_printed_notebooks)).read().rstrip().split("\n")
     if len(notebooks) == 0 or notebooks[0] == "":
         raise TypeError(
             "Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"
@@ -253,12 +253,16 @@ def current_notebook():
                       ambiguitySeconds)
         if newerIsOld or olderIsNew:
             resp = -1
-            while (resp < 0 or resp > len(notebooks)):
+            while (resp < 0 or resp >= len(notebooks)):
                 print("Cannot determine the current notebook.")
                 for idx in range(len(notebooks)):
                     print("%d) %s" % (idx + 1, notebooks[idx]))
                 print("Please select (1-%d) " % (len(notebooks)))
                 resp = int(input()) - 1
+                if (resp < 0 or resp >= len(notebooks)):
+                    print(
+                        "Invalid option for current notebook. Please try again and choose a value between [1,%s]"
+                        % (num_printed_notebooks))
             the_current_notebook = notebooks[resp]
             return notebooks[resp]
     return notebooks[0]

@@ -36,21 +36,6 @@ def get_study_spaces():
                          headers=get_bearer_token_header()))
 
 
-def get_result_files():
-    """ Returns available result files for the user's current account/projects """
-    return parse_hise_response(
-        requests.post(
-            hise_url("ledger", "result_file_search_path"),
-            json={"filter": {
-                "fileType": {
-                    "$not": {
-                        "$regex": "\#derived"
-                    }
-                }
-            }},
-            headers=get_bearer_token_header()))
-
-
 def get_files_for_query(query_id):
     """ Returns a list of file_ids pertaining to a HISE query_id """
     resp = parse_hise_response(
@@ -164,7 +149,7 @@ def upload_files(files: list,
         raise ValueError("No files specified for upload")
 
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
-    validate_upload_data(study_space_id, project, title, input_file_ids)
+    validate_upload_data(files, study_space_id, project, title, input_file_ids)
     uploads = None
     body = None
     qargs = {
@@ -265,7 +250,12 @@ def save_visualization(
         img_data = save_static_image(image=tmp_img_file,
                                      title=title,
                                      study_space_id=study_space_id)
-        args = {"images": img_data["id"]}
+
+        # if-else clause to handle if user is calling method from a guest workspace
+        if img_data is None:
+            args = {}
+        else:
+            args = {"images": img_data["id"]}
     os.remove(tmp_img_file)
 
     exp_obj = json.loads(pl_obj.to_json())
@@ -313,6 +303,7 @@ class DashAppImg:
     def __init__(self,
                  app_filepath: str,
                  additional_files: list,
+                 additional_dirs: list,
                  hero_image: str,
                  study_space_id: str,
                  input_file_ids: list,
@@ -326,6 +317,7 @@ class DashAppImg:
         self.app_filepath = os.path.abspath(app_filepath)
         # store filepaths as set to automatically drop dupes
         self.filepaths = {os.path.abspath(path) for path in additional_files}
+        self.directories = {os.path.abspath(path) for path in additional_dirs}
         self.hero_image = os.path.abspath(hero_image)
         self.study_space_id = study_space_id
         self.input_file_ids = input_file_ids
@@ -425,14 +417,23 @@ def validate_app_path(app_path):
     if not os.path.exists(app_path):
         raise ValueError("%s is not a valid file" % app_path)
     abspath = os.path.abspath(app_path)
+
     if not abspath.startswith(IDE_HOME_DIR):
         raise ValueError("App file must be within %s" % IDE_HOME_DIR)
+    if cu.string_contains_whitespaces(app_path):
+        raise ValueError(
+            "Your filepath contains whitespaces. Please try again after removing whitespaces from the following file: {}"
+            .format(app_path))
 
 
 def validate_files(filenames):
     """ Verifies that all submitted input files exist and are in /home/jupyter """
     for this_f in filenames:
         abs_path = os.path.abspath(this_f)
+        if cu.string_contains_whitespaces(abs_path):
+            raise ValueError(
+                "The following additional_file contains whitespaces. Please remove all whitespaces for the following filepath: {}"
+                .format(abs_path))
         if not os.path.exists(abs_path):
             # Echo user's input back to them for easy reference along with
             # where we expected that file to be. It would be nicer to
@@ -452,8 +453,30 @@ def validate_hero_image(hero_image):
         raise ValueError("image must be a PNG")
 
 
+def create_temp_directory_files(list_paths: list, tmpdirname: str):
+    """ Takes a list of filepaths, and creates a temporary directory that contains all files. 
+        paths are preserved when copying files to the temporary directory. 
+    """
+    for f in list_paths:
+        rel_path = os.path.relpath(f, '/')
+        if os.path.isfile(f):
+            dst = os.path.normpath(
+                tmpdirname +
+                os.path.dirname(f))  # create path up until the filename
+            if not os.path.exists(dst):
+                os.makedirs(dst)
+            shutil.copy(f, dst)
+        elif os.path.isdir(f):
+            dst = os.path.join(
+                tmpdirname,
+                rel_path)  # we want to keep the entire path that's passed in
+            shutil.copytree(f, dst)
+    return
+
+
 def save_dash_app(app_filepath: str,
                   additional_files: list,
+                  additional_dirs: list,
                   input_file_ids: list,
                   study_space_id: str,
                   title: str,
@@ -503,6 +526,7 @@ def save_dash_app(app_filepath: str,
     # create static dash image
     dobj = DashAppImg(app_filepath=app_filepath,
                       additional_files=additional_files,
+                      additional_dirs=additional_dirs,
                       hero_image=image,
                       study_space_id=study_space_id,
                       input_file_ids=input_file_ids,
@@ -514,11 +538,9 @@ def save_dash_app(app_filepath: str,
     # Insert UI widget code here:
     # move everything to a temporary dir while creating/preserving source
     # directories
-    for f in dobj.filepaths.union({dobj.app_filepath}):
-        dst = os.path.normpath(tmpdirname + os.path.dirname(f))
-        if not os.path.exists(dst):
-            os.makedirs(dst)
-        shutil.copy(f, dst)
+    app_files = dobj.filepaths.union({dobj.app_filepath})
+    app_files = app_files.union(dobj.directories)
+    create_temp_directory_files(app_files, tmpdirname)
 
     # create .txt files that contains user's imported libraries
     dobj.create_req_txt()
@@ -553,7 +575,11 @@ def save_static_image(image, title, study_space_id=None):
         'bytes': (image, open(image,
                               'rb'), "image/%s" % (cu.get_filetype(image)))
     }
-    validate_upload_data(study_space_id, None, title, ["not a file"])
+    validate_upload_data(files=[image],
+                         study_space_id=study_space_id,
+                         project=None,
+                         title=title,
+                         input_file_ids=["not a file"])
     args = {"studySpaceId": study_space_id, "title": title}
     return parse_hise_response(
         requests.post(hise_url("hydration", "upload_path", args=args),
@@ -561,7 +587,17 @@ def save_static_image(image, title, study_space_id=None):
                       files=img_dict))
 
 
-def validate_upload_data(study_space_id, project, title, input_file_ids):
+def validate_upload_data(files, study_space_id, project, title,
+                         input_file_ids):
+    files_not_found = []
+    for f in files:
+        print(f)
+        if not os.path.exists(f):
+            files_not_found.append(f)
+    if len(files_not_found) > 0:
+        raise ValueError(
+            "Cannot find the following file(s): {}. Please verify you have the correct filepath(s)"
+            .format(files_not_found))
     if study_space_id is None:
         if project is None:
             raise ValueError("One of study space or project must be specified")
@@ -573,40 +609,20 @@ def validate_upload_data(study_space_id, project, title, input_file_ids):
         raise ValueError("You must specify at least one input file UUID")
 
 
-def load_visualization(trace_id):
+def load_visualization(id):
     """ 
     Loads a plotly visualization to user
     
     Parameters: 
-        trace_id (str): trace id of from a hp.save_visulization() call
+        id (str): trace id or visualization id 
     Returns: 
         plotly figure
     """
-    data = None
-    trace = get_trace(trace_id)
-    if "steps" in trace and "dataReference" in trace["steps"]:
-        ref = trace["steps"]["dataReference"]
-        try:
-            datauuid = uuid.UUID(ref)
-            if datauuid != uuid.UUID(int=0):
-                data = parse_hise_response(
-                    requests.request("GET",
-                                     hise_url("hydration", "download_path",
-                                              format(datauuid)),
-                                     headers=get_bearer_token_header()))
-            else:
-                # dataReference was empty UUID. Ignore
-                pass
-        except Exception as e:
-            print("Failed to load data reference %s: %s" % (ref, format(e)))
-
-    obj = parse_hise_response(
+    return go.Figure(parse_hise_response(
         requests.request("GET",
-                         hise_url("toolchain", "visualization_path", trace_id),
-                         headers=get_bearer_token_header()))
-    if data is not None:
-        obj["data"] = data
-    return go.Figure(obj, skip_invalid=True)
+                         hise_url("toolchain", "visualization_path", id),
+                         headers=get_bearer_token_header())),
+                     skip_invalid=True)
 
 
 def get_size_in_megabytes(file_list):
