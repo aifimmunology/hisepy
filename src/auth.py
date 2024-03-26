@@ -30,7 +30,7 @@ def get_from_metadata_server(path):
             raise SystemError("Request to %s failed with status %d. %s" %
                               (path, resp.status_code, resp.text))
         value = resp.text
-    except:
+    except BaseException:
         if path in default_metadata:
             print("Returning default value for %s" % path)
             value = default_metadata[path]

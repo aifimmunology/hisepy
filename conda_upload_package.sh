@@ -1,0 +1,1 @@
+conda install -c your_channel hisepy

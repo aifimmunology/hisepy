@@ -5,16 +5,17 @@ import tempfile
 import tarfile
 import shutil
 import pathlib as pl
-import hisepy.common_utils as cu
+import common_utils as cu
 import hisepy.upload as cup
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
-from hisepy.reader import parse_hise_response, hise_url
-from hisepy.scheduler import current_notebook
+from auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
+from reader import parse_hise_response, hise_url
+from scheduler import current_notebook
 import pandas as pd
 from hisepy import auth
+from util import load_config
 
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 any_project_urn = "urn:hise:project:any"
 

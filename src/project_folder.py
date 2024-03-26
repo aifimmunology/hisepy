@@ -10,15 +10,14 @@ import pandas as pd
 import requests
 import pyreadr
 import datetime
-from google.cloud import storage
 
-import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
-from hisepy.reader import hise_file
+import common_utils as cu
+from src.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from util import load_config
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 
 
 def list_project_folders():
@@ -78,10 +77,10 @@ def list_files_in_project_folder(folder_name):
 
 def log_project_folder_download(file_id: str):
     """
-    Attaches fileId for the project folder file that was downloaded 
-    
-    Parameters: 
-        file_id (str) : file_id of file in project folder 
+    Attaches fileId for the project folder file that was downloaded
+
+    Parameters:
+        file_id (str) : file_id of file in project folder
     """
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
@@ -118,7 +117,7 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
     '~/folder_name/file_name'.
     Parameters:
         folder_name (str): name of project folder
-        file_name (str): name of file that you see under 'name' when utilizing 
+        file_name (str): name of file that you see under 'name' when utilizing
             list_files_in_project_folder
     Returns:
         True if download was successful
@@ -149,7 +148,7 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
         else:
             new_dir = '{}/{}'.format(os.getcwd(), folder_name)
         os.mkdir(new_dir)
-    except:  # directory already exists, but we don't want to error out
+    except BaseException:  # directory already exists, but we don't want to error out
         pass
     pf_df = list_files_in_project_folder(folder_name)[['name', 'id']]
 

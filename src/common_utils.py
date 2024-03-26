@@ -17,7 +17,7 @@ import datetime
 import json
 import pathlib
 import copy
-from hisepy.auth import debug
+from src.auth import debug
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -68,8 +68,8 @@ def parse_file_descriptor_from_hise_file(hise_file):
     Takes a hise_file object and returns its file_id, file_name and the descriptor object
 
     Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object 
-    Returns: 
+        hise_file (hise_file): hisepy.reader.hise_file object
+    Returns:
         a tuple (file_id, file_name, descriptor object)
     """
     if type(hise_file['descriptors']) is list:
@@ -85,11 +85,11 @@ def parse_file_descriptor_from_hise_file(hise_file):
 
 def log_replica_file_download(hise_file, file_id):
     """
-    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged 
+    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged
 
-    Parameters: 
-        hise_file (hise_file): hisepy.reader.hise_file object 
-        file_id (str): original file_id that's passed in to read_files() or cache_files() 
+    Parameters:
+        hise_file (hise_file): hisepy.reader.hise_file object
+        file_id (str): original file_id that's passed in to read_files() or cache_files()
     """
     this_file_id, this_file_name, this_desc = parse_file_descriptor_from_hise_file(
         hise_file)
@@ -101,10 +101,10 @@ def log_replica_file_download(hise_file, file_id):
 
 
 def log_downloaded_files(hise_file):
-    """ Exports, or creates, a .rds file in data.frame format and saves it in user's 
-        home directory 
+    """ Exports, or creates, a .rds file in data.frame format and saves it in user's
+        home directory
 
-        Parameters: 
+        Parameters:
             hise_file : hise_file object
     """
     CONFIG = read_yaml('{}/config.yaml'.format(_here))
@@ -150,11 +150,11 @@ def log_downloaded_files(hise_file):
 
 
 def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
-    """ Checks that files associated with a result have 
+    """ Checks that files associated with a result have
         been seen in a user's IDE
     """
     if debug():
-        #allow local testing of stuff
+        # allow local testing of stuff
         return
 
     if input_file_ids is not None:
@@ -219,7 +219,7 @@ def parse_hise_response(resp):
             msg = obj["Errors"][0]["Message"]
         else:
             msg = resp.reason
-    except:
+    except BaseException:
         msg = resp.reason
 
     if resp.status_code != 200:
@@ -262,10 +262,10 @@ def download_response_content(resp, dest):
 # TODO: combine this log_downloaded_files()
 def log_project_download(file_id: str):
     """
-    Attaches fileId for the project folder file that was downloaded 
-    
-    Parameters: 
-        file_id (str) : file_id of file in project folder 
+    Attaches fileId for the project folder file that was downloaded
+
+    Parameters:
+        file_id (str) : file_id of file in project folder
     """
     CONFIG = read_yaml('{}/config.yaml'.format(_here))
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],

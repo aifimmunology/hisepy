@@ -4,24 +4,25 @@ import os
 import pandas as pd
 import requests
 
-import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
-from hisepy.reader import hise_url
+import common_utils as cu
+from src.auth import get_bearer_token_header
+from reader import hise_url
+from util import load_config
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 
 
 def upload_file_to_private_folder(folder_name: str, file_path: str):
     '''
     Uploads a file to a private folder.
 
-    Parameters: 
+    Parameters:
         folder_name (str) : Name of Private Folder.
         file_path (str): Filepath of file you want uploaded.
 
-    Returns: 
+    Returns:
         Response object
     '''
     assert type(folder_name) is str, 'folder_name must be of type str'
@@ -47,12 +48,12 @@ def list_files_in_all_private_folders():
 
 
 def list_files_in_private_folder(folder_name=None):
-    ''' 
+    '''
     Lists files inside a given private folder.
-    
-    Parameters: 
+
+    Parameters:
         folder_name (str) : Name of private folder.
-    Returns: 
+    Returns:
         Data.frame with columns [folder,files]
     '''
     url = hise_url('hydration',
@@ -65,14 +66,14 @@ def list_files_in_private_folder(folder_name=None):
 
 def create_private_folder(folder_name: str, file_expiration: int = None):
     '''
-    Creates a new private folder. 
+    Creates a new private folder.
 
-    Note: Current max number of private folders = 10. 
+    Note: Current max number of private folders = 10.
 
-    Parameters: 
-        folder_name (str) : Name of folder to create. 
-        file_expiration (int) : Days until files in Private Folder get deleted. (Default None. Files won't be deleted) 
-    Returns: 
+    Parameters:
+        folder_name (str) : Name of folder to create.
+        file_expiration (int) : Days until files in Private Folder get deleted. (Default None. Files won't be deleted)
+    Returns:
         Response object
     '''
     assert type(folder_name
@@ -104,13 +105,13 @@ def create_private_folder(folder_name: str, file_expiration: int = None):
 def move_file_in_private_folder(file_name: str, source_folder: str,
                                 destination_folder: str):
     '''
-    Move a file between Private Folders. 
+    Move a file between Private Folders.
 
-    Parameters: 
+    Parameters:
         file_name (str) : name of the file to move.
         source_folder (str) : name of the Private Folder where the file currently exists.
         destination_folder (str) : name of Private Folder to move the file to.
-    Returns: 
+    Returns:
         Response object
     '''
     assert type(file_name) is str, 'file_name must be of type str'
@@ -131,9 +132,9 @@ def move_file_in_private_folder(file_name: str, source_folder: str,
 
 def delete_file_in_private_folder(folder_name: str, file_name: str):
     '''
-    Delete a file from a Private Folder. 
+    Delete a file from a Private Folder.
 
-    Parameters: 
+    Parameters:
         folder_name (str) : name of Private Folder.
         file_name (str) : Name of the file you want deleted.
     '''
@@ -153,9 +154,9 @@ def download_from_private_folder(folder_name: str, file_name: str):
     Download a file from a Project Folder to your local working directory.
 
     Parameters:
-        folder_name (str) : Name of Private Folder. 
+        folder_name (str) : Name of Private Folder.
         file_name (str) : Name of file you want downloaded.
-    Returns: 
+    Returns:
         Response object
     '''
     assert type(folder_name) is str, 'folder_name must be of type str'
@@ -177,11 +178,11 @@ def rename_file_in_private_folder(folder_name: str, old_file_name: str,
     '''
     Rename a file in a Private Folder.
 
-    Parameters: 
-        folder_name (str) : Name of the Private Folder. 
-        old_file_name (str) : Name of file you want renamed. 
-        new_file_name (str) : New name of the file. 
-    Returns: 
+    Parameters:
+        folder_name (str) : Name of the Private Folder.
+        old_file_name (str) : Name of file you want renamed.
+        new_file_name (str) : New name of the file.
+    Returns:
         Response object
     '''
     assert type(folder_name) is str, 'folder_name must be of type str'
@@ -202,13 +203,13 @@ def rename_file_in_private_folder(folder_name: str, old_file_name: str,
 
 
 def delete_private_folder(folder_name):
-    ''' 
-    Delete an existing Private Folder 
+    '''
+    Delete an existing Private Folder
 
-    Parameters: 
-        folder_name (str) : Name of Private Folder 
-    Returns: 
-        Response object 
+    Parameters:
+        folder_name (str) : Name of Private Folder
+    Returns:
+        Response object
     '''
     assert type(folder_name) is str, "folder_name must be of type str"
     url = hise_url('hydration',

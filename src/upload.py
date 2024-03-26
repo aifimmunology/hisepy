@@ -4,16 +4,16 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-import uuid
 
 import plotly.graph_objects as go
 import requests
 
-import hisepy.common_utils as cu
-from hisepy import auth
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
-from hisepy.reader import parse_hise_response, hise_url
-from hisepy.scheduler import current_notebook
+import common_utils as cu
+from src import auth
+from src.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
+from reader import parse_hise_response, hise_url
+from scheduler import current_notebook
+from util import load_config
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
@@ -22,7 +22,7 @@ project_store = "project"
 valid_upload_stores = [permanent_store, project_store]
 
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 UPLOAD_HARVEST_LOWER_BOUND = CONFIG['TOOLCHAIN'][
     'UPLOAD_HARVEST_LOWER_BOUND_MB']
@@ -94,16 +94,16 @@ def upload_files(files: list,
         files (list): absolute filepath of file to be uploaded
         study_space_id (str): ID that pertains to a study in the collaboration space (optional)
         project (str): project short name (required if study space is not specified)
-        title (str): 10+ character title for upload result 
+        title (str): 10+ character title for upload result
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
-        file_types (str): filetype of uploaded files 
+        file_types (str): filetype of uploaded files
         store (str): Which store ('project' or 'permanent') to use for the files (default in 'project')
-        destination (str): Destination folder for the files 
+        destination (str): Destination folder for the files
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
-    Returns: 
+    Returns:
         dictionary with keys ["trace_id", "files"]
-    Example: 
+    Example:
         hp.upload_files(files=['/home/jupyter/upload_file.csv'],
                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
                         title='a upload title',
@@ -169,8 +169,8 @@ def upload_files(files: list,
     if project is not None:
         qargs["project"] = project
     if get_size_in_megabytes(files) > UPLOAD_HARVEST_LOWER_BOUND:
-        #user is uploading big stuff.
-        #do this as a harvest
+        # user is uploading big stuff.
+        # do this as a harvest
         qargs["harvest"] = True
 
         # flag to tell toolchain to clean up any temporary directories that a SDK call creates
@@ -215,20 +215,20 @@ def save_visualization(
         study_space_id=None,  # optional
         project=None,  # optional unless study_space_id is not specified
         title=None,  # not actually optional
-        destination=None,  #optional 
+        destination=None,  # optional
         input_file_ids=None,  # not optional
         input_sample_ids=None):  # optional
     """
-    Save a plotly figure to a user's specified study. 
+    Save a plotly figure to a user's specified study.
 
-    Parameters: 
+    Parameters:
         pl_obj (plotly.Figure): (see LINK HERE)
         study_space_id (str): UUID of study to save visualization to
         project (str) : projectShortName to save visuzliation to
         title (str): 10+ character for visualization being uploaded
-        destination (str):  Destination folder for the files 
+        destination (str):  Destination folder for the files
         input_file_ids (list): list of file_ids from HISE that were utilized to generate visualization.
-    Returns: 
+    Returns:
         dictionary with keys ["trace_id", "files"]
     """
     if input_file_ids is None:
@@ -286,7 +286,7 @@ def save_visualization(
         'file': (tmp_plotly_file, open(tmp_plotly_file,
                                        'rb'), 'application/json', {
                                            'Expires': '0'
-                                       })
+        })
     }
     url = hise_url("toolchain", "visualization_path", "json", args=args)
     parse_hise_response(
@@ -332,14 +332,14 @@ class DashAppImg:
                 wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
             '{}'.format(self.work_dir)
         ],
-                       check=True,
-                       capture_output=True)
+            check=True,
+            capture_output=True)
         subprocess.run([
             'pip-compile', '--no-annotate', '--no-header', '--quiet',
             '{wd}/{app}/requirements.in'.format(
                 wd=self.work_dir, app=os.path.dirname(self.app_filepath))
         ],
-                       check=True)
+            check=True)
 
     def upload_hero_image(self):
         # I don't think this title is ever user-visible, but save_static_image requires it
@@ -417,7 +417,6 @@ def validate_app_path(app_path):
     if not os.path.exists(app_path):
         raise ValueError("%s is not a valid file" % app_path)
     abspath = os.path.abspath(app_path)
-
     if not abspath.startswith(IDE_HOME_DIR):
         raise ValueError("App file must be within %s" % IDE_HOME_DIR)
     if cu.string_contains_whitespaces(app_path):
@@ -495,7 +494,7 @@ def save_dash_app(app_filepath: str,
         input_file_ids (list): list of HISE file UUIDs that this app visualizes
         study_space_id (str): UUID of study space to save app to
         title (str): a 10+ character title for the app
-        description (str): description of app being uploaded 
+        description (str): description of app being uploaded
         image (str): png thumbnail image for app in study space
         input_sample_ids (list): list of samples UUIDs that this app visualizes
     Returns:
@@ -556,15 +555,15 @@ def save_dash_app(app_filepath: str,
 def save_static_image(image, title, study_space_id=None):
     """
     Saves a PNG image to a study
-    
-    Parameters: 
-        image (str): absolute path to image 
-        title (str): title of image being uploaded 
+
+    Parameters:
+        image (str): absolute path to image
+        title (str): title of image being uploaded
         study_space_id (str): UUID of study
-    Returns: 
+    Returns:
         Response from server
-    Example: 
-        hp.save_static_image(image='/home/jupyter/imgs/viz_image.png', 
+    Example:
+        hp.save_static_image(image='/home/jupyter/imgs/viz_image.png',
                              title='visualization title',
                              study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba')
     """
@@ -610,12 +609,12 @@ def validate_upload_data(files, study_space_id, project, title,
 
 
 def load_visualization(id):
-    """ 
+    """
     Loads a plotly visualization to user
-    
-    Parameters: 
-        id (str): trace id or visualization id 
-    Returns: 
+
+    Parameters:
+        id (str): trace id or visualization id
+    Returns:
         plotly figure
     """
     return go.Figure(parse_hise_response(

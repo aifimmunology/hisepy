@@ -4,21 +4,21 @@ import pathlib
 import urllib
 import uuid
 import pandas as pd
-import copy
 from termcolor import colored
 
 import requests
 
-import hisepy.common_utils as cu
-import hisepy.formatter as hf
-import hisepy.lookup as hl
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+import common_utils as cu
+import formatter as hf
+import lookup as hl
+from src.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from util import load_config
 
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 
 
-class hise_file:
+class HiseFile:
     """ A class representing a hise_file.
 
     Attributes:
@@ -61,7 +61,7 @@ class hise_file:
     def load(self):
         """ Loads hise_file and downloads onto user's workspace. """
         if self.path is not None and os.path.exists(self.path):
-            #already loaded
+            # already loaded
             return True
 
         obj = read_files([str(self.id)])
@@ -104,7 +104,7 @@ def _add_prefix_to_query(user_query: dict):
 # TODO: refactor and inlcude to future mongo query class
 def _create_mongo_query_in(user_query: dict):
     """
-    Takes a user's dictionary, and converts all entries and combines all 
+    Takes a user's dictionary, and converts all entries and combines all
     fields with boolean OR.
     """
     for key in user_query.keys():
@@ -118,14 +118,14 @@ def _create_mongo_query_in(user_query: dict):
 
 
 def query_files(user_query: dict):
-    """ 
+    """
     POST request to ledger by submitting user's query parameters
-    
+
     Parameters:
         user_query (dict): dictionary where for each key:value pair, the value must be of type list.
     Returns:
         response payload
-    Example: 
+    Example:
         query_files(user_query={'cohortGuid' : ['FH1']})
     """
 
@@ -164,7 +164,7 @@ def validate_user_query_fields(query):
 
 
 def get_file_descriptors(query_dict: dict = None):
-    """ 
+    """
     Retrieves file descriptors based on user's query.
 
     Parameters:
@@ -204,7 +204,7 @@ def get_file_descriptors(query_dict: dict = None):
         try:
             dict_df = _append_descriptors(dict_df,
                                           hf.reshape_descriptors(this_desc))
-        except:
+        except BaseException:
             raise Exception(
                 "appending descriptor failed. descriptor: {}".format(
                     this_desc))
@@ -214,7 +214,7 @@ def get_file_descriptors(query_dict: dict = None):
 def post_query(file_list: list = None,
                query_id: str = None,
                query_dict: dict = None):
-    """ 
+    """
     creates a response object from POST request to a Hydration endpoint
     Parameters:
         file_list : list
@@ -238,7 +238,7 @@ def post_query(file_list: list = None,
         assert type(query_dict) is dict
         assert (file_list is None) & (query_id is None)
 
-    if (file_list != None) & (type(file_list) is not list):
+    if (file_list is not None) & (type(file_list) is not list):
         raise TypeError("You must pass a list of file ids to read_files")
 
     # if user submits query, do the query and grab fileIds
@@ -294,7 +294,7 @@ def read_files(file_list: list = None,
         query_id (str): string value of queryID from Advanced Search
         query_dict (dict): dictionary that allows users to submit a query.
             Note: for each key:value pair, the value must be of type list
-        to_df (bool):  boolean determining whether result should be returned as a data.frame. 
+        to_df (bool):  boolean determining whether result should be returned as a data.frame.
 
     Returns:
         a list of hise_file objects
@@ -302,7 +302,7 @@ def read_files(file_list: list = None,
     Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
     """
     obj = post_query(file_list, query_id, query_dict)
-    #each object should be a set of descriptors and a url to download a file
+    # each object should be a set of descriptors and a url to download a file
     response = []
     idx = 0
     for f in obj:
@@ -310,7 +310,7 @@ def read_files(file_list: list = None,
             f["id"] = uuid.UUID(int=0)
 
         if "error" in f:
-            fobj = hise_file(f['error']['File'])
+            fobj = HiseFile(f['error']['File'])
             fobj.message = f["error"]["Message"]
             response.append(fobj)
             continue
@@ -362,12 +362,12 @@ def download_files(file_dict: dict):
         )
 
     response = []
-    #use a dummy batch id for these files
+    # use a dummy batch id for these files
     download_cache = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], "downloadable")
     for f_id in file_dict:
         endpoint = "https://%s/%s/%s" % (get_from_metadata_server(
             server_id_path), CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id)
-        hf = hise_file(f_id)
+        hf = HiseFile(f_id)
         try:
             cache_file(endpoint, file_dict[f_id], download_cache)
             hf.status = True
@@ -393,7 +393,7 @@ def cache_and_convert_file_data(file_data: dict):
     # always working with a single file-id at this point. but there may be multiple descriptor objects
     try:
         f_desc = file_data["descriptors"]["file"]
-    except:
+    except BaseException:
         f_desc = file_data['descriptors'][0]['file']
 
     batch_id = "unknown"
@@ -405,11 +405,11 @@ def cache_and_convert_file_data(file_data: dict):
     cache_file(file_data["url"], file_name, file_dir)
     this_file_values = hf.convert_data_values(
         '{}/{}'.format(file_dir, file_name), this_filetype)
-    return hise_file(file_id=f_desc["id"],
-                     file_path="%s/%s" % (file_dir, file_name),
-                     descriptors=file_data["descriptors"],
-                     file_type=this_filetype,
-                     data_values=this_file_values)
+    return HiseFile(file_id=f_desc["id"],
+                    file_path="%s/%s" % (file_dir, file_name),
+                    descriptors=file_data["descriptors"],
+                    file_type=this_filetype,
+                    data_values=this_file_values)
 
 
 def cache_files(file_ids: list = None, query_id: list = None):
@@ -471,12 +471,12 @@ def cache_file(url: str, file_name: str, file_dir: str):
 
 def read_samples(sample_ids=None, query_dict=None, to_df=True):
     """
-    Read or search the SampleStatus materialized view. User should specify one 
+    Read or search the SampleStatus materialized view. User should specify one
     or the other of sample_ids or query.
 
     Parameters:
         sample_ids (list): a list of UUIDS to retrieve.
-        query_dict (dict): a dictionary object containing search 
+        query_dict (dict): a dictionary object containing search
             parameters using mongo query language.
         to_df (bool) : If true, returns a data.frame object
 
@@ -543,17 +543,17 @@ def read_subjects(subject_ids: str = None,
                   query_dict: dict = None,
                   to_df: bool = True):
     """
-    Read or search the Subject materialized view.User should specify one or the 
+    Read or search the Subject materialized view.User should specify one or the
     other of subject_ids or query
 
     Parameters:
         subject_ids (list): a list of UUIDS to retrieve
-        query_dict (dict): a dictionary object containing search parameters 
+        query_dict (dict): a dictionary object containing search parameters
             using mongo query language
-        to_df (bool): If true, returns a data.frame 
+        to_df (bool): If true, returns a data.frame
 
     Returns:
-        response payload as a data.frame or JSON 
+        response payload as a data.frame or JSON
 
     """
     if sum(p is not None for p in [subject_ids, query_dict]) != 1:
@@ -657,7 +657,7 @@ def parse_hise_response(resp):
             msg = obj["Errors"][0]["Message"]
         else:
             msg = resp.reason
-    except:
+    except BaseException:
         msg = resp.reason
     if resp.status_code != 200:
         raise SystemError(
@@ -667,16 +667,16 @@ def parse_hise_response(resp):
 
 
 def list_filesets(study_space_id):
-    """ 
-    Returns a list of filesets for a given study 
+    """
+    Returns a list of filesets for a given study
 
     Parameters:
         study_space_id (str) : a unique identifier for a study in the collaboration space
 
-    Returns: 
+    Returns:
         data.frame with columns ['id', 'studySpaceId', 'title','description','fileIds']
-        
-    Example: 
+
+    Example:
         hp.list_filesets(study_space_id='c39e3ae5-ec11-4f02-b89d-255945c5788e')
     """
     # get me all the filesets
@@ -699,15 +699,15 @@ def list_filesets(study_space_id):
 
 
 def cache_filesets(fileset_id, study_space_id):
-    """ 
+    """
     Downloads all files pertaining to a fileset to a user's workspace.
 
-    Parameters: 
+    Parameters:
         fileset_id (str) : unique identifier for a fileset in a study
         study_space_id (str) : unique identifier for a study in the collaboration space
 
     Example:
-        hp.cache_filesets(fileset_title='Reports on why this study is worth it', 
+        hp.cache_filesets(fileset_title='Reports on why this study is worth it',
                             study_space_id='a9ddcfa9-e36d-451e-9e00-0f582e09e696')
     """
     assert fileset_id is not None, "You must specify a fileset_id"

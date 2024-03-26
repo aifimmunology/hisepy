@@ -1,0 +1,78 @@
+[project]
+name = "hisepy"
+description = "Allen Institute for Immunology Human Immune System Explorer Python SDK"
+readme = "README.md"
+license = {text = "MIT License"}
+keywords = ["Allen Institute", "Immunology", "Statistical Regression"]
+classifiers = [
+  # How mature is this project? Common values are
+  #   3 - Alpha
+  #   4 - Beta
+  #   5 - Production/Stable
+  "Development Status :: 5 - Production/Stable",
+
+  # Indicate who your project is intended for
+  "Intended Audience :: Developers",
+  "Topic :: Scientific/Engineering",
+
+  # Pick your license as you wish (see also "license" above)
+  "License :: OSI Approved :: MIT License",
+
+  "Natural Language :: English",
+
+  # Specify the Python versions you support here.
+  "Programming Language :: Python :: 3.11",
+  # "Programming Language :: Python :: 3.10",
+  # "Programming Language :: Python :: 3.11",
+  # "Programming Language :: Python :: 3 :: Only",
+]
+authors = [
+  {name = "Paul Mariz", email = "paul.mariz@alleninstitute.org"},
+]
+maintainers = [
+  {name = "Paul Mariz", email = "paul.mariz@alleninstitute.org"},
+]
+dynamic = ["version"]
+requires-python = ">= 3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+]
+
+# Similar to `dependencies` above, these must be valid existing
+# projects.
+[project.optional-dependencies] # Optional
+dev = ["check-manifest"]
+test = ["coverage"]
+
+[project.urls]
+Homepage = "https://github.com/aifimmunology/hisepy"
+Documentation = "https://readthedocs.org"
+Repository = "https://github.com/aifimmunology/hisepy.git"
+# "Bug Tracker" = "https://github.com/me/spam/issues"
+# Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
+
+# The following would provide a command line executable called `sample`
+# which executes the function `main` from this package when invoked.
+# [project.scripts]  # Optional
+# sample = "sample:main"
+
+# This is configuration specific to the `setuptools` build backend.
+# If you are using a different build backend, you will need to change this.
+[tool.setuptools]
+# If there are data files included in your packages that need to be
+# installed, specify them here.
+# package-data = {"sample" = ["*.dat"]}
+
+[build-system]
+# These are the assumed default build requirements from pip:
+# https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
+requires = ["setuptools>=61.3.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.autopep8]
+max_line_length = 120
+#ignore = "E501,W6"  # or ["E501", "W6"]
+in-place = true
+recursive = true
+aggressive = 3

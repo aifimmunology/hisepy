@@ -12,24 +12,25 @@ import numpy as np
 import pandas as pd
 import requests
 
-import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+import common_utils as cu
+from src.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from util import load_config
 
 # setting global config
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 
 
 def lookup_queryable_fields(field_type='all'):
     """
-    Returns fields users can query on depending on the collection type. 
+    Returns fields users can query on depending on the collection type.
     Acceptable values are either 'file', 'sample', or 'subject'
 
     Parameters:
         field_type (str): field_type that determines what fields to return
     Returns:
         data.frame containing all the field names users could query on
-    Example: 
+    Example:
         hp.lookup_queryable_fields(field_type='subject')
     """
     assert field_type in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS'] + [
@@ -76,7 +77,7 @@ def lookup_queryable_fields(field_type='all'):
                     'field_type': ['sample']
                 })
             ],
-                                      ignore_index=True)
+                ignore_index=True)
 
     if field_type == 'all':
         return all_fields_df.drop_duplicates()
@@ -94,9 +95,9 @@ def lookup_unique_entries(field):
         field (str): queryable field (e.g fileType, subjectGuid)
     Returns:
         all unique values for a given field that you can pass in when creating a query
-    Examples: 
+    Examples:
         hp.lookup_unique_entries('fileType')
-        hp.lookup_unique_entries('cohortGuid') 
+        hp.lookup_unique_entries('cohortGuid')
     """
     # create a data.frame of all searchable fields
     all_field_df = lookup_queryable_fields()
@@ -127,7 +128,7 @@ def lookup_unique_entries(field):
     # remove empty entry if it exists
     try:
         unique_fields.remove('')
-    except:
+    except BaseException:
         pass
 
     # ensure values are unique
@@ -138,7 +139,7 @@ def lookup_unique_entries(field):
 
 
 def list_queryable_fields():
-    ''' Returns a list of fields user can use to create a query 
+    ''' Returns a list of fields user can use to create a query
     '''
     df = lookup_queryable_fields()
     df = df.loc[(~df['field_type'].isin(['emr', 'lab'])

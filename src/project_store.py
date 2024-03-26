@@ -11,12 +11,13 @@ import os
 import pandas as pd
 import requests
 
-import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+import common_utils as cu
+from src.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from util import load_config
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 
 
 def list_project_stores():
@@ -83,7 +84,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
 
     Parameters:
         store_name (str): name of project store
-        file_name (str): name of file that you see under 'name' when utilizing 
+        file_name (str): name of file that you see under 'name' when utilizing
             list_files_in_project_store
     Returns:
         True if download was successful
@@ -114,7 +115,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
         else:
             new_dir = '{}/{}'.format(os.getcwd(), store_name)
         os.mkdir(new_dir)
-    except:  # directory already exists, but we don't want to error out
+    except BaseException:  # directory already exists, but we don't want to error out
         pass
     ps_df = list_files_in_project_store(store_name)[['name', 'id']]
 
@@ -157,7 +158,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
 
 def promote_file_in_project_store(store_name, file_name):
     """
-    Mark a file in a project store to be promoted to the permanent store. 
+    Mark a file in a project store to be promoted to the permanent store.
     Promoted files will not be listed in hp.list_files_in_project_store()
 
     Parameters:
@@ -172,7 +173,7 @@ def promote_file_in_project_store(store_name, file_name):
 
 def undo_promote_in_project_store(store_name, file_name):
     """
-    Undoes the promotion action, so long as the file 
+    Undoes the promotion action, so long as the file
     has not already been moved to the permanent store.
     The file will once again be visible through list_files_in_project_store()
 
@@ -189,11 +190,11 @@ def undo_promote_in_project_store(store_name, file_name):
 def delete_file_in_project_store(store_name, file_name):
     """
     Deletes a file in the project store, so long as it is not otherwise in use
-    The file will not be visible through list_files_in_project_store()    
+    The file will not be visible through list_files_in_project_store()
 
     Parameters:
         store_name (str): name of project store
-        file_name (str): name of file 
+        file_name (str): name of file
     Returns:
         True if function call was a success
     """
@@ -206,7 +207,7 @@ def undo_delete_in_project_store(store_name, file_name):
     Undoes the file delete action, so long as it is within the file's retention period
     (usually 90 days)
     The file will once again be visible through list_files_in_project_store()
-    
+
     Parameters:
         store_name (str): name of project store
         file_name (str): name of file that you want undeleted and visible
@@ -238,7 +239,7 @@ def project_store_file_action(store_name, file_name, action):
             obj = json.loads(resp.text)
             if 'Errors' in obj and len(obj['Errors']) > 0:
                 message = obj['Errors'][0]['Message']
-        except:
+        except BaseException:
             pass
         raise SystemError(message)
 

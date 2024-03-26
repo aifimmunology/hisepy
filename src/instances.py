@@ -2,10 +2,11 @@ import requests
 import os
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header
+from src.auth import get_from_metadata_server, get_bearer_token_header
+from util import load_config
 
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 
 
 def stop_ide():

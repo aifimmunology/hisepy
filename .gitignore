@@ -1,8 +1,12 @@
-//emacs cruft
+# emacs cruft
 *~
 \#*
 .\#*
 
+# pycharm cruft
+.idea/*
+
+# package cruft
 build
 dist
 hisepy.egg-info

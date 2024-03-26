@@ -6,13 +6,14 @@ import pandas
 import requests
 import time
 
-import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
-from hisepy.reader import download_files
+import common_utils as cu
+from src.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
+from reader import download_files
+from util import load_config
 
 the_current_notebook = None
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 derived_instance_flag_file = "/%s/.derivedinstance" % (
     CONFIG['IDE']['HOME_DIR'])
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
@@ -35,15 +36,15 @@ def schedule_notebook(output_files=None,
         prompt (bool): whether to prompt user before scheduling the notebook.
     Returns:
         An instance of a notebook_job class.
-    Example: 
-        hp.schedule_notebook(output_files=['/home/jupyter/output.rds'], 
+    Example:
+        hp.schedule_notebook(output_files=['/home/jupyter/output.rds'],
                              input_data=['/home/jupyter/input_data.h5'],
                              platform='Seurat',
                              project='cohorts')
     """
 
     if os.path.exists(job_record_file):
-        #you're on a cloned instance that was created from this job
+        # you're on a cloned instance that was created from this job
         job = notebook_job(id=open(job_record_file, "r").read().rstrip())
         print(
             "You are on a cloned instance created from notebook job %s in status %s."
@@ -60,7 +61,7 @@ def schedule_notebook(output_files=None,
         print("hisepy.clear_notebook_job()")
         return job
     elif is_derived_instance():
-        #we're on a scheduled instance, so return an empty job
+        # we're on a scheduled instance, so return an empty job
         return notebook_job()
     notebook = current_notebook()
     payload = validate_schedule_input(output_files, input_data, platform,
@@ -86,8 +87,8 @@ def schedule_notebook(output_files=None,
     return job
 
 
-#are we running on an instance that's purpose-built for the task we're already doing?
-#e.g. notebook scheduler, dash app?
+# are we running on an instance that's purpose-built for the task we're already doing?
+# e.g. notebook scheduler, dash app?
 def is_derived_instance():
     return os.path.exists(derived_instance_flag_file)
 
@@ -121,7 +122,7 @@ def validate_schedule_input(output_files, input_data, platform, project,
             raise TypeError("Notebook platform %s does not take output files" %
                             (CONFIG['SCHEDULER']['PLATFORM_LOUVAIN']))
         else:
-            #this might take a bit, so give the user some notice
+            # this might take a bit, so give the user some notice
             print("Converting and normalizing input data...")
             payload[CONFIG['SCHEDULER']['INPUT_FILES_FIELD']] = [
                 convert_and_normalize_dataframe(input_data)
@@ -145,7 +146,7 @@ def validate_schedule_input(output_files, input_data, platform, project,
 
 
 def convert_and_normalize_dataframe(df):
-    #TODO: actually normalize
+    # TODO: actually normalize
     dfcsv = "scheduler_input_data_%06d.csv" % random.randint(0, 1000000)
     df.to_csv(dfcsv)
     return dfcsv
@@ -192,7 +193,7 @@ def get_notebook_job(job_id=None):
     Get the instance of a particular notebook job.
 
     Parameters:
-        job_id (str): string of job_id. This job_id is created when making a 
+        job_id (str): string of job_id. This job_id is created when making a
             hp.schedule_notebook()
     Returns:
         A notebook_job object.
@@ -227,12 +228,12 @@ def current_notebook():
     """
     global the_current_notebook
     if the_current_notebook is not None:
-        #once you specify the notebook in a kernel it should,
-        #by definition always be the same notebook
-        #This does mean you will have to reset the kernel
-        #in order to specify a different notebook
-        #if you make a mistake.
-        #Really what we should have is a jupyter plugin to figure out the notebook.
+        # once you specify the notebook in a kernel it should,
+        # by definition always be the same notebook
+        # This does mean you will have to reset the kernel
+        # in order to specify a different notebook
+        # if you make a mistake.
+        # Really what we should have is a jupyter plugin to figure out the notebook.
         return the_current_notebook
 
     test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")

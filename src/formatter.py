@@ -12,11 +12,12 @@ import h5py
 import pandas as pd
 import json
 
-import hisepy.common_utils as cu
+import common_utils as cu
+from util import load_config
 
 # setting global config
 _here = os.path.abspath(os.path.dirname(__file__))
-CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+CONFIG = load_config()
 
 
 def convert_data_values(filepath: str, filetype: str):
@@ -27,7 +28,7 @@ def convert_data_values(filepath: str, filetype: str):
             return h5py.File(filepath, mode='r')
         else:
             return None
-    except:
+    except BaseException:
         raise Exception(
             "Uh-oh, the file wasn't downloaded into the /cache directory")
 
@@ -49,15 +50,15 @@ def subject_to_df_worker(subject_out):
     single_df = pd.DataFrame()
     for dk in dict_keys:
         this_entry = subject_out[dk]
-        if type(this_entry) == dict:
-            this_entry.update(
+
+
+if isinstance(this_entry,         if )            this_entry.update(
                 (k, [v]) for k, v in
                 this_entry.items())  # convert values to lists inplace
             metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
             metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dk))
             meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
-        elif type(this_entry) == str:
-            single_tmp = pd.DataFrame([this_entry], columns=[dk])
+elif isinstance(this_entry,         elif )            single_tmp = pd.DataFrame([this_entry], columns=[dk])
             single_df = pd.concat([single_df, single_tmp], axis=1)
         else:
             raise ValueError(
@@ -104,12 +105,12 @@ def _dict_to_df(input_df, col_name):
 
 
 def sample_to_df_worker(sample_out):
-    """ 
-    Reformats JSON output from read_samples() to a data.frame object 
+    """
+    Reformats JSON output from read_samples() to a data.frame object
 
     Parameters:
-        sample_out (dict): response object from read_samples() 
-    Returns: 
+        sample_out (dict): response object from read_samples()
+    Returns:
         a dictionary of 4 data.frame objects with the following keys: ['metadata','labResults', 'specimens','survey']
     """
 
@@ -157,11 +158,9 @@ def sample_to_df_worker(sample_out):
         else:
             this_entry = sample_out[dv]
 
-            if type(this_entry) == str:
-                metadata_df[dv] = this_entry
+if isinstance(this_entry,             if )                metadata_df[dv] = this_entry
             # only want to do this for samples/subject
-            elif type(this_entry) == dict:
-                if dv in ['sample', 'subject']:
+elif isinstance(this_entry,             elif )                if dv in ['sample', 'subject']:
                     tmp_df = pd.DataFrame([sample_out[dv]
                                            ]).add_prefix('{}.'.format(dv))
                     metadata_df = pd.concat([metadata_df, tmp_df], axis=1)
@@ -265,7 +264,7 @@ def _desc_lab_to_df(this_desc):
     lab_df = pd.concat(
         [pd.DataFrame(labr),
          pd.DataFrame(this_desc), revision_df], axis=1)
-    #de-dupe
+    # de-dupe
     return lab_df.loc[:, ~lab_df.columns.duplicated()]
 
 
@@ -280,7 +279,7 @@ def _desc_specimen_to_df(this_desc, sample_kit_guid):
 
 
 def reshape_descriptors(this_desc):
-    """ Reshapes descriptors to a dataframe object 
+    """ Reshapes descriptors to a dataframe object
     """
     assert type(
         this_desc
@@ -317,7 +316,7 @@ def reshape_descriptors(this_desc):
         update_df = pd.DataFrame.from_dict(
             this_desc[update_col]).rename(columns={0: update_col})
         this_df_desc = pd.concat([this_df_desc, update_df],
-                                 axis=1)  #column bind
+                                 axis=1)  # column bind
 
     # now take care of lab results
     lab_df = _desc_lab_to_df(this_desc['lab'].copy())
