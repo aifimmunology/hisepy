@@ -35,8 +35,18 @@ maintainers = [
 dynamic = ["version"]
 requires-python = ">= 3.11"
 dependencies = [
-    "numpy",
-    "pandas",
+    'google-cloud-storage',
+    'h5py',
+    'isort',
+    'numpy',
+    'pandas==2.1.0',
+    'plotly==5.12.0',
+    'pyreadr',
+    'pytest',
+    'PyYAML',
+    'requests',
+    'termcolor',
+    'toml',
 ]
 
 # Similar to `dependencies` above, these must be valid existing
