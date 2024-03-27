@@ -388,7 +388,9 @@ def save_abstraction(app_filepath: str = None,
         description (str) : description of the app
         data_contract_id (str) : UUID of data contract. This data contract defines the column names of an input data.frame
                                  that's used as input for a visualization application.
-        result_file_type (list) : Result fileType name (e.g Olink, fixed-RNA-seq-labeled, scRNA-seq-labeled, etc)
+        result_file_types (list) : Result fileType name (e.g Olink, fixed-RNA-seq-labeled, scRNA-seq-labeled, etc)
+        is_sample_metadata_app (bool) : if True, will save the abstraction as a sample metadata visualization
+        is_subject_metadata_app (bool) : If True, will save the abstraction as a subject metadata visualization
         image (str) : filepath to png thumbnail image for app 
     Returns:
         server response 
