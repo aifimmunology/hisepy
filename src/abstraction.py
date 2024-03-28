@@ -1,17 +1,17 @@
-import json
 import os
-import requests
-import tempfile
-import tarfile
-import shutil
 import pathlib as pl
+import shutil
+import tarfile
+import tempfile
+
+import pandas as pd
+import requests
+
 import common_utils as cu
-import hisepy.upload as cup
 from auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
 from reader import parse_hise_response, hise_url
 from scheduler import current_notebook
-import pandas as pd
-from hisepy import auth
+from src import auth
 from util import load_config
 
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -23,7 +23,6 @@ any_project_urn = "urn:hise:project:any"
 def get_projects(to_df: bool = True):
     """
     Returns information on all projects in the current account
-
     Parameters: 
         to_df (bool): reshape to tabular, if True
     """
@@ -31,13 +30,13 @@ def get_projects(to_df: bool = True):
     resp = parse_hise_response(
         requests.get(hise_url("amds", "project_path"),
                      headers=get_bearer_token_header()))
-
-    # reshape to tabular format and concatenate each entry
+    # reshape to tabular format only once using list comprehension
     if to_df:
-        proj_df = pd.DataFrame()
-        for p in resp:
-            proj_df = pd.concat([proj_df, pd.json_normalize(p)[keep_cols]])
-    return proj_df
+        data = [pd.json_normalize(item) for item in resp]
+        proj_df = pd.DataFrame(data).loc[:, keep_cols]
+        return proj_df
+    else:
+        return resp
 
 
 def project_shortname_to_guid(proj_name):

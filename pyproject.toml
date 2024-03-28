@@ -1,5 +1,6 @@
 [project]
 name = "hisepy"
+# dynamic = [version]
 description = "Allen Institute for Immunology Human Immune System Explorer Python SDK"
 readme = "README.md"
 license = {text = "MIT License"}
@@ -22,7 +23,7 @@ classifiers = [
 
   # Specify the Python versions you support here.
   "Programming Language :: Python :: 3.11",
-  # "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.10",
   # "Programming Language :: Python :: 3.11",
   # "Programming Language :: Python :: 3 :: Only",
 ]
@@ -33,7 +34,7 @@ maintainers = [
   {name = "Paul Mariz", email = "paul.mariz@alleninstitute.org"},
 ]
 dynamic = ["version"]
-requires-python = ">= 3.11"
+requires-python = ">= 3.10"
 dependencies = [
     'google-cloud-storage',
     'h5py',

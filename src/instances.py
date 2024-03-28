@@ -1,7 +1,7 @@
 import requests
 import os
 
-import hisepy.common_utils as cu
+import src.common_utils as cu
 from src.auth import get_from_metadata_server, get_bearer_token_header
 from util import load_config
 

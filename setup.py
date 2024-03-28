@@ -1,4 +1,8 @@
 from setuptools import setup, find_packages
+# read the contents of your README file
+from pathlib import Path
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.rst").read_text()
 
 setup(
     name='hisepy',
@@ -6,7 +10,7 @@ setup(
     author='Paul Mariz',
     author_email='paul.mariz@alleninstitute.org',
     description='A brief description of hisepy',
-    long_description=open('README.rst').read(),
+    long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/aifimmunology/fake_hisepy',  # Replace with your own URL
     packages=find_packages(),
@@ -37,11 +41,11 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         "Programming Language :: Python :: 3.11",
-        # "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.10",
         # "Programming Language :: Python :: 3.11",
         # "Programming Language :: Python :: 3 :: Only",
         # Add more classifiers as appropriate
         # See https://pypi.org/classifiers/ for a list
     ],
-    python_requires='>=3.11',  # Adjust the Python version as needed
+    python_requires='>=3.10',  # Adjust the Python version as needed
 )

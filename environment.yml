@@ -1,11 +1,12 @@
-name: hisepy
+name:
+  - hisepy
 channels:
   - conda-forge
   - bioconda
   - plotly
   - defaults
 dependencies:
-  - python=3.11
+  - python=3.10
   - autopep8
   - build
   - conda-build
