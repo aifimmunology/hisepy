@@ -14,8 +14,7 @@ from util import load_config
 the_current_notebook = None
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = load_config()
-derived_instance_flag_file = "/%s/.derivedinstance" % (
-    CONFIG['IDE']['HOME_DIR'])
+derived_instance_flag_file = "/%s/.derivedinstance" % (CONFIG['IDE']['HOME_DIR'])
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
 num_printed_notebooks = 3  # number of options user gets when a save call is invoked
 

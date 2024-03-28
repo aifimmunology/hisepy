@@ -18,10 +18,13 @@ import json
 import pathlib
 import copy
 from src.auth import debug
+from src.util import load_config
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
 
+CONFIG = load_config()
+cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'], c=CONFIG['IDE']['CACHE_LOG_NAME'])
 
 def read_yaml(file_path):
     with open(file_path, "r") as f:
@@ -107,9 +110,6 @@ def log_downloaded_files(hise_file):
         Parameters:
             hise_file : hise_file object
     """
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
-    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[
         'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
     ])
@@ -162,13 +162,10 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
     if input_sample_ids is not None:
         assert type(input_sample_ids) is list
 
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
-    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
-
     if (not os.path.exists(cache_file_path)):
         raise FileNotFoundError(
-            "No files have been downloaded into this IDE. You cannot upload results without utilizing any HISE input data."
+            "No files have been downloaded into this IDE. You cannot upload results without utilizing any HISE input "
+            "data."
         )
 
     cache_df = pyreadr.read_r(cache_file_path)[None]
@@ -188,11 +185,13 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
 
     if len(invalid_file_ids) > 0:
         raise AssertionError(
-            "The following file Ids were not downloaded in this IDE. You cannot reference a file in a result without downloading it first. {}"
+            "The following file Ids were not downloaded in this IDE. You cannot reference a file in a result without "
+            "downloading it first. {}"
             .format(invalid_file_ids))
     if len(invalid_sample_ids) > 0:
         raise AssertionError(
-            "The following sample Ids were not downloaded in this IDE. You cannot refernce a file in a result without downloading it first. {}"
+            "The following sample Ids were not downloaded in this IDE. You cannot refernce a file in a result without "
+            "downloading it first. {}"
             .format(invalid_sample_ids))
 
     return
@@ -230,8 +229,6 @@ def parse_hise_response(resp):
 
 
 def download_response_content(resp, dest):
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
-
     # check status
     if resp.status_code != 200:
         raise SystemError(
@@ -267,9 +264,6 @@ def log_project_download(file_id: str):
     Parameters:
         file_id (str) : file_id of file in project folder
     """
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
-    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[
         'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
     ])
