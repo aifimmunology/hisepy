@@ -467,11 +467,16 @@ def cache_file(url: str, file_name: str, file_dir: str):
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
 
     f_path = "%s/%s" % (file_dir, file_name)
-    resp = requests.request("GET", url, headers=get_bearer_token_header())
-    if resp.status_code != 200:
-        raise SystemError("Request to get file %s failed with status %d. %s" %
-                          (file_name, resp.status_code, resp.text))
-    open(f_path, 'wb').write(resp.content)
+    with requests.request("GET",
+                          url,
+                          headers=get_bearer_token_header(),
+                          stream=True) as resp:
+        if resp.status_code != 200:
+            raise SystemError(
+                "Request to get file %s failed with status %d. %s" %
+                (file_name, resp.status_code, resp.text))
+        else:
+            open(f_path, 'wb').write(resp.content)
 
 
 def read_samples(sample_ids=None, query_dict=None, to_df=True):
