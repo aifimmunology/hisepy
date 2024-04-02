@@ -6,7 +6,7 @@ long_description = (this_directory / "README.rst").read_text()
 
 setup(
     name='hisepy',
-    version='0.1.2',  # You can change the version as needed
+    version='v0.2.1',  # You can change the version as needed
     author='Paul Mariz',
     author_email='paul.mariz@alleninstitute.org',
     description='A brief description of hisepy',
