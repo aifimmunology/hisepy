@@ -27,16 +27,21 @@ def convert_data_values(filepath: str, filetype: str):
             return h5py.File(filepath, mode='r')
         else:
             return None
-    except:
+    except pd.errors.ParserError:
         raise Exception(
-            "Uh-oh, the file wasn't downloaded into the /cache directory")
+            "Error parsing H5 file {}".format(filepath))
+    except OSError:
+        raise Exception(
+            "Error reading CSV or H5 file {}".format(filepath))
 
 
 # there's another layer/dict under emr.patientData. is leaving a dict under this column okay?
 # Do we want to expand this and create a df? maybe have a parameter asking what users want?
+
+
 def subject_to_df_worker(subject_out):
     """
-    Takes output from readSubjects, and reformats to a data.frame
+    Takes output from readSubjects, and reformats to a data frame
         Parameters:
             subject_out: list
                 list of dictionaries containing data from subject materialized view
@@ -49,14 +54,14 @@ def subject_to_df_worker(subject_out):
     single_df = pd.DataFrame()
     for dk in dict_keys:
         this_entry = subject_out[dk]
-        if type(this_entry) == dict:
+        if this_entry is dict:
             this_entry.update(
                 (k, [v]) for k, v in
                 this_entry.items())  # convert values to lists inplace
             metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
             metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dk))
             meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
-        elif type(this_entry) == str:
+        elif this_entry is str:
             single_tmp = pd.DataFrame([this_entry], columns=[dk])
             single_df = pd.concat([single_df, single_tmp], axis=1)
         else:
@@ -157,10 +162,10 @@ def sample_to_df_worker(sample_out):
         else:
             this_entry = sample_out[dv]
 
-            if type(this_entry) == str:
+            if this_entry is str:
                 metadata_df[dv] = this_entry
             # only want to do this for samples/subject
-            elif type(this_entry) == dict:
+            elif this_entry is dict:
                 if dv in ['sample', 'subject']:
                     tmp_df = pd.DataFrame([sample_out[dv]
                                            ]).add_prefix('{}.'.format(dv))
@@ -231,11 +236,8 @@ def _desc_lab_to_df(this_desc):
                 dictionary that contains labResults
 
         Returns:
-            lab_df : data.frame of labResults
+            lab_df : data frame of labResults
     """
-
-    lab_df = pd.DataFrame()
-
     # copy results, and convert entries to list
     if this_desc['labResults'] is None:
         labr = pd.DataFrame()
@@ -265,7 +267,7 @@ def _desc_lab_to_df(this_desc):
     lab_df = pd.concat(
         [pd.DataFrame(labr),
          pd.DataFrame(this_desc), revision_df], axis=1)
-    #de-dupe
+    # de-dupe
     return lab_df.loc[:, ~lab_df.columns.duplicated()]
 
 
@@ -294,8 +296,8 @@ def reshape_descriptors(this_desc):
     this_df_desc = pd.DataFrame()
     for dk in this_desc.keys():
         if (dk in [
-                'specimens', 'lab', 'emr', 'lastUpdated', 'labLastModified',
-                'surveyLastModified', 'survey'
+            'specimens', 'lab', 'emr', 'lastUpdated', 'labLastModified',
+            'surveyLastModified', 'survey'
         ]) | (this_desc[dk] is None) | (this_desc[dk] == []):
             continue
         # convert dictionary to dataframe
@@ -304,20 +306,19 @@ def reshape_descriptors(this_desc):
         tmp_df = pd.DataFrame(copy_tmp)
 
         # rename columns by adding a prefix (i.e lab.<col>, file.<col>, etc)
-        tmp_df_cols = tmp_df.columns.tolist()
+        tmp_df_cols = tmp_df.columns.to_list
         new_cols = ['{}.{}'.format(dk, i) for i in tmp_df_cols]
         tmp_df.columns = new_cols
 
         this_df_desc = pd.concat([this_df_desc, tmp_df], axis=1)
 
     # handle lastUpdated, labLastModified, and surveyLastModified - create df then rename column
-    update_df = pd.DataFrame()
     for update_col in ['lastUpdated', 'labLastModified', 'surveyLastModified']:
         this_desc[update_col] = [this_desc[update_col]]
         update_df = pd.DataFrame.from_dict(
             this_desc[update_col]).rename(columns={0: update_col})
         this_df_desc = pd.concat([this_df_desc, update_df],
-                                 axis=1)  #column bind
+                                 axis=1)  # column bind
 
     # now take care of lab results
     lab_df = _desc_lab_to_df(this_desc['lab'].copy())
@@ -335,15 +336,15 @@ def reshape_descriptors(this_desc):
 
 def hise_file_to_df(list_of_hise_files):
     """
-    Given a list of hise_file objects, return a dictionary containing a data.frame of descriptors, and a data.frame of lab results
+    Given a list of hise_file objects, return a dictionary containing a data.frame of descriptors, and a data.frame
+    of lab results
 
         Parameters:
             list_of_hise_files : list
                 a list of hise_file objects
 
-        Returns:
-            final_dict : dictionary with keys {'descriptors',labResults', 'specimens', 'values'} which are all data.frame objects.
-            except for values, which depends on the filetype the user passes in.
+        Returns: final_dict : dictionary with keys {'descriptors',labResults', 'specimens', 'values'} which are all
+        data.frame objects. except for values, which depends on the filetype the user passes in.
     """
     filetype = list_of_hise_files[0].filetype
     list_dict = []

@@ -22,6 +22,7 @@ defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 
 
 def get_from_metadata_server(path):
+    value = None
     try:
         resp = requests.request("GET",
                                 "%s/%s" % (metadata_server_root, path),
@@ -30,9 +31,16 @@ def get_from_metadata_server(path):
             raise SystemError("Request to %s failed with status %d. %s" %
                               (path, resp.status_code, resp.text))
         value = resp.text
-    except BaseException:
+    except requests.exceptions.Timeout:
+        # Maybe set up for a retry, or continue in a retry loop
+        print("Request to %s timed out")
+    except requests.exceptions.TooManyRedirects:
+        # Tell the user their URL was bad and try a different one
+        print("Request to %s has too many redirects")
+    except requests.exceptions.RequestException as e:
+        # catastrophic error. bail.
         if path in default_metadata:
-            print("Returning default value for %s" % path)
+            print("Error: %s Returning default value for %s" % (e, path))
             value = default_metadata[path]
         else:
             raise SystemError(

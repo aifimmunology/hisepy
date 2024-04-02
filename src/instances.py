@@ -10,7 +10,7 @@ CONFIG = load_config()
 
 
 def stop_ide():
-    ''' Stops/Terminates the active instance that is calling this function. '''
+    """ Stops/Terminates the active instance that is calling this function. """
     # get IDE name
     this_ide_name = get_from_metadata_server(
         CONFIG['AUTHORIZE']['INSTANCE_NAME_PATH'])
@@ -29,7 +29,7 @@ def stop_ide():
 
 
 def suspend_ide():
-    ''' Suspends the active instance that is calling this function. '''
+    """ Suspends the active instance that is calling this function. """
     # get IDE name
     this_ide_name = get_from_metadata_server(
         CONFIG['AUTHORIZE']['INSTANCE_NAME_PATH'])

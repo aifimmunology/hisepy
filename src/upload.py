@@ -228,6 +228,7 @@ def save_visualization(
         title (str): 10+ character for visualization being uploaded
         destination (str):  Destination folder for the files
         input_file_ids (list): list of file_ids from HISE that were utilized to generate visualization.
+        input_sample_ids (list): list of sample_ids
     Returns:
         dictionary with keys ["trace_id", "files"]
     """
@@ -285,8 +286,8 @@ def save_visualization(
     vis_dict = {
         'file': (tmp_plotly_file, open(tmp_plotly_file,
                                        'rb'), 'application/json', {
-                                           'Expires': '0'
-        })
+                     'Expires': '0'
+                 })
     }
     url = hise_url("toolchain", "visualization_path", "json", args=args)
     parse_hise_response(
@@ -421,7 +422,8 @@ def validate_app_path(app_path):
         raise ValueError("App file must be within %s" % IDE_HOME_DIR)
     if cu.string_contains_whitespaces(app_path):
         raise ValueError(
-            "Your filepath contains whitespaces. Please try again after removing whitespaces from the following file: {}"
+            "Your filepath contains whitespaces. Please try again after removing whitespaces from the following file: "
+            "{}"
             .format(app_path))
 
 
@@ -431,7 +433,8 @@ def validate_files(filenames):
         abs_path = os.path.abspath(this_f)
         if cu.string_contains_whitespaces(abs_path):
             raise ValueError(
-                "The following additional_file contains whitespaces. Please remove all whitespaces for the following filepath: {}"
+                "The following additional_file contains whitespaces. Please remove all whitespaces for the following "
+                "filepath: {}"
                 .format(abs_path))
         if not os.path.exists(abs_path):
             # Echo user's input back to them for easy reference along with
@@ -448,7 +451,7 @@ def validate_files(filenames):
 
 
 def validate_hero_image(hero_image):
-    if type(hero_image) != str or cu.get_filetype(hero_image) != 'png':
+    if (not isinstance(hero_image, str)) or cu.get_filetype(hero_image) != 'png':
         raise ValueError("image must be a PNG")
 
 
@@ -491,6 +494,7 @@ def save_dash_app(app_filepath: str,
             (i.e., ends with `app.run_server(host='0.0.0.0')`)
         additional_files (list): list of additional files used by your app (e.g., data files, custom CSS).
             Only files under /home/jupyter can be included.
+        additional_dirs (list): list of additional directories used by your app (e.g)
         input_file_ids (list): list of HISE file UUIDs that this app visualizes
         study_space_id (str): UUID of study space to save app to
         title (str): a 10+ character title for the app
@@ -608,20 +612,19 @@ def validate_upload_data(files, study_space_id, project, title,
         raise ValueError("You must specify at least one input file UUID")
 
 
-def load_visualization(id):
+def load_visualization(trace_or_vis_id):
     """
     Loads a plotly visualization to user
 
     Parameters:
-        id (str): trace id or visualization id
+        trace_or_vis_id (str): trace id or visualization id
     Returns:
         plotly figure
     """
     return go.Figure(parse_hise_response(
         requests.request("GET",
-                         hise_url("toolchain", "visualization_path", id),
-                         headers=get_bearer_token_header())),
-                     skip_invalid=True)
+                         hise_url("toolchain", "visualization_path", trace_or_vis_id),
+                         headers=get_bearer_token_header())), skip_invalid=True)
 
 
 def get_size_in_megabytes(file_list):

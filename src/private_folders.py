@@ -15,7 +15,7 @@ CONFIG = load_config()
 
 
 def upload_file_to_private_folder(folder_name: str, file_path: str):
-    '''
+    """
     Uploads a file to a private folder.
 
     Parameters:
@@ -24,7 +24,7 @@ def upload_file_to_private_folder(folder_name: str, file_path: str):
 
     Returns:
         Response object
-    '''
+    """
     assert type(folder_name) is str, 'folder_name must be of type str'
     assert type(file_path) is str, 'file_name must be of type str'
     assert len(
@@ -33,14 +33,14 @@ def upload_file_to_private_folder(folder_name: str, file_path: str):
     this_file = {'file': open(file_path, 'rb')}
     url = hise_url('hydration',
                    'user_folder_path',
-                   resource='%s/files' % (folder_name))
+                   resource='%s/files' % folder_name)
     resp = cu.parse_hise_response(
         requests.post(url, files=this_file, headers=get_bearer_token_header()))
     return resp
 
 
 def list_files_in_all_private_folders():
-    ''' Returns a data.frame of all private folders and files that are within each '''
+    """ Returns a data frame of all private folders and files that are within each """
     url = hise_url('hydration', 'user_folder_path')
     resp = cu.parse_hise_response(
         requests.get(url, headers=get_bearer_token_header()))
@@ -48,24 +48,24 @@ def list_files_in_all_private_folders():
 
 
 def list_files_in_private_folder(folder_name=None):
-    '''
+    """
     Lists files inside a given private folder.
 
     Parameters:
         folder_name (str) : Name of private folder.
     Returns:
         Data.frame with columns [folder,files]
-    '''
+    """
     url = hise_url('hydration',
                    'user_folder_path',
-                   resource='%s/files' % (folder_name))
+                   resource='%s/files' % folder_name)
     resp = cu.parse_hise_response(
         requests.get(url, headers=get_bearer_token_header()))
     return pd.DataFrame(resp['result'])
 
 
 def create_private_folder(folder_name: str, file_expiration: int = None):
-    '''
+    """
     Creates a new private folder.
 
     Note: Current max number of private folders = 10.
@@ -75,7 +75,7 @@ def create_private_folder(folder_name: str, file_expiration: int = None):
         file_expiration (int) : Days until files in Private Folder get deleted. (Default None. Files won't be deleted)
     Returns:
         Response object
-    '''
+    """
     assert type(folder_name
                 ) is str, 'The name of folder must be assigned a string value.'
 
@@ -104,7 +104,7 @@ def create_private_folder(folder_name: str, file_expiration: int = None):
 
 def move_file_in_private_folder(file_name: str, source_folder: str,
                                 destination_folder: str):
-    '''
+    """
     Move a file between Private Folders.
 
     Parameters:
@@ -113,7 +113,7 @@ def move_file_in_private_folder(file_name: str, source_folder: str,
         destination_folder (str) : name of Private Folder to move the file to.
     Returns:
         Response object
-    '''
+    """
     assert type(file_name) is str, 'file_name must be of type str'
     assert type(source_folder) is str, 'source_folder must be of type str'
     assert type(
@@ -131,13 +131,13 @@ def move_file_in_private_folder(file_name: str, source_folder: str,
 
 
 def delete_file_in_private_folder(folder_name: str, file_name: str):
-    '''
+    """
     Delete a file from a Private Folder.
 
     Parameters:
         folder_name (str) : name of Private Folder.
         file_name (str) : Name of the file you want deleted.
-    '''
+    """
     assert type(folder_name) is str, 'folder_name must be of type str'
     assert type(file_name) is str, 'file_name must be of type str'
 
@@ -150,7 +150,7 @@ def delete_file_in_private_folder(folder_name: str, file_name: str):
 
 
 def download_from_private_folder(folder_name: str, file_name: str):
-    '''
+    """
     Download a file from a Project Folder to your local working directory.
 
     Parameters:
@@ -158,7 +158,7 @@ def download_from_private_folder(folder_name: str, file_name: str):
         file_name (str) : Name of file you want downloaded.
     Returns:
         Response object
-    '''
+    """
     assert type(folder_name) is str, 'folder_name must be of type str'
     assert type(file_name) is str, 'file_name must be of type str'
     assert len(file_name) < 1024, 'file_name must not exceed 1024 characters'
@@ -175,7 +175,7 @@ def download_from_private_folder(folder_name: str, file_name: str):
 
 def rename_file_in_private_folder(folder_name: str, old_file_name: str,
                                   new_file_name: str):
-    '''
+    """
     Rename a file in a Private Folder.
 
     Parameters:
@@ -184,7 +184,7 @@ def rename_file_in_private_folder(folder_name: str, old_file_name: str,
         new_file_name (str) : New name of the file.
     Returns:
         Response object
-    '''
+    """
     assert type(folder_name) is str, 'folder_name must be of type str'
     assert type(old_file_name) is str, 'old_file_name must be of type str'
     assert type(new_file_name) is str, 'new_file_name must be of type str'
@@ -203,18 +203,18 @@ def rename_file_in_private_folder(folder_name: str, old_file_name: str,
 
 
 def delete_private_folder(folder_name):
-    '''
+    """
     Delete an existing Private Folder
 
     Parameters:
         folder_name (str) : Name of Private Folder
     Returns:
         Response object
-    '''
+    """
     assert type(folder_name) is str, "folder_name must be of type str"
     url = hise_url('hydration',
                    'user_folder_path',
-                   resource='%s' % (folder_name))
+                   resource='%s' % folder_name)
     resp = cu.parse_hise_response(
         requests.delete(url, headers=get_bearer_token_header()))
     return resp

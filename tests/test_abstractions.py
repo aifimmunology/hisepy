@@ -124,7 +124,7 @@ class TestAbstractionAppImg:
 
     @pytest.fixture
     def create_url(self, post_params, init_test):
-        return self.abstraction_img.create_url(post_params)
+        return create_url(post_params)
 
     def test_post_request(self, create_url, create_file_arg, mocker):
 
@@ -134,7 +134,7 @@ class TestAbstractionAppImg:
         mock_response.json.return_value = {"status": "success"}
 
         # send it
-        resp = self.abstraction_img.send_post(create_url, create_file_arg)
+        resp = send_post(create_url, create_file_arg)
 
         # assertion checks
         assert resp.status_code == 200
@@ -154,8 +154,8 @@ class TestAbstractionAppImg:
         mock_response.json.return_value = {"status": "success"}
 
         # send it
-        resp = self.abstraction_img.send_static_image_post(
-            self.abstraction_img.create_static_image_url(),
+        resp = send_static_image_post(
+            create_static_image_url(),
             self.abstraction_img.create_image_dict())
 
         # assertion checks

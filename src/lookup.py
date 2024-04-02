@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 import requests
 
-import common_utils as cu
 from src.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
 from util import load_config
 
@@ -29,7 +28,7 @@ def lookup_queryable_fields(field_type='all'):
     Parameters:
         field_type (str): field_type that determines what fields to return
     Returns:
-        data.frame containing all the field names users could query on
+        data frame containing all the field names users could query on
     Example:
         hp.lookup_queryable_fields(field_type='subject')
     """
@@ -128,7 +127,8 @@ def lookup_unique_entries(field):
     # remove empty entry if it exists
     try:
         unique_fields.remove('')
-    except BaseException:
+    except ValueError:
+        print("value error parsing JSON, continuing")
         pass
 
     # ensure values are unique
@@ -139,8 +139,8 @@ def lookup_unique_entries(field):
 
 
 def list_queryable_fields():
-    ''' Returns a list of fields user can use to create a query
-    '''
+    """ Returns a list of fields user can use to create a query
+    """
     df = lookup_queryable_fields()
     df = df.loc[(~df['field_type'].isin(['emr', 'lab'])
                  & ~df['field'].isin(['cohort'])), ]

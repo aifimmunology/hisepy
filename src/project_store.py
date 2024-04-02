@@ -51,7 +51,7 @@ def list_files_in_project_store(store_name):
     Parameters:
         store_name (str): name of project store
     Returns:
-        data.frame containing fileIds and fileNames
+        data frame containing fileIds and fileNames
     """
     store = {'stores': [store_name]}
     url = 'https://{ser}/{hy}/{pfe}/{f}'.format(
@@ -59,17 +59,10 @@ def list_files_in_project_store(store_name):
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
         pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
         f='files')
-    resp = requests.post(url,
-                         data=json.dumps(store),
-                         headers=get_bearer_token_header())
-    if resp.status_code != 200:
-        raise SystemError("Request to {} failed with status {}".format(
-            url, resp.status_code))
-    obj = json.loads(
-        resp.text
-    )[0]  # only allow users to submit 1 store_name at a time, so we always index the first entry
 
-    df = pd.DataFrame(obj['files'])
+    files = cu.get_file_list(url, store)
+    df = pd.DataFrame(files)
+
     df['store_name'] = store_name
     if len(df) == 0:
         ValueError(
@@ -86,74 +79,13 @@ def download_from_project_store(store_name, file_name='', subdir=''):
         store_name (str): name of project store
         file_name (str): name of file that you see under 'name' when utilizing
             list_files_in_project_store
+        subdir (str): subdirectory
     Returns:
         True if download was successful
     """
+    result = cu.handle_downloads(store_name, file_name, subdir, 'PROJECT_STORE', list_files_in_project_store)
 
-    def _submit_url_download(url: str, store: str, filen: str):
-        if '/' not in filen:
-            truncate_file_name = filen
-        else:
-            truncate_file_name = filen.split('/', maxsplit=1)[1]
-        resp = requests.request("GET",
-                                url,
-                                headers=get_bearer_token_header(),
-                                stream=True)
-        if resp.status_code != 200:
-            raise SystemError("Request to {} failed with status {}".format(
-                url, resp.status_code))
-        with open('{}/{}/{}'.format(os.getcwd(), store, truncate_file_name),
-                  'wb') as f:
-            for chunk in resp.iter_content(
-                    CONFIG['IDE']['DOWNLOAD_CHUNK_SIZE']):
-                f.write(chunk)
-
-    # create directory
-    try:
-        if subdir != '':
-            new_dir = '{}/{}/{}'.format(os.getcwd(), store_name, subdir)
-        else:
-            new_dir = '{}/{}'.format(os.getcwd(), store_name)
-        os.mkdir(new_dir)
-    except BaseException:  # directory already exists, but we don't want to error out
-        pass
-    ps_df = list_files_in_project_store(store_name)[['name', 'id']]
-
-    # case where user wants to download all files within a subdir they uploaded
-    if (file_name == '') & (subdir != ''):
-        # find all files that has that subdir in name
-        list_files = list_files_in_project_store(
-            store_name)['name'].unique().tolist()
-
-        # subset to entries with '/<subdir>/' in name
-        subdir_files = [x for x in list_files if '/{}/'.format(subdir) in x]
-
-        # create urls for each file in subset
-        url_list = []
-        for i in subdir_files:
-            this_url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-                ser=get_from_metadata_server(server_id_path),
-                hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-                pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
-                fol=store_name,
-                fil='files',
-                fn=i)
-            _submit_url_download(this_url, store_name, i)
-            ps_file_id = ps_df.loc[ps_df['name'].eq(i), 'id'].item()
-            cu.log_project_download(ps_file_id)
-    else:
-        # create url download
-        url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-            ser=get_from_metadata_server(server_id_path),
-            hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
-            pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
-            fol=store_name,
-            fil='files',
-            fn=file_name)
-        _submit_url_download(url, store_name, file_name)
-        ps_file_id = ps_df.loc[ps_df['name'].eq(file_name), 'id'].item()
-        cu.log_project_download(ps_file_id)
-    return True
+    return result
 
 
 def promote_file_in_project_store(store_name, file_name):
@@ -179,7 +111,7 @@ def undo_promote_in_project_store(store_name, file_name):
 
     Parameters:
         store_name (str): name of project store
-        file_name (str): name of file that you want unpromoted and visible
+        file_name (str): name of file that you want demoted and visible
     Returns:
         True if function call was a success
     """
@@ -239,7 +171,8 @@ def project_store_file_action(store_name, file_name, action):
             obj = json.loads(resp.text)
             if 'Errors' in obj and len(obj['Errors']) > 0:
                 message = obj['Errors'][0]['Message']
-        except BaseException:
+        except ValueError:
+            print("Error parsing JSON, continuing")
             pass
         raise SystemError(message)
 

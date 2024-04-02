@@ -41,8 +41,8 @@ def get_projects(to_df: bool = True):
 
 def project_shortname_to_guid(proj_name):
     """
-    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding 
-    guid. Otherwise, let the user know the Project doesn't exist.
+    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the
+    corresponding guid. Otherwise, let the user know the Project doesn't exist.
 
     Parameters: 
         proj_name (str) : the short-name of a HISE Project
@@ -56,13 +56,13 @@ def project_shortname_to_guid(proj_name):
             % (proj_name, proj_df['short_name'].values))
     else:
         this_proj = proj_df.loc[
-            proj_df['short_name'].eq(proj_name), ].reset_index(drop=True)
+            proj_df['short_name'].eq(proj_name),].reset_index(drop=True)
 
     # error if collisions exist
     if len(this_proj) > 1:
         raise SystemError(
             "Looks like there multiple Projects named %s. Please contact the software team."
-            % (proj_name))
+            % proj_name)
     else:
         proj_guid = this_proj.loc[0, 'guid']
         return proj_guid
@@ -93,9 +93,9 @@ def get_result_files(to_df=True):
 
 
 def result_json_to_df(json_obj):
-    '''
-    flatten nested structure of a JSON object and creates a data.frame 
-    '''
+    """
+    flatten nested structure of a JSON object and creates a data. frame
+    """
     agg_df = pd.DataFrame()
     for o in json_obj:
         agg_df = pd.concat([agg_df, pd.json_normalize(o)])
@@ -129,25 +129,26 @@ def user_prompt_select_result(rf_df: pd.DataFrame, filetype):
 
 
 def result_filetype_to_guid(filetype: str, proj_guid):
-    ''' 
-    Given a ResultFile.fileType, return the corresponding resultFile.ID
-    '''
+    """
+    Given a ResultFile.fileType, return the corresponding resultFile. ID
+    """
 
     # get all the resultFiles and concat
     agg_df = get_result_files()
 
     # check that the result file exists for the chosen project, or if the project is set to "urn:hise:project:any"
     results_in_proj_df = agg_df.loc[
-        agg_df['projectGuid'].isin([proj_guid, any_project_urn]), ]
+        agg_df['projectGuid'].isin([proj_guid, any_project_urn]),]
     if filetype not in results_in_proj_df[['fileType']].values:
         raise ValueError(
-            "%s is not a valid resultFile name for project guid, %s. The following is a list of valid resultFile names for this project: %s"
+            "%s is not a valid resultFile name for project guid, %s. The following is a list of valid resultFile "
+            "names for this project: %s"
             % (filetype, proj_guid, results_in_proj_df[['fileType']].values))
     else:
         # now filter on ResultFile.fileType
         desired_result = results_in_proj_df.loc[
-            results_in_proj_df['fileType'].eq(filetype), ].reset_index(
-                drop=True)
+            results_in_proj_df['fileType'].eq(filetype),].reset_index(
+            drop=True)
 
     # handle potential name collisions
     if len(desired_result) > 1:
@@ -156,6 +157,28 @@ def result_filetype_to_guid(filetype: str, proj_guid):
     else:
         guid_val = desired_result.loc[0, 'id']
         return guid_val
+
+
+def create_static_image_url():
+    return hise_url("hydration", "hise_wide_static_img_path")
+
+
+def send_static_image_post(url, img_dict):
+    resp = requests.post(url,
+                         headers=get_bearer_token_header(),
+                         files=img_dict)
+    return resp
+
+
+def create_url(args):
+    return hise_url("toolchain", "abstraction_path", args=args)
+
+
+def send_post(url, file):
+    resp = requests.post(url,
+                         headers=get_bearer_token_header(),
+                         files=file)
+    return resp
 
 
 class AbstractionAppImg:
@@ -189,15 +212,6 @@ class AbstractionAppImg:
         self.data_contract_id = data_contract_id
         self.work_dir = work_dir
         self.viz_configs_path = CONFIG['ABSTRACTION']['VIZ_CONFIGS_PATH']
-
-    def create_static_image_url(self):
-        return hise_url("hydration", "hise_wide_static_img_path")
-
-    def send_static_image_post(self, url, img_dict):
-        resp = requests.post(url,
-                             headers=get_bearer_token_header(),
-                             files=img_dict)
-        return resp
 
     def create_image_dict(self):
         return {
@@ -242,7 +256,7 @@ class AbstractionAppImg:
                     shutil.copy(
                         '{}/{}'.format(os.path.dirname(self.app_filepath), f),
                         dst)
-                elif f in self.hero_image:  # we save the image.. probably don't need to bundle it up
+                elif f in self.hero_image:  # we save the image. probably don't need to bundle it up
                     shutil.copy(
                         '{}/{}'.format(os.path.dirname(self.hero_image), f),
                         dst)
@@ -253,9 +267,10 @@ class AbstractionAppImg:
                     rel_dst = pl.PurePath(self.work_dir).joinpath(
                         pl.PurePath(os.path.dirname(f)).relative_to(
                             os.path.dirname(self.app_filepath)))
-                except:
+                except OSError:
                     raise ValueError(
-                        "{} in additional_files must be relative to the path specified in the app_filepath parameter. If you want this file included in your application, please move the file somewhere in {}"
+                        "{} in additional_files must be relative to the path specified in the app_filepath parameter. "
+                        "If you want this file included in your application, please move the file somewhere in {}"
                         .format(f, os.path.dirname(self.app_filepath)))
                 if not os.path.exists(rel_dst):
                     os.makedirs(rel_dst)
@@ -282,24 +297,30 @@ class AbstractionAppImg:
         }
         return abstraction_img
 
-    def create_url(self, args):
-        return hise_url("toolchain", "abstraction_path", args=args)
 
-    def send_post(self, url, file):
-        resp = requests.post(url,
-                             headers=get_bearer_token_header(),
-                             files=file)
-        return resp
+APP_FILE_NAME = 'app.py'
 
 
 def validate_abstraction_app_path(app_path):
-    if os.path.basename(app_path) != 'app.py':
-        raise ValueError("App file must be called `app.py`")
+    assert_app_file_named_correctly(app_path)
+    assert_file_exists(app_path)
+    assert_app_file_within_ide_home_dir(app_path)
+
+
+def assert_app_file_named_correctly(app_path):
+    if os.path.basename(app_path) != APP_FILE_NAME:
+        raise ValueError(f"App file must be called {APP_FILE_NAME}")
+
+
+def assert_file_exists(app_path):
     if not os.path.exists(app_path):
-        raise ValueError("%s is not a valid file" % app_path)
+        raise ValueError(f"{app_path} is not a valid file")
+
+
+def assert_app_file_within_ide_home_dir(app_path):
     abspath = os.path.abspath(app_path)
     if not abspath.startswith(IDE_HOME_DIR):
-        raise ValueError("App file must be within %s" % IDE_HOME_DIR)
+        raise ValueError(f"App file must be within {IDE_HOME_DIR}")
 
 
 def param_app_type_check(result_types, is_sample_app, is_subject_app):
@@ -312,7 +333,7 @@ def param_app_type_check(result_types, is_sample_app, is_subject_app):
         sample_bool_set = True
     if is_subject_app is not None and is_subject_app is not False:
         subject_bool_set = True
-    return (result_file_set, sample_bool_set, subject_bool_set)
+    return result_file_set, sample_bool_set, subject_bool_set
 
 
 def _validate_abstraction_params(title: str, description: str, input_ids: list,
@@ -339,7 +360,8 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
     app_type_list = [input_ids_set, sample_app_bool_set, subject_app_bool_set]
     if app_type_list.count(True) != 1:
         raise ValueError(
-            "One of result_file_types, is_sample_metadata_app, is_subject_metadata_app must be specified. Please try again by specifying only one of these parameters."
+            "One of result_file_types, is_sample_metadata_app, is_subject_metadata_app must be specified. Please try "
+            "again by specifying only one of these parameters."
         )
 
     # type check
@@ -378,22 +400,31 @@ def save_abstraction(app_filepath: str = None,
                      is_sample_metadata_app: bool = None,
                      is_subject_metadata_app: bool = None,
                      image: str = None):  # optional
-    """ 
-    Save an abstraction to current user's account.
-    
-    Parameters:
-        app_filepath (str) : path to file named app.py 
-        additional_files (list) : list of additional files required for your app
-        title (str) : a title for your app 
-        description (str) : description of the app
-        data_contract_id (str) : UUID of data contract. This data contract defines the column names of an input data.frame
-                                 that's used as input for a visualization application.
-        result_file_type (list) : Result fileType name (e.g Olink, fixed-RNA-seq-labeled, scRNA-seq-labeled, etc)
-        image (str) : filepath to png thumbnail image for app 
-    Returns:
-        server response 
-    Example: 
-        hp.save_abstraction()
+    """
+    Saves an abstraction app with the given parameters.
+
+    :param app_filepath: Path to the abstraction app file. Defaults to None.
+    :type app_filepath: str
+    :param additional_files: List of additional files to include in the abstraction app. Defaults to None.
+    :type additional_files: list
+    :param title: Title of the abstraction app. Defaults to None.
+    :type title: str
+    :param description: Description of the abstraction app. Defaults to None.
+    :type description: str
+    :param project: Name of the project. Defaults to None.
+    :type project: str
+    :param data_contract_id: Data contract ID. Defaults to None.
+    :type data_contract_id: str
+    :param result_file_types: List of result file types. Defaults to None.
+    :type result_file_types: list
+    :param is_sample_metadata_app: Indicates if the abstraction app is a sample metadata app. Defaults to None.
+    :type is_sample_metadata_app: bool
+    :param is_subject_metadata_app: Indicates if the abstraction app is a subject metadata app. Defaults to None.
+    :type is_subject_metadata_app: bool
+    :param image: Path to the hero image for the abstraction app. Defaults to None.
+    :type image: str
+    :return: A dictionary containing the message and AbstractionId returned by the server.
+    :rtype: dict
     """
     # parameter check
     _validate_abstraction_params(title, description, result_file_types,
@@ -402,7 +433,7 @@ def save_abstraction(app_filepath: str = None,
                                  is_subject_metadata_app)
     validate_abstraction_app_path(app_filepath)
 
-    # convert project to its' guid
+    # convert project to it's guid
     proj_guid = project_shortname_to_guid(project)
 
     # also convert resultFile.fileTypes to their guid
@@ -416,7 +447,7 @@ def save_abstraction(app_filepath: str = None,
             hero_image=image,
             title=title,
             description=description,
-            data_contract_id=data_contract_id,
+            data_contract_id=[data_contract_id],
             project_guid=proj_guid,
             work_dir=tmpdirname,
             result_file_ids=result_file_ids,
@@ -425,8 +456,8 @@ def save_abstraction(app_filepath: str = None,
 
         # POST to hydration and save the static image
         resp = parse_hise_response(
-            aobj.send_static_image_post(aobj.create_static_image_url(),
-                                        aobj.create_image_dict()))
+            send_static_image_post(create_static_image_url(),
+                                   aobj.create_image_dict()))
 
         # copy files to tmp dir and tar the bad boy up and upload
         if cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"]):
@@ -434,8 +465,8 @@ def save_abstraction(app_filepath: str = None,
                                    aobj.user_filenames + additional_files)
             aobj.create_tarball()
             resp = parse_hise_response(
-                aobj.send_post(aobj.create_url(aobj.create_args(resp)),
-                               aobj.create_file_arg()))
+                send_post(create_url(aobj.create_args(resp)),
+                          aobj.create_file_arg()))
 
             return {
                 "message": resp["Message"],

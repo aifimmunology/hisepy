@@ -1,14 +1,13 @@
 import json
 import os
 import random
+import time
 
 import pandas
 import requests
-import time
 
-import common_utils as cu
-from src.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from reader import download_files
+from src.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from util import load_config
 
 the_current_notebook = None
@@ -253,13 +252,13 @@ def current_notebook():
                       ambiguitySeconds)
         if newerIsOld or olderIsNew:
             resp = -1
-            while (resp < 0 or resp >= len(notebooks)):
+            while resp < 0 or resp >= len(notebooks):
                 print("Cannot determine the current notebook.")
                 for idx in range(len(notebooks)):
                     print("%d) %s" % (idx + 1, notebooks[idx]))
                 print("Please select (1-%d) " % (len(notebooks)))
                 resp = int(input()) - 1
-                if (resp < 0 or resp >= len(notebooks)):
+                if resp < 0 or resp >= len(notebooks):
                     print(
                         "Invalid option for current notebook. Please try again and choose a value between [1,%s]"
                         % (num_printed_notebooks))
