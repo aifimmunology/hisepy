@@ -13,3 +13,6 @@ hisepy.egg-info
 __pycache__
 cache
 *.ipynb
+
+# mac cruff
+.DS_Store

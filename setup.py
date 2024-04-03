@@ -1,8 +1,12 @@
+import os
+
 from setuptools import setup, find_packages
 # read the contents of your README file
 from pathlib import Path
-this_directory = Path(__file__).parent
-long_description = (this_directory / "README.rst").read_text()
+this_directory = os.path.dirname(os.path.realpath('__file__'))
+
+desc_path = Path(this_directory + "/" + "README.rst")
+long_description = desc_path.read_text()
 
 setup(
     name='hisepy',

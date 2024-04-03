@@ -147,7 +147,10 @@ def upload_files(files: list,
 
     if type(files) is not list or len(files) == 0:
         raise ValueError("No files specified for upload")
-
+    if cu.string_contains_whitespaces(destination):
+        raise ValueError(
+            "destination param, {}, contains whitespaces. Please rename and remove any whitespaces"
+            .format(destination))
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
     uploads = None
@@ -594,7 +597,10 @@ def validate_upload_data(files, study_space_id, project, title,
                          input_file_ids):
     files_not_found = []
     for f in files:
-        print(f)
+        if cu.string_contains_whitespaces(f):
+            raise ValueError(
+                "{} contains whitespace(s). Please rename this file by removing all whitespaces"
+                .format(f))
         if not os.path.exists(f):
             files_not_found.append(f)
     if len(files_not_found) > 0:
