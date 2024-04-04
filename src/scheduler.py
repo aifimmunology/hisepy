@@ -43,7 +43,7 @@ def schedule_notebook(output_files=None,
 
     if os.path.exists(job_record_file):
         # you're on a cloned instance that was created from this job
-        job = notebook_job(id=open(job_record_file, "r").read().rstrip())
+        job = NotebookJob(id=open(job_record_file, "r").read().rstrip())
         print(
             "You are on a cloned instance created from notebook job %s in status %s."
             % (job.id, job.status))
@@ -60,7 +60,7 @@ def schedule_notebook(output_files=None,
         return job
     elif is_derived_instance():
         # we're on a scheduled instance, so return an empty job
-        return notebook_job()
+        return NotebookJob()
     notebook = current_notebook()
     payload = validate_schedule_input(output_files, input_data, platform,
                                       project, notebook)
@@ -80,7 +80,7 @@ def schedule_notebook(output_files=None,
     if resp.status_code != 200:
         raise Exception("Request to %s failed with status %d. %s" %
                         (endpoint, resp.status_code, resp.text))
-    job = notebook_job(obj=json.loads(resp.text))
+    job = NotebookJob(obj=json.loads(resp.text))
     print("Scheduled.")
     return job
 
@@ -100,13 +100,13 @@ def validate_schedule_input(output_files, input_data, platform, project,
 
     payload = {
         CONFIG['SCHEDULER']['NOTEBOOK_NAME_FIELD']:
-        nbtokens[-1],
+            nbtokens[-1],
         CONFIG['SCHEDULER']['INSTANCE_NAME_FIELD']:
-        get_from_metadata_server(instance_name_path),
+            get_from_metadata_server(instance_name_path),
         CONFIG['SCHEDULER']['NOTEBOOK_PATH_FIELD']:
-        "/".join(nbtokens[0:-1]),
+            "/".join(nbtokens[0:-1]),
         CONFIG['SCHEDULER']['PLATFORM_FIELD']:
-        platform
+            platform
     }
     if project is not None:
         payload[CONFIG['SCHEDULER']['PROJECT_FIELD']] = project
@@ -137,7 +137,7 @@ def validate_schedule_input(output_files, input_data, platform, project,
                 if " " in f:
                     raise TypeError(
                         "%s is an invalid output file. Spaces are not allowed in output file names."
-                        % (f))
+                        % f)
             payload[CONFIG['SCHEDULER']['OUTPUT_FILES_FIELD']] = output_files
 
     return payload
@@ -170,15 +170,16 @@ def prompt_for_platform(platform, output_files, nb_file):
 
     else:
         print("About to schedule notebook %s for run on a large instance." %
-              (nb_file))
+              nb_file)
         print(
             "I will run all the cells in the notebook, only skipping this schedule function."
         )
         print("I expect this notebook to produce the following output files:")
         for f in output_files:
-            print("\t%s" % (f))
+            print("\t%s" % f)
         print(
-            "I will copy those files back to HISE where they will be available for later download into this or another IDE instance."
+            "I will copy those files back to HISE where they will be available for later download into this or "
+            "another IDE instance."
         )
 
     print("OK? (y/n) ", end="")
@@ -204,7 +205,7 @@ def get_notebook_job(job_id=None):
             raise Exception(
                 "Job Id not specified, and no schedule record found on instance"
             )
-    return notebook_job(id=job_id)
+    return NotebookJob(id=job_id)
 
 
 def clear_notebook_job():
@@ -215,7 +216,7 @@ def clear_notebook_job():
     if os.path.exists(job_record_file):
         job_id = open(job_record_file, "r").read().rstrip()
         os.remove(job_record_file)
-        print("Cleared job %s" % (job_id))
+        print("Cleared job %s" % job_id)
     else:
         print("No job record found")
 
@@ -237,20 +238,22 @@ def current_notebook():
     test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
     if test_notebook is not None and test_notebook != "":
         return test_notebook
-    ambiguitySeconds = 15 * 60
+    ambiguity_seconds = 15 * 60
     notebooks = os.popen(
-        "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n {} | cut -f2- -d ' '"
+        "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n "
+        "{} | cut -f2- -d ' '"
         .format(num_printed_notebooks)).read().rstrip().split("\n")
     if len(notebooks) == 0 or notebooks[0] == "":
         raise TypeError(
-            "Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"
+            "Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, "
+            "save the notebook you're working in, and try again"
         )
     elif len(notebooks) > 1:
-        olderIsNew = (time.time() - os.stat(notebooks[1]).st_mtime <
-                      ambiguitySeconds)
-        newerIsOld = (time.time() - os.stat(notebooks[0]).st_mtime >=
-                      ambiguitySeconds)
-        if newerIsOld or olderIsNew:
+        older_is_new = (time.time() - os.stat(notebooks[1]).st_mtime <
+                        ambiguity_seconds)
+        newer_is_old = (time.time() - os.stat(notebooks[0]).st_mtime >=
+                        ambiguity_seconds)
+        if newer_is_old or older_is_new:
             resp = -1
             while resp < 0 or resp >= len(notebooks):
                 print("Cannot determine the current notebook.")
@@ -261,13 +264,13 @@ def current_notebook():
                 if resp < 0 or resp >= len(notebooks):
                     print(
                         "Invalid option for current notebook. Please try again and choose a value between [1,%s]"
-                        % (num_printed_notebooks))
+                        % num_printed_notebooks)
             the_current_notebook = notebooks[resp]
             return notebooks[resp]
     return notebooks[0]
 
 
-class notebook_job:
+class NotebookJob:
     """
     A class representing a notebook job.
 
@@ -295,7 +298,7 @@ class notebook_job:
         if CONFIG['SCHEDULER']['LEDGER_OUTPUT_FIELD'] in obj:
             for fid in obj[CONFIG['SCHEDULER']['LEDGER_OUTPUT_FIELD']]:
                 self.ledger_output[fid] = obj[CONFIG['SCHEDULER']
-                                              ['LEDGER_OUTPUT_FIELD']][fid]
+                ['LEDGER_OUTPUT_FIELD']][fid]
 
         if CONFIG['SCHEDULER']['STATUS_FIELD'] in obj:
             self.status = obj[CONFIG['SCHEDULER']['STATUS_FIELD']]
@@ -317,7 +320,7 @@ class notebook_job:
         self.init_from_object(json.loads(resp.text))
 
     def trace(self):
-        return trace(self.trace_id)
+        return Trace(self.trace_id)
 
     def check_status(self):
         self.reload()
@@ -338,7 +341,7 @@ class notebook_job:
             return None
 
 
-class trace:
+class Trace:
     """
     A class representing a trace object. Used to allow re-execution or file retrieval for a particular job id
 

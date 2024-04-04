@@ -542,6 +542,7 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
     query_result = cu.get_ledger_query(endpoint, query, to_df, cu.DataFramePayload.SAMPLE)
     return query_result
 
+
 def read_subjects(subject_ids: str = None,
                   query_dict: dict = None,
                   to_df: bool = True):
@@ -590,6 +591,7 @@ def read_subjects(subject_ids: str = None,
     query_result = cu.get_ledger_query(endpoint, query, to_df, cu.DataFramePayload.SUBJECT)
 
     return query_result
+
 
 def get_server(service):
     test_hydration_server = os.getenv("TEST_HYDRATION_SERVER")

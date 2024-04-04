@@ -34,6 +34,11 @@ CONFIG = load_config()
 cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'], c=CONFIG['IDE']['CACHE_LOG_NAME'])
 
 
+class DataFramePayload(Enum):
+    SAMPLE = 1
+    SUBJECT = 2
+
+
 def get_filetype(this_filename):
     if "." in this_filename:
         return this_filename.split(".")[-1]
