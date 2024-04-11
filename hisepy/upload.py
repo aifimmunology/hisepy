@@ -521,7 +521,7 @@ def save_dash_app(app_filepath: str,
     validate_files(additional_files)
     validate_hero_image(image)
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
-    tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(IDE_HOME_DIR))
+    tmpdirname = "/home/jupyter/custom_dash_req"  # tempfile.mkdtemp(prefix='{}/'.format(IDE_HOME_DIR))
 
     # set permissions so toolchain can read and copy this file
     os.chmod(tmpdirname, 0o777)
@@ -546,7 +546,7 @@ def save_dash_app(app_filepath: str,
     create_temp_directory_files(app_files, tmpdirname)
 
     # create .txt files that contains user's imported libraries
-    dobj.create_req_txt()
+    # dobj.create_req_txt()
 
     # tar it up; upload; and clean up
     dobj.create_dash_image()
