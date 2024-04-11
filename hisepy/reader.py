@@ -286,10 +286,26 @@ def bytes_to_mb(byte_size):
     return round(byte_size / (1024**2), 1)
 
 
-def read_files_poc(file_list: list = None,
-                   query_id: list = None,
-                   query_dict: dict = None,
-                   to_df: bool = True):
+def read_files(file_list: list = None,
+               query_id: list = None,
+               query_dict: dict = None,
+               to_df: bool = True):
+    """
+    Read the contents of a list of file ids into a hise_file object
+    Note: users should only use 1 parameter per function call
+
+    Parameters:
+        file_list (list): a list of UUIDS to retrieve
+        query_id (str): string value of queryID from Advanced Search
+        query_dict (dict): dictionary that allows users to submit a query.
+            Note: for each key:value pair, the value must be of type list
+        to_df (bool):  boolean determining whether result should be returned as a data.frame. 
+
+    Returns:
+        a list of hise_file objects
+
+    Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
+    """
 
     # get list of ledger responses, and list of fileIds
     obj = post_query(file_list, query_id, query_dict)
@@ -377,81 +393,6 @@ def read_files_poc(file_list: list = None,
     if to_df:
         response = hf.hise_file_to_df(response)
     return response
-
-
-def read_files(file_list: list = None,
-               query_id: list = None,
-               query_dict: dict = None,
-               to_df: bool = True):
-    """
-    Read the contents of a list of file ids into a hise_file object
-    Note: users should only use 1 parameter per function call
-
-    Parameters:
-        file_list (list): a list of UUIDS to retrieve
-        query_id (str): string value of queryID from Advanced Search
-        query_dict (dict): dictionary that allows users to submit a query.
-            Note: for each key:value pair, the value must be of type list
-        to_df (bool):  boolean determining whether result should be returned as a data.frame. 
-
-    Returns:
-        a list of hise_file objects
-
-    Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
-    """
-    obj = post_query(file_list, query_id, query_dict)
-    #each object should be a set of descriptors and a url to download a file
-    response = []
-    idx = 0
-    for f in obj:
-        if "id" not in f:
-            f["id"] = uuid.UUID(int=0)
-
-        if "error" in f:
-            fobj = hise_file(f['error']['File'])
-            fobj.message = f["error"]["Message"]
-            response.append(fobj)
-            continue
-        else:
-            response.append(cache_and_convert_file_data(f))
-            batch_id = "unknown"
-
-            try:
-                f_desc = f["descriptors"]["file"]
-            except:
-                f_desc = f['descriptors'][0]['file']
-
-            if "batchID" in f_desc and f_desc["batchID"] != "":
-                batch_id = f_desc["batchID"]
-            file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
-            file_name = f_desc["name"].split("/")[-1]
-            cache_file(f["url"], file_name, file_dir)
-            cu.log_downloaded_files(f)
-
-            # if the response's fileId is different than the ID we original made the request with, then toolchain
-            # noticed the request came from a guest account. if that's the case, we just log both files
-            if file_list is not None:
-                this_file_id = file_list[idx]
-                cu.log_replica_file_download(f, this_file_id)
-        idx += 1
-
-    # check if we have successfully read at least 1 file
-    all_files_not_found = all(item.status is False for item in response)
-
-    # find which files where there were errors
-    # and print that information to the end-user
-    files_not_found = [str(f.id) for f in response if f.status is False]
-    if all_files_not_found:
-        return response
-    elif to_df:
-        if len(files_not_found) > 0:
-            print(
-                colored(
-                    "The following files failed to download: {}".format(
-                        files_not_found), "red"))
-        return hf.hise_file_to_df(response)
-    else:
-        return response
 
 
 def download_files(file_dict: dict):
