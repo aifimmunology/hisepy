@@ -320,20 +320,6 @@ def read_files(file_list: list = None,
     # reponse has size in bytes - convert to MB
     total_file_size = bytes_to_mb(fsize_resp['Size'])
 
-    # get list of descriptors and reshape them
-    response = []
-    for f in obj:
-        if "id" not in f:
-            f["id"] = uuid.UUID(int=0)
-
-        if "error" in f:
-            fobj = hise_file(f['error']['File'])
-            fobj.message = f["error"]["Message"]
-            response.append(fobj)
-            continue
-        else:
-            response.append(convert_file_data(f))
-
     # submit an sync job if the total size of files exceeds this arbitrary threshold
     if total_file_size >= CONFIG["IDE"]["DOWNLOAD_HARVEST_LOWER_BOUND_MB"]:
 
@@ -369,8 +355,10 @@ def read_files(file_list: list = None,
 
             idx += 1
 
+    # get list of descriptors and reshape them
     # log files that have been downloaded
     idx = 0
+    response = []
     for f in obj:
         cu.log_downloaded_files(f)
 
@@ -380,6 +368,16 @@ def read_files(file_list: list = None,
             this_file_id = file_list[idx]
             cu.log_replica_file_download(f, this_file_id)
         idx += 1
+        if "id" not in f:
+            f["id"] = uuid.UUID(int=0)
+
+        if "error" in f:
+            fobj = hise_file(f['error']['File'])
+            fobj.message = f["error"]["Message"]
+            response.append(fobj)
+            continue
+        else:
+            response.append(convert_file_data(f))
 
     # find which files where there were errors
     # and print that information to the end-user
