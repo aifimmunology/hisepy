@@ -12,7 +12,8 @@ import requests
 import hisepy.common_utils as cu
 import hisepy.formatter as hf
 import hisepy.lookup as hl
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
+import pdb
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -281,6 +282,103 @@ def post_query(file_list: list = None,
     return obj
 
 
+def bytes_to_mb(byte_size):
+    return round(byte_size / (1024**2), 1)
+
+
+def read_files_poc(file_list: list = None,
+                   query_id: list = None,
+                   query_dict: dict = None,
+                   to_df: bool = True):
+
+    # get list of ledger responses, and list of fileIds
+    obj = post_query(file_list, query_id, query_dict)
+    headers = get_bearer_token_header()
+
+    # call an endpoint to get total size of files user is trying to download
+    fsize_args = {"id": file_list}
+    file_size_url = hise_url("hydration", "file_size_path", args=fsize_args)
+    fsize_resp = parse_hise_response(
+        requests.get(file_size_url, headers=headers))
+
+    # reponse has size in bytes - convert to MB
+    total_file_size = bytes_to_mb(fsize_resp['Size'])
+
+    # get list of descriptors and reshape them
+    response = []
+    for f in obj:
+        if "id" not in f:
+            f["id"] = uuid.UUID(int=0)
+
+        if "error" in f:
+            fobj = hise_file(f['error']['File'])
+            fobj.message = f["error"]["Message"]
+            response.append(fobj)
+            continue
+        else:
+            response.append(convert_file_data(f))
+
+    # submit an sync job if the total size of files exceeds this arbitrary threshold
+    if total_file_size >= CONFIG["IDE"]["DOWNLOAD_HARVEST_LOWER_BOUND_MB"]:
+
+        # create directory where we're going to save each file
+        for f in file_list:
+            file_dir = '{}/{}'.format(CONFIG['IDE']['CACHE_DIR'], f)
+            if not os.path.exists(file_dir):
+                pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
+
+        qargs = {
+            "inputFileIds": file_list,
+            "instanceId": get_from_metadata_server(instance_name_path)
+        }
+        url = hise_url("hydration", "async_download_path", args=qargs)
+        resp = parse_hise_response(requests.post(url, headers=headers))
+        # pdb.set_trace()
+    else:
+        idx = 0
+        for f in obj:
+            batch_id = "unknown"
+
+            # > 1 descriptors if user is downloading olink data
+            try:
+                f_desc = f["descriptors"]["file"]
+            except:
+                f_desc = f['descriptors'][0]['file']
+
+            if "batchID" in f_desc and f_desc["batchID"] != "":
+                batch_id = f_desc["batchID"]
+            file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
+            file_name = f_desc["name"].split("/")[-1]
+            cache_file(f["url"], file_name, file_dir)
+
+            idx += 1
+
+    # log files that have been downloaded
+    idx = 0
+    for f in obj:
+        cu.log_downloaded_files(f)
+
+        # if the user passes in a file_list, make sure they didn't get redirected because they
+        # downloaded from a guest account
+        if file_list is not None:
+            this_file_id = file_list[idx]
+            cu.log_replica_file_download(f, this_file_id)
+        idx += 1
+
+    # find which files where there were errors
+    # and print that information to the end-user
+    files_not_found = [str(f.id) for f in response if f.status is False]
+
+    if len(files_not_found) > 0:
+        print(
+            colored(
+                "The following files failed to download: {}".format(
+                    files_not_found), "red"))
+    if to_df:
+        response = hf.hise_file_to_df(response)
+    return response
+
+
 def read_files(file_list: list = None,
                query_id: list = None,
                query_dict: dict = None,
@@ -316,6 +414,18 @@ def read_files(file_list: list = None,
             continue
         else:
             response.append(cache_and_convert_file_data(f))
+            batch_id = "unknown"
+
+            try:
+                f_desc = f["descriptors"]["file"]
+            except:
+                f_desc = f['descriptors'][0]['file']
+
+            if "batchID" in f_desc and f_desc["batchID"] != "":
+                batch_id = f_desc["batchID"]
+            file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
+            file_name = f_desc["name"].split("/")[-1]
+            cache_file(f["url"], file_name, file_dir)
             cu.log_downloaded_files(f)
 
             # if the response's fileId is different than the ID we original made the request with, then toolchain
@@ -381,7 +491,7 @@ def download_files(file_dict: dict):
     return response
 
 
-def cache_and_convert_file_data(file_data: dict):
+def convert_file_data(file_data: dict):
     """ Helper function to convert files into a hise_file object """
     if type(file_data) is not dict:
         raise Exception("Item in response is not a dict, it is a %s." %
@@ -402,7 +512,6 @@ def cache_and_convert_file_data(file_data: dict):
     file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
     file_name = f_desc["name"].split("/")[-1]
     this_filetype = cu.get_filetype(file_name)
-    cache_file(file_data["url"], file_name, file_dir)
     this_file_values = hf.convert_data_values(
         '{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id=f_desc["id"],
@@ -437,18 +546,50 @@ def cache_files(file_ids: list = None, query_id: list = None):
     else:
         resp_obj = post_query(file_list=file_ids)
 
+    # call an endpoint to get total size of files user is trying to download
+    headers = get_bearer_token_header()
+    fsize_args = {"id": file_ids}
+    file_size_url = hise_url("hydration", "file_size_path", args=fsize_args)
+    fsize_resp = parse_hise_response(
+        requests.get(file_size_url, headers=headers))
+
+    # reponse has size in bytes - convert to MB
+    total_file_size = bytes_to_mb(fsize_resp['Size'])
+
     # make request to hydration to download every file
+    if total_file_size >= CONFIG["IDE"]["DOWNLOAD_HARVEST_LOWER_BOUND_MB"]:
+
+        # create directory where we're going to save each file
+        for f in file_ids:
+            file_dir = '{}/{}'.format(CONFIG['IDE']['CACHE_DIR'], f)
+            if not os.path.exists(file_dir):
+                pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
+
+        qargs = {
+            "inputFileIds": file_ids,
+            "instanceId": get_from_metadata_server(instance_name_path)
+        }
+        url = hise_url("hydration", "async_download_path", args=qargs)
+        resp = parse_hise_response(requests.post(url, headers=headers))
+        # pdb.set_trace()
+    else:
+        idx = 0
+        for f in resp_obj:
+
+            this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
+                f)
+            download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
+                                                 c=CONFIG['IDE']['CACHE_DIR'],
+                                                 id=this_file_id)
+            f_name = os.path.basename(this_file_name)
+            print("downloading fileID: {}".format(this_file_id))
+            cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
+
+            idx += 1
+
+    # log files that have been downloaded
     idx = 0
     for f in resp_obj:
-
-        this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
-            f)
-        download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                                             c=CONFIG['IDE']['CACHE_DIR'],
-                                             id=this_file_id)
-        f_name = os.path.basename(this_file_name)
-        print("downloading fileID: {}".format(this_file_id))
-        cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
         cu.log_downloaded_files(f)
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
@@ -456,9 +597,8 @@ def cache_files(file_ids: list = None, query_id: list = None):
         if file_ids is not None:
             this_file_id = file_ids[idx]
             cu.log_replica_file_download(f, this_file_id)
-
         idx += 1
-    print("Files have been successfully downloaded!")
+        print("Files have been successfully downloaded!")
     return
 
 
