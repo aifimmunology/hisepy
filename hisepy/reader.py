@@ -340,7 +340,7 @@ def read_files(file_list: list = None,
     else:
         idx = 0
         for f in obj:
-            batch_id = "unknown"
+            #batch_id = "unknown"
 
             # > 1 descriptors if user is downloading olink data
             try:
@@ -348,9 +348,9 @@ def read_files(file_list: list = None,
             except:
                 f_desc = f['descriptors'][0]['file']
 
-            if "batchID" in f_desc and f_desc["batchID"] != "":
-                batch_id = f_desc["batchID"]
-            file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
+            #if "batchID" in f_desc and f_desc["batchID"] != "":
+            #    batch_id = f_desc["batchID"]
+            file_dir = '{}/{}'.format(CONFIG['IDE']['CACHE_DIR'], f_desc['id'])
             file_name = f_desc["name"].split("/")[-1]
             cache_file(f["url"], file_name, file_dir)
 
@@ -446,10 +446,12 @@ def convert_file_data(file_data: dict):
     except:
         f_desc = file_data['descriptors'][0]['file']
 
-    batch_id = "unknown"
-    if "batchID" in f_desc and f_desc["batchID"] != "":
-        batch_id = f_desc["batchID"]
-    file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
+    #TODO: ask users what's more useful
+    #batch_id = "unknown"
+    #if "batchID" in f_desc and f_desc["batchID"] != "":
+    #    batch_id = f_desc["batchID"]
+    #file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
+    file_dir = '{}/{}'.format(CONFIG['IDE']['CACHE_DIR'], f_desc['id'])
     file_name = f_desc["name"].split("/")[-1]
     this_filetype = cu.get_filetype(file_name)
     this_file_values = hf.convert_data_values(
