@@ -311,8 +311,27 @@ def read_files(file_list: list = None,
     obj = post_query(file_list, query_id, query_dict)
     headers = get_bearer_token_header()
 
+    # gather fileIds if list of file ids wasn't submitted
+    # we need a list of file_ids to check total file size of download request
+    id_list = []
+    if file_list is None:
+        for o in obj:
+            try:
+                id_list.append(o['descriptors']['file']['id'])
+            except:
+                # must be working on olink, or there are no descriptors...?
+                id_list.append(o['descriptors'][0]['file']['id'])
+            finally:
+                raise SystemError(
+                    "Could not grab file ID for obj: {}".format(o))
+
+        # ensure uniqueness
+        id_list = list(set(id_list))
+    else:
+        id_list = list(set(file_list))
+
     # call an endpoint to get total size of files user is trying to download
-    fsize_args = {"id": file_list}
+    fsize_args = {"id": id_list}
     file_size_url = hise_url("hydration", "file_size_path", args=fsize_args)
     fsize_resp = parse_hise_response(
         requests.get(file_size_url, headers=headers))
@@ -324,7 +343,7 @@ def read_files(file_list: list = None,
     if total_file_size >= CONFIG["IDE"]["DOWNLOAD_HARVEST_LOWER_BOUND_MB"]:
 
         # create directory where we're going to save each file
-        for f in file_list:
+        for f in id_list:
             file_dir = '{}/{}'.format(CONFIG['IDE']['CACHE_DIR'], f)
             if not os.path.exists(file_dir):
                 pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
@@ -332,7 +351,7 @@ def read_files(file_list: list = None,
             # set permissions so we can copy files to their destination
             os.chmod(file_dir, 0o777)
         qargs = {
-            "inputFileIds": file_list,
+            "inputFileIds": id_list,
             "instanceId": get_from_metadata_server(instance_name_path)
         }
         url = hise_url("hydration", "async_download_path", args=qargs)
@@ -488,9 +507,27 @@ def cache_files(file_ids: list = None, query_id: list = None):
     else:
         resp_obj = post_query(file_list=file_ids)
 
+    # gather fileIds if list of file ids wasn't submitted
+    # we need a list of file_ids to check total file size of download request
+    id_list = []
+    if file_ids is None:
+        for o in resp_obj:
+            try:
+                id_list.append(o['descriptors']['file']['id'])
+            except:
+                # must be working on olink, or there are no descriptors...?
+                id_list.append(o['descriptors'][0]['file']['id'])
+            finally:
+                raise SystemError(
+                    "Could not grab file ID for obj: {}".format(o))
+        # ensure uniqueness
+        id_list = list(set(id_list))
+    else:
+        id_list = list(set(file_ids))
+
     # call an endpoint to get total size of files user is trying to download
     headers = get_bearer_token_header()
-    fsize_args = {"id": file_ids}
+    fsize_args = {"id": id_list}
     file_size_url = hise_url("hydration", "file_size_path", args=fsize_args)
     fsize_resp = parse_hise_response(
         requests.get(file_size_url, headers=headers))
@@ -502,7 +539,7 @@ def cache_files(file_ids: list = None, query_id: list = None):
     if total_file_size >= CONFIG["IDE"]["DOWNLOAD_HARVEST_LOWER_BOUND_MB"]:
 
         # create directory where we're going to save each file
-        for f in file_ids:
+        for f in id_list:
             file_dir = '{}/{}'.format(CONFIG['IDE']['CACHE_DIR'], f)
             if not os.path.exists(file_dir):
                 pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
@@ -510,7 +547,7 @@ def cache_files(file_ids: list = None, query_id: list = None):
             # set permissions so we can copy files to their destination
             os.chmod(file_dir, 0o777)
         qargs = {
-            "inputFileIds": file_ids,
+            "inputFileIds": id_list,
             "instanceId": get_from_metadata_server(instance_name_path)
         }
         url = hise_url("hydration", "async_download_path", args=qargs)
