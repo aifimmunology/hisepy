@@ -40,8 +40,6 @@ PROJECT_FOLDER:
 HYDRATION:
   HYDRATION_NAME : hydration
   USER_FOLDER_PATH : hydration/analysis/userFolder
-  FILE_SIZE_PATH: hydration/analysis/files/size
-  ASYNC_DOWNLOAD_PATH: hydration/analysis/download
   FILE_SEARCH_PATH : hydration/analysis/files
   DESCRIPTORS_PATH : hydration/analysis/descriptors
   DOWNLOAD_PATH : hydration/source/server
@@ -75,7 +73,6 @@ IDE:
   HOME_DIR : /home/jupyter
   CACHE_LOG_NAME : .hisefilelog.rds
   DOWNLOAD_CHUNK_SIZE : 102400
-  DOWNLOAD_HARVEST_LOWER_BOUND_MB: 2000.0
 
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
