@@ -8,6 +8,7 @@ Contributors: James Harvey
 """
 
 import os
+import re
 import shutil
 import tarfile
 import yaml
@@ -146,6 +147,31 @@ def log_downloaded_files(hise_file):
         pyreadr.write_rds(
             '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
                              d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
+    return
+
+
+def validate_upload_directory(directory: str):
+    #todop: validate dir
+    if debug():
+        return #allow local testing
+
+    if string_contains_whitespaces(directory):
+        raise ValueError(
+            "The directory path cannot contain whitespaces. Please provide a valid path."
+        )
+    
+    # we currently only handle zarr directories
+    pattern = r"zarr$"
+    if re.search(pattern, directory, re.IGNORECASE) is None:
+        raise ValueError(
+            "The directory path is not a zarr file. Please provide a valid type."
+        )
+    
+    # check that path exists
+    if not os.path.exists(directory):
+        raise ValueError(
+            "The directory path does not exist. Please provide a valid path."
+        )    
     return
 
 
