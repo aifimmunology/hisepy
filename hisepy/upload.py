@@ -78,6 +78,7 @@ def default_study_space(must=True):
 
 
 def upload_files(files: list,
+                 directory: str = None,
                  study_space_id: str = None,
                  project: str = None,
                  title: str = None,
@@ -92,6 +93,7 @@ def upload_files(files: list,
 
     Parameters:
         files (list): absolute filepath of file to be uploaded
+        directory (str): absolute path of the directory to be uploaded (optional)
         study_space_id (str): ID that pertains to a study in the collaboration space (optional)
         project (str): project short name (required if study space is not specified)
         title (str): 10+ character title for upload result 
@@ -121,6 +123,7 @@ def upload_files(files: list,
     elif len(file_types) != len(files):
         raise ValueError(
             "File types must be a list with one type for each upload")
+    
     if store is not None:
         if store not in valid_upload_stores:
             raise ValueError("Value for store must be in %s" %
@@ -131,11 +134,17 @@ def upload_files(files: list,
             raise ValueError("file destination directory must be a string")
     else:
         destination = ""
+    
+    def _user_prompt_upload(prompt_files: list, prompt_directory: str=None):
+        uploadType, uploadContent = None, None
+        if len(prompt_files > 0):
+            uploadContent, uploadContent = "files", prompt_files
+        elif prompt_directory is not None and prompt_directory != "":
+            uploadContent, uploadContent = "directory", prompt_directory
 
-    def _user_prompt_upload(prompt_files: list):
         print(
-            'you are trying to upload file_ids... {}. Do you truly want to proceed?'
-            .format(prompt_files))
+            'you are trying to upload {} {}. Do you truly want to proceed?'
+            .format(uploadContent, uploadType))
         user_input = input('(y/n)')
         while user_input.lower() not in ['y', 'n']:
             print('please enter either "n" for no, or "y" for yes.')
@@ -145,14 +154,21 @@ def upload_files(files: list,
         elif user_input.lower() == 'n':
             return False
 
-    if type(files) is not list or len(files) == 0:
+    if (type(files) is not list or len(files) == 0) and (directory is None or ""):
         raise ValueError("No files specified for upload")
+    if len(files) > 0 and (directory is not None and directory != ""):
+        raise ValueError(
+            "Cannot specify both files and a directory for upload")
     if cu.string_contains_whitespaces(destination):
         raise ValueError(
             "destination param, {}, contains whitespaces. Please rename and remove any whitespaces"
             .format(destination))
-    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
-    validate_upload_data(files, study_space_id, project, title, input_file_ids)
+    if len(files) > 0:
+        cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
+        validate_upload_data(files, study_space_id, project, title, input_file_ids)
+    elif directory is not None and directory != "":
+        cu.validate_upload_directory(directory)
+        
     uploads = None
     body = None
     qargs = {
@@ -163,6 +179,7 @@ def upload_files(files: list,
         "destination": destination,
         "instanceId": get_from_metadata_server(instance_name_path),
         "inputFileIds": input_file_ids,
+        "inputDirectory": directory,
         "sampleIds": input_sample_ids,
         "notebook": current_notebook(),
         "homedir": IDE_HOME_DIR
@@ -171,38 +188,48 @@ def upload_files(files: list,
         qargs["studySpaceId"] = study_space_id
     if project is not None:
         qargs["project"] = project
-    if get_size_in_megabytes(files) > UPLOAD_HARVEST_LOWER_BOUND:
-        #user is uploading big stuff.
-        #do this as a harvest
-        qargs["harvest"] = True
+    if directory is not None and directory != "":
+        qargs["inputDirectory"] = directory
+    
+    if len(files) > 0:
+        if get_size_in_megabytes(files) > UPLOAD_HARVEST_LOWER_BOUND:
+            #user is uploading big stuff.
+            #do this as a harvest
+            qargs["harvest"] = True
 
-        # flag to tell toolchain to clean up any temporary directories that a SDK call creates
-        if CONFIG['FILETYPES']['DASH_APP'] in files[0]:
-            qargs['deleteFiles'] = True
-        body = {"files": []}
-        for i, f in enumerate(files):
-            if not os.path.exists(f):
-                raise ValueError("%s is not a valid file." % f)
-            ft = file_types[i] if len(file_types) > i else cu.get_filetype(f)
-            body["files"].append({"name": os.path.abspath(f), "type": ft})
-    else:
-        uploads = []
-        for i, f in enumerate(files):
-            if not os.path.exists(f):
-                raise ValueError("%s is not a valid file." % f)
+            # flag to tell toolchain to clean up any temporary directories that a SDK call creates
+            if CONFIG['FILETYPES']['DASH_APP'] in files[0]:
+                qargs['deleteFiles'] = True
+            body = {"files": []}
+            for i, f in enumerate(files):
+                if not os.path.exists(f):
+                    raise ValueError("%s is not a valid file." % f)
+                ft = file_types[i] if len(file_types) > i else cu.get_filetype(f)
+                body["files"].append({"name": os.path.abspath(f), "type": ft})
+        else:
+            uploads = []
+            for i, f in enumerate(files):
+                if not os.path.exists(f):
+                    raise ValueError("%s is not a valid file." % f)
 
-            uploads.append(('file', (f, open(f, 'rb'), 'application/json', {
-                'Expires': '0'
-            })))
-            qargs["fileType"].append(
-                file_types[i] if len(file_types) > i else cu.get_filetype(f))
+                uploads.append(('file', (f, open(f, 'rb'), 'application/json', {
+                    'Expires': '0'
+                })))
+                qargs["fileType"].append(
+                    file_types[i] if len(file_types) > i else cu.get_filetype(f))
 
     url = hise_url("toolchain", "upload_file_path", args=qargs)
     headers = get_bearer_token_header()
-    if not do_prompt or _user_prompt_upload(prompt_files=files):
+    if not do_prompt or _user_prompt_upload(prompt_files=files, prompt_directory=directory):
+        uploadContent = None
+        if len(files > 0):
+            uploadContent = files
+        elif directory is not None and directory != "":
+            uploadContent = directory
+        
         df_data = parse_hise_response(
             requests.post(url, headers=headers, json=body, files=uploads))
-        return {"trace_id": df_data["TraceId"], "files": files}
+        return {"trace_id": df_data["TraceId"], "files": uploadContent}
     else:
         print('Uploading canceled.')
         return {}
