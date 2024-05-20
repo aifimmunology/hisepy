@@ -151,7 +151,6 @@ def log_downloaded_files(hise_file):
 
 
 def validate_upload_directory(directory: str):
-    #todop: validate dir
     if debug():
         return #allow local testing
 
