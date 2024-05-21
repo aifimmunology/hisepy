@@ -25,7 +25,8 @@ from .private_folders import (
     list_files_in_all_private_folders, list_files_in_private_folder,
     move_file_in_private_folder, delete_file_in_private_folder,
     download_from_private_folder, rename_file_in_private_folder,
-    upload_file_to_private_folder, delete_private_folder)
+    upload_file_to_private_folder, delete_private_folder,
+    update_private_folder)
 from .instances import (stop_ide, suspend_ide)
 from .version import __version__
 
