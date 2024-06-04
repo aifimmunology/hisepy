@@ -439,7 +439,12 @@ def cache_files(file_ids: list = None, query_id: list = None):
 
     # make request to hydration to download every file
     idx = 0
+    fail_files = []
     for f in resp_obj:
+        if 'error' in f:
+            print("Error downloading file: {}".format(f['error']['Message']))
+            fail_files += [f['error']['File']]
+            continue
 
         this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
             f)
@@ -458,7 +463,12 @@ def cache_files(file_ids: list = None, query_id: list = None):
             cu.log_replica_file_download(f, this_file_id)
 
         idx += 1
-    print("Files have been successfully downloaded!")
+
+    # alert user which files failed to download
+    if len(fail_files) > 0:
+        print("The following files failed to download: {}".format(fail_files))
+    else:
+        print("Files have been successfully downloaded!")
     return
 
 
