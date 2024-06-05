@@ -398,7 +398,8 @@ class DashAppImg:
         # but we'll go through it to help with debugging if save returns something crazy
         save_resp = parse_hise_response(
             requests.post(save_url, headers=headers))
-
+        import pdb
+        pdb.set_trace()
         print("POST toolchain/visualization/dash to save dash app:")
         print(save_resp)
 
