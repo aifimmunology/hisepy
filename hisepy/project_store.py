@@ -99,8 +99,9 @@ def download_from_project_store(store_name, file_name='', subdir=''):
                                 headers=get_bearer_token_header(),
                                 stream=True)
         if resp.status_code != 200:
-            raise SystemError("Request to {} failed with status {}".format(
-                url, resp.status_code))
+            err_obj = json.loads(resp.text)['Errors'][0]['Message']
+            raise SystemError("Request to {} failed with status {}: {}".format(
+                url, resp.status_code, err_obj))
         with open('{}/{}/{}'.format(os.getcwd(), store, truncate_file_name),
                   'wb') as f:
             for chunk in resp.iter_content(
@@ -232,7 +233,7 @@ def project_store_file_action(store_name, file_name, action):
                             data=json.dumps(json_tag),
                             headers=get_bearer_token_header())
     if resp.status_code != 200:
-        message = 'Request to {} failed with status {}'.format(
+        message = 'Request to {} failed with status {}:'.format(
             url, resp.status_code)
         try:
             obj = json.loads(resp.text)
