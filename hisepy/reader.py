@@ -302,7 +302,12 @@ def read_files(file_list: list = None,
     Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
     """
     cu.validate_download_params(file_list, query_id, query_dict)
-    obj = post_query(file_list, query_id[0], query_dict)
+    if query_id != None:
+        obj = post_query(query_id=query_id[0])
+    elif query_dict != None:
+        obj = post_query(query_dict=query_dict)
+    else:
+        obj = post_query(file_list=file_list)
     #each object should be a set of descriptors and a url to download a file
     response = []
     idx = 0
