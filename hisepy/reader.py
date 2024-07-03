@@ -232,7 +232,7 @@ def post_query(file_list: list = None,
         assert type(file_list) is list
         assert (query_id is None) & (query_dict is None)
     elif query_id is not None:
-        assert type(query_id) is list
+        assert type(query_id) is str
         assert (file_list is None) & (query_dict is None)
     elif query_dict is not None:
         assert type(query_dict) is dict
@@ -256,7 +256,7 @@ def post_query(file_list: list = None,
         q_endpoint = 'https://{s}/{q}/{qid}'.format(
             s=get_from_metadata_server(server_id_path),
             q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
-            qid=query_id[0])
+            qid=query_id)
         resp_obj = parse_hise_response(
             requests.request('POST',
                              q_endpoint,
@@ -301,7 +301,8 @@ def read_files(file_list: list = None,
 
     Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
     """
-    obj = post_query(file_list, query_id, query_dict)
+    cu.validate_download_params(file_list, query_id, query_dict)
+    obj = post_query(file_list, query_id[0], query_dict)
     #each object should be a set of descriptors and a url to download a file
     response = []
     idx = 0
@@ -419,17 +420,7 @@ def cache_files(file_ids: list = None, query_id: list = None):
         file_ids (list): list of file IDs
         query_id (list): list of a single query ID
     """
-    # verify input parameters are sane
-    if file_ids is not None and type(file_ids) is not list:
-        raise Exception("file_ids parameter must be a list")
-    if query_id is not None and type(query_id) is not list:
-        raise Exception("query_id parameter must be a list")
-    if query_id is not None and len(query_id) > 1:
-        raise Exception(
-            "You can only specify a single query_if per function call")
-    if file_ids is None and query_id is None:
-        raise Exception("One of file_ids, or query_id must be non-null")
-
+    cu.validate_download_params(file_ids, query_id, None)
     # check if user submitted a query_id vs file_id
     if query_id is not None:
         # expand file_ids from query_id, if needed

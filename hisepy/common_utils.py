@@ -325,3 +325,18 @@ def string_contains_whitespaces(file_str):
         return True
     else:
         return False
+
+
+def validate_download_params(file_list: list, query_id: list,
+                             query_dict: dict):
+    # verify input parameters are sane
+    if file_list is not None and type(file_list) is not list:
+        raise Exception("file_ids parameter must be a list")
+    if query_id is not None and type(query_id) is not list:
+        raise Exception("query_id parameter must be a list")
+    if query_id is not None and len(query_id) > 1:
+        raise Exception(
+            "You can only specify a single query_if per function call")
+    if file_list is None and query_id is None:
+        raise Exception("One of file_ids, or query_id must be non-null")
+    return
