@@ -418,18 +418,22 @@ def cache_and_convert_file_data(file_data: dict):
                      data_values=this_file_values)
 
 
-def cache_files(file_ids: list = None, query_id: list = None):
+def cache_files(file_ids: list = None,
+                query_id: list = None,
+                query_dict: dict = None):
     """ 
     Downloads requested files to the following directory: "./cache/<fileID>"
     Parameters: 
         file_ids (list): list of file IDs
         query_id (list): list of a single query ID
     """
-    cu.validate_download_params(file_ids, query_id, None)
+    cu.validate_download_params(file_ids, query_id, query_dict)
     # check if user submitted a query_id vs file_id
     if query_id is not None:
         # expand file_ids from query_id, if needed
         resp_obj = post_query(query_id=query_id[0])
+    elif query_dict is not None:
+        resp_obj = post_query(query_dict=query_dict)
     else:
         resp_obj = post_query(file_list=file_ids)
 

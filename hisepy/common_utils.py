@@ -337,6 +337,7 @@ def validate_download_params(file_list: list, query_id: list,
     if query_id is not None and len(query_id) > 1:
         raise Exception(
             "You can only specify a single query_if per function call")
-    if file_list is None and query_id is None:
-        raise Exception("One of file_ids, or query_id must be non-null")
+    if file_list is None and query_id is None and query_dict is None:
+        raise Exception(
+            "One of file_ids, query_dict, or query_id must be non-null")
     return
