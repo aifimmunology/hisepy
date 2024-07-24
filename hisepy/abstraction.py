@@ -381,7 +381,6 @@ def add_dir_to_additional_files(additional_files, additional_dirs):
         files = os.listdir(dir)
         for file in files:
             full_path = os.path.join(dir, file)
-            print("TESTING: full path: ", full_path)
             if os.path.isfile(full_path):
                 additional_files.append(full_path) 
     return additional_files
@@ -452,9 +451,7 @@ def save_abstraction(app_filepath: str = None,
             aobj.send_static_image_post(aobj.create_static_image_url(),
                                         aobj.create_image_dict()))
 
-        print("TESTING: additional files before: ", additional_files)
         additional_files = add_dir_to_additional_files(additional_files, additional_dirs)
-        print("TESTING: additional files after: ", additional_files)
         
         # copy files to tmp dir and tar the bad boy up and upload
         if cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"]):
