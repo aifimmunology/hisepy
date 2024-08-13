@@ -42,6 +42,7 @@ HYDRATION:
   USER_FOLDER_PATH : hydration/analysis/userFolder
   FILE_SEARCH_PATH : hydration/analysis/files
   DESCRIPTORS_PATH : hydration/analysis/descriptors
+  DOWNLOAD_PATHV2: hydration/analysis/download/file
   DOWNLOAD_PATH : hydration/source/server
   UPLOAD_PATH: hydration/source/studyspace/file
   QUERY_SEARCH_PATH : hydration/analysis/query

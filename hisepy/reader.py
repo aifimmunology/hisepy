@@ -281,6 +281,88 @@ def post_query(file_list: list = None,
     return obj
 
 
+def read_filesv2(file_list: list = None,
+                 query_id: list = None,
+                 query_dict: dict = None,
+                 to_df: bool = True):
+    """
+    Read the contents of a list of file ids into a hise_file object
+    Note: users should only use 1 parameter per function call
+
+    Parameters:
+        file_list (list): a list of UUIDS to retrieve
+        query_id (str): string value of queryID from Advanced Search
+        query_dict (dict): dictionary that allows users to submit a query.
+            Note: for each key:value pair, the value must be of type list
+        to_df (bool):  boolean determining whether result should be returned as a data.frame. 
+
+    Returns:
+        a list of hise_file objects
+
+    Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
+    """
+
+    # grab descriptors for requested files.
+    # if we get returned descriptors, users are allowed to download the files
+    cu.validate_download_params(file_list, query_id, query_dict)
+    if query_id != None:
+        obj = post_query(query_id=query_id[0])
+    elif query_dict != None:
+        obj = post_query(query_dict=query_dict)
+    else:
+        obj = post_query(file_list=file_list)
+
+    # send request to hydration to download every file
+    idx = 0
+    response = []
+    for f in obj:
+        if "id" not in f:
+            f["id"] = uuid.UUID(int=0)
+        if "error" in f:
+            fobj = hise_file(f['error']['File'])
+            fobj.message = f["error"]["Message"]
+            response.append(fobj)
+            continue
+        else:
+            # parse descriptors with info we need to send our request
+            this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
+                f)
+            response.append(cache_and_convert_file_data(f, False))
+
+            endpoint = "https://%s/%s/%s" % (
+                get_from_metadata_server(server_id_path),
+                CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id)
+            dl_resp = requests.request("GET",
+                                       endpoint,
+                                       headers=get_bearer_token_header())
+            cu.log_downloaded_files(f)
+
+            # if the user passes in a file_list, make sure they didn't get redirected because they
+            # downloaded from a guest account
+            if file_list is not None:
+                this_file_id = file_list[idx]
+                cu.log_replica_file_download(f, this_file_id)
+        idx += 1
+
+    # check if we have successfully read at least 1 file
+    all_files_not_found = all(item.status is False for item in response)
+
+    # find which files where there were errors
+    # and print that information to the end-user
+    files_not_found = [str(f.id) for f in response if f.status is False]
+    if all_files_not_found:
+        return response
+    elif to_df:
+        if len(files_not_found) > 0:
+            print(
+                colored(
+                    "The following files failed to download: {}".format(
+                        files_not_found), "red"))
+        return hf.hise_file_to_df(response)
+    else:
+        return response
+
+
 def read_files(file_list: list = None,
                query_id: list = None,
                query_dict: dict = None,
@@ -387,7 +469,7 @@ def download_files(file_dict: dict):
     return response
 
 
-def cache_and_convert_file_data(file_data: dict):
+def cache_and_convert_file_data(file_data: dict, cache_file: bool = True):
     """ Helper function to convert files into a hise_file object """
     if type(file_data) is not dict:
         raise Exception("Item in response is not a dict, it is a %s." %
@@ -408,7 +490,8 @@ def cache_and_convert_file_data(file_data: dict):
     file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
     file_name = f_desc["name"].split("/")[-1]
     this_filetype = cu.get_filetype(file_name)
-    cache_file(file_data["url"], file_name, file_dir)
+    if cache_file:
+        cache_file(file_data["url"], file_name, file_dir)
     this_file_values = hf.convert_data_values(
         '{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id=f_desc["id"],
