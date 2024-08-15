@@ -10,15 +10,17 @@ identity_path = "service-accounts/default/identity"
 server_id_path = "attributes/hise-server"
 token_env = "TOKEN_GENERATOR"
 
+# dev primecollective
+defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
+
 default_metadata = {
     instance_name_path: os.getenv("TEST_INSTANCE_NAME")
     or "local-testing-instance",
-    client_id_path: os.getenv("AUTH_CLIENT_ID"),
+    client_id_path:
+    "REDACTED_GCP_CLIENT_ID",
+    account_guid_path: defaultLocalAccountGuid,
     server_id_path: "dev.allenimmunology.org"
 }
-
-# dev primecollective
-defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 
 
 def get_from_metadata_server(path):
