@@ -452,9 +452,13 @@ def download_files(file_dict: dict):
     response = []
     #use a dummy batch id for these files
     download_cache = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], "downloadable")
+
+    # get ide name and send it over to hydration
+    ide_name = os.getenv("HOSTNAME")[:-2]
     for f_id in file_dict:
-        endpoint = "https://%s/%s/%s" % (get_from_metadata_server(
-            server_id_path), CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id)
+        endpoint = "https://%s/%s/%s/%s" % (
+            get_from_metadata_server(server_id_path),
+            CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id, ide_name)
         hf = hise_file(f_id)
         try:
             cache_file(endpoint, file_dict[f_id], download_cache)
