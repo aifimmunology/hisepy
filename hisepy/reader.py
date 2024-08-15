@@ -492,13 +492,12 @@ def cache_and_convert_file_data(file_data: dict, cache_file: bool = True):
     this_filetype = cu.get_filetype(file_name)
     if cache_file:
         cache_file(file_data["url"], file_name, file_dir)
-    this_file_values = hf.convert_data_values(
-        '{}/{}'.format(file_dir, file_name), this_filetype)
+    #this_file_values = hf.convert_data_values(
+    #    '{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id=f_desc["id"],
                      file_path="%s/%s" % (file_dir, file_name),
                      descriptors=file_data["descriptors"],
-                     file_type=this_filetype,
-                     data_values=this_file_values)
+                     file_type=this_filetype)
 
 
 def cache_files(file_ids: list = None,
