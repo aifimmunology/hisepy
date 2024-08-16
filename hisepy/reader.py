@@ -315,6 +315,7 @@ def read_filesv2(file_list: list = None,
     # send request to hydration to download every file
     idx = 0
     response = []
+    ide_name = os.getenv("HOSTNAME")[:-2]
     for f in obj:
         if "id" not in f:
             f["id"] = uuid.UUID(int=0)
@@ -329,9 +330,9 @@ def read_filesv2(file_list: list = None,
                 f)
             response.append(cache_and_convert_file_data(f, False))
 
-            endpoint = "https://%s/%s/%s" % (
+            endpoint = "https://%s/%s/%s/%s" % (
                 get_from_metadata_server(server_id_path),
-                CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id)
+                CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             dl_resp = requests.request("GET",
                                        endpoint,
                                        headers=get_bearer_token_header())
