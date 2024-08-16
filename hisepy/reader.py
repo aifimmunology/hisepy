@@ -315,6 +315,7 @@ def read_filesv2(file_list: list = None,
     # send request to hydration to download every file
     idx = 0
     response = []
+    ide_name = os.getenv("HOSTNAME")[:-2]
     for f in obj:
         if "id" not in f:
             f["id"] = uuid.UUID(int=0)
@@ -329,9 +330,9 @@ def read_filesv2(file_list: list = None,
                 f)
             response.append(cache_and_convert_file_data(f, False))
 
-            endpoint = "https://%s/%s/%s" % (
+            endpoint = "https://%s/%s/%s/%s" % (
                 get_from_metadata_server(server_id_path),
-                CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id)
+                CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             dl_resp = requests.request("GET",
                                        endpoint,
                                        headers=get_bearer_token_header())
@@ -492,13 +493,12 @@ def cache_and_convert_file_data(file_data: dict, cache_file: bool = True):
     this_filetype = cu.get_filetype(file_name)
     if cache_file:
         cache_file(file_data["url"], file_name, file_dir)
-    this_file_values = hf.convert_data_values(
-        '{}/{}'.format(file_dir, file_name), this_filetype)
+    #this_file_values = hf.convert_data_values(
+    #    '{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id=f_desc["id"],
                      file_path="%s/%s" % (file_dir, file_name),
                      descriptors=file_data["descriptors"],
-                     file_type=this_filetype,
-                     data_values=this_file_values)
+                     file_type=this_filetype)
 
 
 def cache_files(file_ids: list = None,
