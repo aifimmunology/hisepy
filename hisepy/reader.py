@@ -281,10 +281,10 @@ def post_query(file_list: list = None,
     return obj
 
 
-def read_filesv2(file_list: list = None,
-                 query_id: list = None,
-                 query_dict: dict = None,
-                 to_df: bool = True):
+def read_files_v2(file_list: list = None,
+                  query_id: list = None,
+                  query_dict: dict = None,
+                  to_df: bool = True):
     """
     Read the contents of a list of file ids into a hise_file object
     Note: users should only use 1 parameter per function call
