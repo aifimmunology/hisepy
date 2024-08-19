@@ -329,14 +329,22 @@ def read_filesv2(file_list: list = None,
             this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
                 f)
             response.append(cache_and_convert_file_data(f, False))
-
             endpoint = "https://%s/%s/%s/%s" % (
                 get_from_metadata_server(server_id_path),
                 CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
-            dl_resp = requests.request("GET",
-                                       endpoint,
-                                       headers=get_bearer_token_header())
-            cu.log_downloaded_files(f)
+            # download the file to user's IDE
+            try:
+                dl_resp = requests.request("GET",
+                                           endpoint,
+                                           headers=get_bearer_token_header())
+                response[idx].status = True
+                response[idx].descriptors = this_desc
+                response[idx].message = "OK"
+                cu.log_downloaded_files(f)
+            except:
+                response[idx].status = False
+                response[idx].message = "Failed to download file"
+                continue
 
             # if the user passes in a file_list, make sure they didn't get redirected because they
             # downloaded from a guest account
@@ -470,7 +478,7 @@ def download_files(file_dict: dict):
     return response
 
 
-def cache_and_convert_file_data(file_data: dict, cache_file: bool = True):
+def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
     """ Helper function to convert files into a hise_file object """
     if type(file_data) is not dict:
         raise Exception("Item in response is not a dict, it is a %s." %
@@ -491,13 +499,14 @@ def cache_and_convert_file_data(file_data: dict, cache_file: bool = True):
     file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
     file_name = f_desc["name"].split("/")[-1]
     this_filetype = cu.get_filetype(file_name)
-    if cache_file:
+
+    if do_cache:
         cache_file(file_data["url"], file_name, file_dir)
-    #this_file_values = hf.convert_data_values(
-    #    '{}/{}'.format(file_dir, file_name), this_filetype)
+        this_file_values = hf.convert_data_values(
+            '{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id=f_desc["id"],
                      file_path="%s/%s" % (file_dir, file_name),
-                     descriptors=file_data["descriptors"],
+                     descriptors=f_desc,
                      file_type=this_filetype)
 
 
