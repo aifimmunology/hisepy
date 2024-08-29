@@ -51,7 +51,8 @@ HYDRATION:
 AMDS: 
   AMDS_NAME : accountmanager
   PROJECT_PATH : accountmanager/project
-
+  USER_PATH: accountmanager/userinfo
+  
 # ledger endpoints 
 LEDGER: 
   LEDGER_NAME : ledger
@@ -66,12 +67,14 @@ TRACER:
   TRACE_PATH : tracer/trace
   STUDY_SPACE_PATH: tracer/studyspace
   FILE_SET : tracer/fileset
+  IDE_INSTANCE: tracer/ideinstance
   
 # globals specific for IDE 
 IDE: 
   CACHE_DIR : cache
   HOME_DIR : /home/jupyter
   CACHE_LOG_NAME : .hisefilelog.rds
+  DEFAULTS_LOG_NAME : .hiseprefs.rds
   DOWNLOAD_CHUNK_SIZE : 102400
 
 # NOTE: should this be separate from the rest of scheduler section? 

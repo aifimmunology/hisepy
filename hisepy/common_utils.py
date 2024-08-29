@@ -8,6 +8,7 @@ Contributors: James Harvey
 """
 
 import os
+import requests
 import shutil
 import tarfile
 import yaml
@@ -17,7 +18,7 @@ import datetime
 import json
 import pathlib
 import copy
-from hisepy.auth import debug
+from hisepy.auth import debug, get_bearer_token_header
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -209,6 +210,11 @@ def verify_file_count(dir, expected_num_files):
         raise ValueError("Expected to find %d files, but only %d were found" %
                          (expected_num_files, file_count))
     return True
+
+
+def hise_get(url: str):
+    return parse_hise_response(
+        requests.get(url, headers=get_bearer_token_header()))
 
 
 def parse_hise_response(resp):
