@@ -1,11 +1,101 @@
 import requests
 import os
+import json
 
 import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header
+from hisepy.reader import hise_url
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+DEFAULT_STORE_KEY = "default_store"
+IDE_DEFAULT_TAG = "IDE_DEFAULT"
+
+
+class HiseUser:
+
+    def __init__(self):
+        user_url = hise_url("amds", "user_path")
+        user_resp = cu.hise_get(user_url)
+        for key, value in user_resp.items():
+            setattr(self, key, value)
+
+
+class IDEInstance:
+
+    def __init__(self):
+        iguid = os.getenv("IDE_INSTANCE_GUID")
+        if iguid == "":
+            raise Exception(
+                "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
+            )
+        self.__url = hise_url("tracer", "ide_instance", iguid)
+        ide = cu.hise_get(self.__url)
+        for key, value in ide.items():
+            setattr(self, key, value)
+        if HiseUser().current_account_guid != self.accountGuid:
+            raise Exception(
+                "User's current account %s does not match this IDE's account. You must change your current account to use this IDE."
+                % self.current_account_name)
+
+    def __update(self, data):
+        return requests.request("PUT",
+                                self.__url,
+                                data=json.dumps(data),
+                                headers=get_bearer_token_header())
+
+    def __tags(self):
+        rd = {}
+        if type(self.tags) is list:
+            for t in self.tags:
+                if t.startswith(IDE_DEFAULT_TAG):
+                    key, value = t.split(":")[1].split(",")
+                    rd[key] = value
+        return rd
+
+    def __set_tag(self, key: str, val: str):
+        if len(key) == 0:
+            raise ValueError("Tag key was empty")
+        for f in [key, val]:
+            for b in [":", ","]:
+                if b in f:
+                    raise ValueError("Cannot use %s in tag %s" % (b, f))
+
+        new_tags = []
+        for t in self.tags:
+            if t.startswith("%s:%s" % (IDE_DEFAULT_TAG, key)):
+                continue
+            new_tags.push(t)
+        new_tags.push("%s:%s,%s" % (IDE_DEFAULT_TAG, key, val))
+        self.__update(self, {"tags": new_tags})
+        self.tags = new_tags
+
+    def get_default_project(self):
+        for p in HiseUser().current_projects:
+            if self.destinationProjectGuid == p["id"]:
+                return p["short_name"]
+        return None
+
+    def set_default_project(self, projectShortName: str):
+        for p in HiseUser().current_projects:
+            if p['short_name'] == projectShortName:
+                r = self.__update({"destinationProjectGuid": p["id"]})
+                self.destinationProjectGuid = p["id"]
+                return r
+        raise ValueError("%s not found in user's current projects" %
+                         projectShortName)
+
+    def get_default_store(self):
+        t = self.__tags()
+        if DEFAULT_STORE_KEY in t:
+            return t[DEFAULT_STORE_KEY]
+        return project_store
+
+    def set_default_store(self, store: str):
+        if store not in valid_upload_stores:
+            raise ValueError("Value for store must be in %s" %
+                             (", ".join(valid_upload_stores)))
+        self.__set_tag(DEFAULT_STORE_KEY, store)
 
 
 def stop_ide():

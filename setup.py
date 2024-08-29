@@ -27,7 +27,7 @@ setup(
     install_requires=[
         'pandas', 'numpy', 'PyYAML', 'plotly', 'dash', 'kaleido',
         'google-cloud-storage', 'requests', 'h5py', 'google',
-        'pipreqs==0.4.12', 'pip-tools', 'pyreadr', 'termcolor'
+        'pipreqs==0.4.12', 'pip-tools', 'pyreadr', 'termcolor', 'pathlib'
     ],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
