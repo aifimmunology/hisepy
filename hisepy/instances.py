@@ -4,7 +4,9 @@ import json
 
 import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header
+from hisepy.upload import valid_upload_stores, project_store, permanent_store
 from hisepy.reader import hise_url
+from hisepy.abstraction import get_projects, project_shortname_to_guid
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -19,26 +21,23 @@ class HiseUser:
         user_resp = cu.hise_get(user_url)
         for key, value in user_resp.items():
             setattr(self, key, value)
+        if self.current_account_guid != instance_account_guid():
+            raise Exception(
+                "User's current account %s does not match this IDE's account. You must change your current account to use this IDE."
+                % self.current_account_name)
 
 
 class IDEInstance:
 
     def __init__(self):
-        iguid = os.getenv("IDE_INSTANCE_GUID")
-        if iguid == "":
-            raise Exception(
-                "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
-            )
-        self.__url = hise_url("tracer", "ide_instance", iguid)
+        self.__url = hise_url("tracer", "ide_instance",
+                              instance_account_guid())
         ide = cu.hise_get(self.__url)
         for key, value in ide.items():
             setattr(self, key, value)
-        if HiseUser().current_account_guid != self.accountGuid:
-            raise Exception(
-                "User's current account %s does not match this IDE's account. You must change your current account to use this IDE."
-                % self.current_account_name)
 
     def __update(self, data):
+        data["id"] = self.id
         return requests.request("PUT",
                                 self.__url,
                                 data=json.dumps(data),
@@ -65,25 +64,22 @@ class IDEInstance:
         for t in self.tags:
             if t.startswith("%s:%s" % (IDE_DEFAULT_TAG, key)):
                 continue
-            new_tags.push(t)
-        new_tags.push("%s:%s,%s" % (IDE_DEFAULT_TAG, key, val))
-        self.__update(self, {"tags": new_tags})
+            new_tags.append(t)
+        new_tags.append("%s:%s,%s" % (IDE_DEFAULT_TAG, key, val))
+        self.__update({"tags": new_tags})
         self.tags = new_tags
 
     def get_default_project(self):
-        for p in HiseUser().current_projects:
-            if self.destinationProjectGuid == p["id"]:
+        for p in get_projects(False):
+            if self.destinationProjectGuid == p["guid"]:
                 return p["short_name"]
         return None
 
     def set_default_project(self, projectShortName: str):
-        for p in HiseUser().current_projects:
-            if p['short_name'] == projectShortName:
-                r = self.__update({"destinationProjectGuid": p["id"]})
-                self.destinationProjectGuid = p["id"]
-                return r
-        raise ValueError("%s not found in user's current projects" %
-                         projectShortName)
+        g = project_shortname_to_guid(projectShortName)
+        r = self.__update({"destinationProjectGuid": g})
+        self.destinationProjectGuid = g
+        return r
 
     def get_default_store(self):
         t = self.__tags()
@@ -96,6 +92,15 @@ class IDEInstance:
             raise ValueError("Value for store must be in %s" %
                              (", ".join(valid_upload_stores)))
         self.__set_tag(DEFAULT_STORE_KEY, store)
+
+
+def instance_account_guid():
+    iguid = os.getenv("IDE_INSTANCE_GUID")
+    if iguid == "":
+        raise Exception(
+            "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
+        )
+    return iguid
 
 
 def stop_ide():
