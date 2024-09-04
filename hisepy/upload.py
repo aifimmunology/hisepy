@@ -36,6 +36,14 @@ def get_study_spaces():
                          headers=get_bearer_token_header()))
 
 
+def get_study_space(id):
+    """ Returns the given study space, assuming the user has access """
+    return parse_hise_response(
+        requests.request("GET",
+                         hise_url("tracer", "study_space_path", id),
+                         headers=get_bearer_token_header()))
+
+
 def get_files_for_query(query_id):
     """ Returns a list of file_ids pertaining to a HISE query_id """
     resp = parse_hise_response(

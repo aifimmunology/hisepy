@@ -36,7 +36,9 @@ def get_projects(to_df: bool = True):
         proj_df = pd.DataFrame()
         for p in resp:
             proj_df = pd.concat([proj_df, pd.json_normalize(p)[keep_cols]])
-    return proj_df
+        return proj_df
+
+    return resp
 
 
 def project_shortname_to_guid(proj_name):
@@ -255,7 +257,8 @@ class AbstractionAppImg:
                             os.path.dirname(self.app_filepath)))
                 except:
                     raise ValueError(
-                        "{} in additional_files must be relative to the path specified in the app_filepath parameter. "+
+                        "{} in additional_files must be relative to the path specified in the app_filepath parameter. "
+                        +
                         "If you want this file included in your application, please move the file somewhere in {}"
                         .format(f, os.path.dirname(self.app_filepath)))
                 if not os.path.exists(rel_dst):
@@ -317,9 +320,9 @@ def param_app_type_check(result_types, is_sample_app, is_subject_app):
 
 
 def _validate_abstraction_params(title: str, description: str, input_ids: list,
-                                 additional_files: list, additional_dirs: list, data_contract_id: str,
-                                 project: str, is_sample_app: bool,
-                                 is_subject_app: bool):
+                                 additional_files: list, additional_dirs: list,
+                                 data_contract_id: str, project: str,
+                                 is_sample_app: bool, is_subject_app: bool):
     """ validates parameters are coming in as expected """
 
     # required params check
@@ -340,9 +343,8 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
     app_type_list = [input_ids_set, sample_app_bool_set, subject_app_bool_set]
     if app_type_list.count(True) != 1:
         raise ValueError(
-            "One of result_file_types, is_sample_metadata_app, is_subject_metadata_app must be specified. " +
-            "Please try again by specifying only one of these parameters."
-        )
+            "One of result_file_types, is_sample_metadata_app, is_subject_metadata_app must be specified. "
+            + "Please try again by specifying only one of these parameters.")
 
     # type check
     if type(title) is not str:
@@ -368,7 +370,7 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
         for dir in additional_dirs:
             if not os.path.exists(dir):
                 raise ValueError("%s is not a valid directory" % dir)
-            
+
     # check that each file exists
     if additional_files is not None and len(additional_files) > 0:
         for f in additional_files:
@@ -376,14 +378,16 @@ def _validate_abstraction_params(title: str, description: str, input_ids: list,
                 raise ValueError("%s is not a valid file" % f)
     return True
 
+
 def add_dir_to_additional_files(additional_files, additional_dirs):
     for dir in additional_dirs:
         files = os.listdir(dir)
         for file in files:
             full_path = os.path.join(dir, file)
             if os.path.isfile(full_path):
-                additional_files.append(full_path) 
+                additional_files.append(full_path)
     return additional_files
+
 
 def save_abstraction(app_filepath: str = None,
                      additional_files: list = None,
@@ -418,11 +422,11 @@ def save_abstraction(app_filepath: str = None,
     """
     # parameter check
     _validate_abstraction_params(title, description, result_file_types,
-                                 additional_files, additional_dirs, 
+                                 additional_files, additional_dirs,
                                  data_contract_id, project,
                                  is_sample_metadata_app,
                                  is_subject_metadata_app)
-    
+
     validate_abstraction_app_path(app_filepath)
 
     # convert project to its' guid
@@ -451,8 +455,9 @@ def save_abstraction(app_filepath: str = None,
             aobj.send_static_image_post(aobj.create_static_image_url(),
                                         aobj.create_image_dict()))
 
-        additional_files = add_dir_to_additional_files(additional_files, additional_dirs)
-        
+        additional_files = add_dir_to_additional_files(additional_files,
+                                                       additional_dirs)
+
         # copy files to tmp dir and tar the bad boy up and upload
         if cu.prompt_user(CONFIG["PROMPTS"]["ABSTRACTION"]):
             aobj.copy_files_to_tmp(aobj.abstraction_config_filenames +

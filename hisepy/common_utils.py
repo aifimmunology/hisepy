@@ -323,6 +323,38 @@ def prompt_user(msg: str = None, additional_fields=None):
         return False
 
 
+def prompt_yn(prompt: str):
+    print(prompt)
+    user_input = None
+    while True:
+        user_input = input('(y/n)')
+        if user_input.lower() == 'y':
+            return True
+        elif user_input.lower() == 'n':
+            return False
+        print('please enter either "n" for no, or "y" for yes.')
+
+
+def prompt_from_options(prompt: str, opts: list, returnIndex: bool = False):
+    print(prompt)
+    if len(opts) == 0:
+        raise ValueError("Cannot prompt for '%s' with no options" % prompt)
+    if len(opts) == 1:
+        return 0 if returnIndex else opts[0]
+
+    selected = -1
+    while True:
+        for i, o in enumerate(opts):
+            print("%2d) %s" % ((i + 1), o))
+        try:
+            selected = int(input("[1 - %d]" % len(opts)))
+        except ValueError:
+            selected = 0
+        if selected > 0 and selected <= len(opts):
+            return selected - 1 if returnIndex else opts[selected - 1]
+        print('Please enter a number.')
+
+
 def string_contains_whitespaces(file_str):
     """ returns True if a string contains whitespaces"""
 
