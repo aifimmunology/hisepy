@@ -96,7 +96,7 @@ class IDEInstance:
 
 def instance_account_guid():
     iguid = os.getenv("IDE_INSTANCE_GUID")
-    if iguid == "":
+    if iguid is None:
         raise Exception(
             "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
         )
