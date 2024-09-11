@@ -29,6 +29,26 @@ def read_yaml(file_path):
         return yaml.safe_load(f)
 
 
+CONFIG = read_yaml('{}/config.yaml'.format(_here))
+
+
+def get_from_config(heading: str, key: str):
+    if debug():
+        v = debug_config_value(heading, key)
+        if v is not None:
+            return v
+    if heading.upper() in CONFIG:
+        if key.upper() in CONFIG[heading.upper()]:
+            return CONFIG[heading.upper()][key.upper()]
+    raise ValueError("config value %s:%s not found" % (heading, key))
+
+
+def debug_config_value(heading: str, key: str):
+    #override config vars with environment variables of the form below
+    #e.g. HISEPY_STORES_OUTPUT_STORE
+    return os.getenv("HISEPY_%s_%s" % (heading.upper(), key.upper()))
+
+
 def get_filetype(this_filename):
     if "." in this_filename:
         return this_filename.split(".")[-1]
@@ -108,7 +128,6 @@ def log_downloaded_files(hise_file):
         Parameters: 
             hise_file : hise_file object
     """
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[
@@ -163,7 +182,6 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
     if input_sample_ids is not None:
         assert type(input_sample_ids) is list
 
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
 
@@ -236,8 +254,6 @@ def parse_hise_response(resp):
 
 
 def download_response_content(resp, dest):
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
-
     # check status
     if resp.status_code != 200:
         raise SystemError(
@@ -273,7 +289,6 @@ def log_project_download(file_id: str):
     Parameters: 
         file_id (str) : file_id of file in project folder 
     """
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[

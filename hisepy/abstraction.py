@@ -70,6 +70,26 @@ def project_shortname_to_guid(proj_name):
         return proj_guid
 
 
+def project_guid_to_shortname(proj_guid):
+    """
+    Takes a string, looks up if there's a Project guid with the passed in value. If there is, return the corresponding short name.
+    Otherwise, let the user know the Project doesn't exist.
+
+    Parameters: 
+        proj_guid (str) : the guid of a HISE Project
+    """
+    proj_df = get_projects()
+
+    # chosen project must be in there, right?
+    if proj_guid not in proj_df['guid'].values:
+        raise ValueError("%s is not a valid project guid." % proj_guid)
+    else:
+        this_proj = proj_df.loc[proj_df['guid'].eq(proj_guid), ].reset_index(
+            drop=True)
+
+    return this_proj.loc[0, 'short_name']
+
+
 def get_result_files(to_df=True):
     """ 
     Returns available result files for the user's current account/projects.
