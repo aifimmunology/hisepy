@@ -1,6 +1,7 @@
 import os
-
 import requests
+
+import hisepy.common_utils as cu
 
 metadata_server_root = "http://metadata.google.internal/computeMetadata/v1/instance"
 instance_name_path = "name"
@@ -14,10 +15,9 @@ default_metadata = {
     instance_name_path: os.getenv("TEST_INSTANCE_NAME")
     or "local-testing-instance",
     client_id_path: os.getenv("AUTH_CLIENT_ID"),
-    server_id_path: "dev.allenimmunology.org"
+    server_id_path: os.getenv("HISE_SERVER")
 }
 
-# dev primecollective
 defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 
 
@@ -32,7 +32,6 @@ def get_from_metadata_server(path):
         value = resp.text
     except:
         if path in default_metadata:
-            print("Returning default value for %s" % path)
             value = default_metadata[path]
         else:
             raise SystemError(
@@ -41,7 +40,7 @@ def get_from_metadata_server(path):
 
 
 def get_bearer_token_header():
-    client_id = get_from_metadata_server(client_id_path)
+    audience = get_audience() or get_from_metadata_server(client_id_path)
     token_gen = os.getenv(token_env)
     if token_gen is not None:
         token = os.popen(token_gen).read().rstrip()
@@ -55,13 +54,21 @@ def get_bearer_token_header():
         }
     else:
         token = get_from_metadata_server("%s?format=full&audience=%s" %
-                                         (identity_path, client_id))
+                                         (identity_path, audience))
         account_guid = get_from_metadata_server(account_guid_path)
         headers = {
             "Authorization": "Bearer %s" % token,
             "InstanceAccountGuid": "%s" % account_guid
         }
     return headers
+
+
+def get_audience():
+    afile = cu.get_from_config('stores', 'audience_file')
+    if os.path.exists(afile):
+        with open(afile, 'r') as f:
+            return f.readline().strip()
+    return None
 
 
 # use the presence of the token gen env as a proxy for debug env

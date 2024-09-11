@@ -1,8 +1,11 @@
 import requests
 import os
+import re
+import shutil
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
+from hisepy.auth import get_bearer_token_header
+from hisepy.abstraction import project_shortname_to_guid, project_guid_to_shortname
 from hisepy.reader import parse_hise_response, hise_url
 from hisepy.scheduler import current_notebook
 from hisepy.instances import HiseUser, IDEInstance
@@ -96,29 +99,34 @@ def upload_files_v3(files: list,
 
     cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
+    inst = IDEInstance()
     qargs = {
         "title": title,
         "fileType": [],
         "saveIDE": True,
         "store": store,
         "destination": destination,
-        "instanceId": get_from_metadata_server(instance_name_path),
+        "instanceId": inst.friendlyName,
+        "instanceGuid": inst.id,
         "inputFileIds": input_file_ids,
         "project": project,
         "sampleIds": input_sample_ids,
         "notebook": current_notebook(),
-        "homedir": IDE_HOME_DIR,
-        "harvest": True
+        "homedir": IDE_HOME_DIR
     }
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
 
     body = {"files": []}
+    if do_prompt:
+        print("Copying files to output staging...")
     for i, f in enumerate(files):
         if not os.path.exists(f):
             raise ValueError("%s is not a valid file." % f)
         ft = file_types[i] if len(file_types) > i else cu.get_filetype(f)
-        body["files"].append({"name": os.path.abspath(f), "type": ft})
+        output = move_file_to_output_staging(os.path.abspath(f), project,
+                                             study_space_id)
+        body["files"].append({"name": output, "type": ft})
 
     url = hise_url("toolchain", "upload_file_v3_path", args=qargs)
     return parse_hise_response(
@@ -140,7 +148,6 @@ def check_default_project(proj: str):
 
 
 def select_study_space(proj):
-    ss = get_study_spaces()
     pguid = None
     if proj is not None:
         pguid = project_shortname_to_guid(proj)
@@ -151,6 +158,39 @@ def select_study_space(proj):
     idx = cu.prompt_from_options("Select a study space",
                                  [d["name"] for d in options], True)
     return options[idx]["id"]
+
+
+def get_study_space(id):
+    """ Returns list of studies a user has access to """
+    return parse_hise_response(
+        requests.request("GET",
+                         hise_url("tracer", "study_space_path", id),
+                         headers=get_bearer_token_header()))
+
+
+def move_file_to_output_staging(file: str, project: str, study_space_id: str):
+    sdir = re.sub(r'\W+', '', study_space_id).lower()
+    if study_space_id != no_study_default:
+        ss = get_study_space(study_space_id)
+        if project is None:
+            project = project_guid_to_shortname(ss["projectGuid"])
+        sdir = re.sub(r'\W+', '', ss['name']).lower()
+    elif project is None:
+        #this should have been caught earlier and if you get here your code is very bad
+        raise ValueError(
+            "Neither project nor study space was set, cannot move file")
+    pdir = re.sub(r'\W+', '', project).lower()
+    dest_dir = "%s/%s/%s" % (cu.get_from_config('stores',
+                                                'output_store'), pdir, sdir)
+    dest_file = "%s/%s" % (dest_dir, os.path.basename(file))
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+    elif os.path.exists(dest_file):
+        raise ValueError(
+            "The file %s is already in the output directory for %s and study %s. Either rename the file to be uploaded or, if you are sure it isn't being used, delete it from %s manually and run the upload command again."
+            % (os.path.basename(file), project, study_space_id, dest_dir))
+    shutil.copy(file, dest_file)
+    return dest_file
 
 
 def check_project_against_study_space(project, study_space_id):

@@ -33,6 +33,11 @@ PROJECT_STORE:
   DELETED_TAG : marked_for_deletion
   PROMOTION_TAG : marked_for_promotion
 
+STORES:
+  INPUT_STORE: /home/workspace/input
+  OUTPUT_STORE: /home/workspace/output
+  AUDIENCE_FILE: /home/workspace/.audience
+  
 PROJECT_FOLDER: 
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
 
@@ -83,8 +88,7 @@ TOOLCHAIN:
   VISUALIZATION_PATH: toolchain/visualization
   ABSTRACTION_PATH: toolchain/abstraction
   UPLOAD_FILE_PATH: toolchain/file
-  #This is intentionally the same right now. Probably will change, but might not
-  UPLOAD_FILE_V3_PATH: toolchain/file  
+  UPLOAD_FILE_V3_PATH: toolchain/filev3  
   SAVE_DASH_APP_PATH: toolchain/visualization/dash
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
   TOOLCHAIN_IDE : toolchain/instances
