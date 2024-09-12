@@ -36,7 +36,7 @@ PROJECT_STORE:
 STORES:
   INPUT_STORE: /home/workspace/input
   OUTPUT_STORE: /home/workspace/output
-  AUDIENCE_FILE: /home/workspace/.audience
+  AUDIENCE_FILE: /home/workspace/environment/.audience
   
 PROJECT_FOLDER: 
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
