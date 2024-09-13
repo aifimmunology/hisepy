@@ -26,7 +26,7 @@ setup(
     packages=['hisepy'],
     install_requires=[
         'pandas', 'numpy', 'PyYAML', 'plotly', 'dash', 'kaleido',
-        'google-cloud-storage', 'importlib', 'Frozen-Flask', 'requests',
+        'google-cloud-storage', 'Frozen-Flask', 
         'h5py', 'google', 'pipreqs==0.4.12', 'pip-tools', 'pyreadr',
         'termcolor'
     ],
