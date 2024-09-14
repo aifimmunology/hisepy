@@ -560,11 +560,12 @@ def save_dash_app(app_filepath: str,
     app_files = app_files.union(dobj.directories)
     create_temp_directory_files(app_files, tmpdirname)
 
+    # tar it up; upload; and clean up
+    dobj.create_dash_image()
+
     # create .txt files that contains user's imported libraries
     dobj.create_req_txt()
 
-    # tar it up; upload; and clean up
-    dobj.create_dash_image()
     resp = dobj.export_dash_image()
 
     print('dash image was successfully uploaded!')
