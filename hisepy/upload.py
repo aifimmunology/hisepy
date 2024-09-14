@@ -332,26 +332,26 @@ class DashAppImg:
         self.work_dir = work_dir
 
     def create_req_txt(self):
-        subprocess.run([
-            'pipreqs', '--savepath', '{wd}/{app}/requirements.in'.format(
-                wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
-            '{}'.format(self.work_dir)
-        ],
-                       check=True,
-                       capture_output=True)
-        subprocess.run([
-            'pip-compile', '--no-annotate', '--no-header', '--quiet',
-            '{wd}/{app}/requirements.in'.format(
-                wd=self.work_dir, app=os.path.dirname(self.app_filepath))
-        ],
-                       check=True)
-    
-    def copy_req_txt(self):
-        subprocess.run([
-            'cp', self.requirements, 
-            '{wd}/{app}/requirements.in'.format(
-                wd=self.work_dir, app=os.path.dirname(self.app_filepath))
-        ], check = True)
+        if self.requirements is None:
+            subprocess.run([
+                'pipreqs', '--savepath', '{wd}/{app}/requirements.in'.format(
+                    wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
+                '{}'.format(self.work_dir)
+            ],
+                        check=True,
+                        capture_output=True)
+            subprocess.run([
+                'pip-compile', '--no-annotate', '--no-header', '--quiet',
+                '{wd}/{app}/requirements.in'.format(
+                    wd=self.work_dir, app=os.path.dirname(self.app_filepath))
+            ],
+                        check=True)
+        else:
+            subprocess.run([
+                'pip-compile', '--no-annotate', '--no-header', '--quiet',
+                self.requirements
+            ],
+                        check=True)
 
     def upload_hero_image(self):
         # I don't think this title is ever user-visible, but save_static_image requires it
@@ -557,11 +557,8 @@ def save_dash_app(app_filepath: str,
     create_temp_directory_files(app_files, tmpdirname)
 
     # create .txt files that contains user's imported libraries
-    if requirements is None:
-        dobj.create_req_txt()
-    else:
-        dobj.copy_req_txt()
-
+    dobj.create_req_txt()
+    
     # tar it up; upload; and clean up
     dobj.create_dash_image()
     resp = dobj.export_dash_image()
