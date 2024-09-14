@@ -349,9 +349,12 @@ class DashAppImg:
         else:
             subprocess.run([
                 'pip-compile', '--no-annotate', '--no-header', '--quiet',
+                '--output-file {wd}/requirements.txt'.format(
+                    wd=self.work_dir),
                 self.requirements
             ],
                         check=True)
+            
 
     def upload_hero_image(self):
         # I don't think this title is ever user-visible, but save_static_image requires it
@@ -550,6 +553,7 @@ def save_dash_app(app_filepath: str,
                       work_dir=tmpdirname)
 
     # Insert UI widget code here:
+
     # move everything to a temporary dir while creating/preserving source
     # directories
     app_files = dobj.filepaths.union({dobj.app_filepath})
@@ -558,7 +562,7 @@ def save_dash_app(app_filepath: str,
 
     # create .txt files that contains user's imported libraries
     dobj.create_req_txt()
-    
+
     # tar it up; upload; and clean up
     dobj.create_dash_image()
     resp = dobj.export_dash_image()
