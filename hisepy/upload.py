@@ -349,7 +349,7 @@ class DashAppImg:
         else:
             subprocess.run([
                 'pip-compile', '--no-annotate', '--no-header', '--quiet',
-                '--output-file {wd}/requirements.txt'.format(
+                '-o {wd}/requirements.txt'.format(
                     wd=self.work_dir),
                 self.requirements
             ],
