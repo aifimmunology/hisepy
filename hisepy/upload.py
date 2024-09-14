@@ -341,15 +341,15 @@ class DashAppImg:
                         check=True,
                         capture_output=True)
             subprocess.run([
-                'pip-compile', '--no-annotate', '--no-header', '--quiet',
+                'pip-compile', '--no-annotate', '--no-header', '--quiet', '--strip-extras',
                 '{wd}/{app}/requirements.in'.format(
                     wd=self.work_dir, app=os.path.dirname(self.app_filepath))
             ],
                         check=True)
         else:
             subprocess.run([
-                'pip-compile', '--no-annotate', '--no-header', '--quiet',
-                '-o {wd}/requirements.txt'.format(
+                'pip-compile', '--no-annotate', '--no-header', '--quiet', '--strip-extras',
+                '-o {wd}/{app}/requirements.txt'.format(
                     wd=self.work_dir),
                 self.requirements
             ],
