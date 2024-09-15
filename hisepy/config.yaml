@@ -33,6 +33,11 @@ PROJECT_STORE:
   DELETED_TAG : marked_for_deletion
   PROMOTION_TAG : marked_for_promotion
 
+STORES:
+  INPUT_STORE: /home/workspace/input
+  OUTPUT_STORE: /home/workspace/output
+  AUDIENCE_FILE: /home/workspace/environment/.audience
+  
 PROJECT_FOLDER: 
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
 
@@ -52,7 +57,8 @@ HYDRATION:
 AMDS: 
   AMDS_NAME : accountmanager
   PROJECT_PATH : accountmanager/project
-
+  USER_PATH: accountmanager/userinfo
+  
 # ledger endpoints 
 LEDGER: 
   LEDGER_NAME : ledger
@@ -67,12 +73,14 @@ TRACER:
   TRACE_PATH : tracer/trace
   STUDY_SPACE_PATH: tracer/studyspace
   FILE_SET : tracer/fileset
+  IDE_INSTANCE: tracer/ideinstance
   
 # globals specific for IDE 
 IDE: 
   CACHE_DIR : cache
   HOME_DIR : /home/jupyter
   CACHE_LOG_NAME : .hisefilelog.rds
+  DEFAULTS_LOG_NAME : .hiseprefs.rds
   DOWNLOAD_CHUNK_SIZE : 102400
 
 # NOTE: should this be separate from the rest of scheduler section? 
@@ -81,6 +89,7 @@ TOOLCHAIN:
   VISUALIZATION_PATH: toolchain/visualization
   ABSTRACTION_PATH: toolchain/abstraction
   UPLOAD_FILE_PATH: toolchain/file
+  UPLOAD_FILE_V3_PATH: toolchain/filev3  
   SAVE_DASH_APP_PATH: toolchain/visualization/dash
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
   TOOLCHAIN_IDE : toolchain/instances
