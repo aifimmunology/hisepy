@@ -8,6 +8,7 @@ Contributors: James Harvey
 """
 
 import os
+import requests
 import shutil
 import tarfile
 import yaml
@@ -17,7 +18,7 @@ import datetime
 import json
 import pathlib
 import copy
-from hisepy.auth import debug
+from hisepy.auth import debug, get_bearer_token_header
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -26,6 +27,26 @@ _here = os.path.abspath(os.path.dirname(__file__))
 def read_yaml(file_path):
     with open(file_path, "r") as f:
         return yaml.safe_load(f)
+
+
+CONFIG = read_yaml('{}/config.yaml'.format(_here))
+
+
+def get_from_config(heading: str, key: str):
+    if debug():
+        v = debug_config_value(heading, key)
+        if v is not None:
+            return v
+    if heading.upper() in CONFIG:
+        if key.upper() in CONFIG[heading.upper()]:
+            return CONFIG[heading.upper()][key.upper()]
+    raise ValueError("config value %s:%s not found" % (heading, key))
+
+
+def debug_config_value(heading: str, key: str):
+    #override config vars with environment variables of the form below
+    #e.g. HISEPY_STORES_OUTPUT_STORE
+    return os.getenv("HISEPY_%s_%s" % (heading.upper(), key.upper()))
 
 
 def get_filetype(this_filename):
@@ -107,7 +128,6 @@ def log_downloaded_files(hise_file):
         Parameters: 
             hise_file : hise_file object
     """
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[
@@ -162,7 +182,6 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
     if input_sample_ids is not None:
         assert type(input_sample_ids) is list
 
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
 
@@ -211,6 +230,11 @@ def verify_file_count(dir, expected_num_files):
     return True
 
 
+def hise_get(url: str):
+    return parse_hise_response(
+        requests.get(url, headers=get_bearer_token_header()))
+
+
 def parse_hise_response(resp):
     obj = None
     try:
@@ -230,8 +254,6 @@ def parse_hise_response(resp):
 
 
 def download_response_content(resp, dest):
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
-
     # check status
     if resp.status_code != 200:
         raise SystemError(
@@ -267,7 +289,6 @@ def log_project_download(file_id: str):
     Parameters: 
         file_id (str) : file_id of file in project folder 
     """
-    CONFIG = read_yaml('{}/config.yaml'.format(_here))
     cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[
@@ -315,6 +336,38 @@ def prompt_user(msg: str = None, additional_fields=None):
         return True
     elif user_input.lower() == 'n':
         return False
+
+
+def prompt_yn(prompt: str):
+    print(prompt)
+    user_input = None
+    while True:
+        user_input = input('(y/n)')
+        if user_input.lower() == 'y':
+            return True
+        elif user_input.lower() == 'n':
+            return False
+        print('please enter either "n" for no, or "y" for yes.')
+
+
+def prompt_from_options(prompt: str, opts: list, returnIndex: bool = False):
+    print(prompt)
+    if len(opts) == 0:
+        raise ValueError("Cannot prompt for '%s' with no options" % prompt)
+    if len(opts) == 1:
+        return 0 if returnIndex else opts[0]
+
+    selected = -1
+    while True:
+        for i, o in enumerate(opts):
+            print("%2d) %s" % ((i + 1), o))
+        try:
+            selected = int(input("[1 - %d]" % len(opts)))
+        except ValueError:
+            selected = 0
+        if selected > 0 and selected <= len(opts):
+            return selected - 1 if returnIndex else opts[selected - 1]
+        print('Please enter a number.')
 
 
 def string_contains_whitespaces(file_str):
