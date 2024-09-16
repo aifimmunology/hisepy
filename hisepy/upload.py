@@ -347,7 +347,7 @@ class DashAppImg:
             ],
                         check=True)
         else:
-            wd = self.workdir
+            wd = self.work_dir
             app = os.path.dirname(self.app_filepath)
             print(f'wd: {wd}')
             print(f'app: {app}')
