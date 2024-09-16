@@ -14,7 +14,6 @@ from google.cloud import storage
 
 import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
-from hisepy.reader import hise_file
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))

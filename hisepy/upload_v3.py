@@ -6,8 +6,7 @@ import shutil
 import hisepy.common_utils as cu
 from hisepy.auth import get_bearer_token_header
 from hisepy.abstraction import project_shortname_to_guid, project_guid_to_shortname
-from hisepy.reader import parse_hise_response, hise_url
-from hisepy.scheduler import current_notebook
+from hisepy.common_utils import current_notebook
 from hisepy.instances import HiseUser, IDEInstance
 from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data, IDE_HOME_DIR
 
@@ -128,8 +127,8 @@ def upload_files_v3(files: list,
                                              study_space_id)
         body["files"].append({"name": output, "type": ft})
 
-    url = hise_url("toolchain", "upload_file_v3_path", args=qargs)
-    return parse_hise_response(
+    url = cu.hise_url("toolchain", "upload_file_v3_path", args=qargs)
+    return cu.parse_hise_response(
         requests.post(url, json=body, headers=get_bearer_token_header()))
 
 
@@ -162,9 +161,9 @@ def select_study_space(proj):
 
 def get_study_space(id):
     """ Returns list of studies a user has access to """
-    return parse_hise_response(
+    return cu.parse_hise_response(
         requests.request("GET",
-                         hise_url("tracer", "study_space_path", id),
+                         cu.hise_url("tracer", "study_space_path", id),
                          headers=get_bearer_token_header()))
 
 

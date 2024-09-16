@@ -10,6 +10,7 @@ Contributors: James Harvey
 import os
 import requests
 import shutil
+import urllib
 import tarfile
 import yaml
 import pyreadr
@@ -18,7 +19,8 @@ import datetime
 import json
 import pathlib
 import copy
-from hisepy.auth import debug, get_bearer_token_header
+import time
+from hisepy.auth import debug, get_bearer_token_header, get_from_metadata_server, server_id_path
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -30,17 +32,54 @@ def read_yaml(file_path):
 
 
 CONFIG = read_yaml('{}/config.yaml'.format(_here))
+num_printed_notebooks = 3  # number of options user gets when a save call is invoked
 
 
-def get_from_config(heading: str, key: str):
-    if debug():
-        v = debug_config_value(heading, key)
-        if v is not None:
-            return v
-    if heading.upper() in CONFIG:
-        if key.upper() in CONFIG[heading.upper()]:
-            return CONFIG[heading.upper()][key.upper()]
-    raise ValueError("config value %s:%s not found" % (heading, key))
+def current_notebook():
+    """
+    Return the name of a notebook.
+    """
+    global the_current_notebook
+    if the_current_notebook is not None:
+        #once you specify the notebook in a kernel it should,
+        #by definition always be the same notebook
+        #This does mean you will have to reset the kernel
+        #in order to specify a different notebook
+        #if you make a mistake.
+        #Really what we should have is a jupyter plugin to figure out the notebook.
+        return the_current_notebook
+
+    test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
+    if test_notebook is not None and test_notebook != "":
+        return test_notebook
+    ambiguitySeconds = 15 * 60
+    notebooks = os.popen(
+        "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n {} | cut -f2- -d ' '"
+        .format(num_printed_notebooks)).read().rstrip().split("\n")
+    if len(notebooks) == 0 or notebooks[0] == "":
+        raise TypeError(
+            "Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"
+        )
+    elif len(notebooks) > 1:
+        olderIsNew = (time.time() - os.stat(notebooks[1]).st_mtime <
+                      ambiguitySeconds)
+        newerIsOld = (time.time() - os.stat(notebooks[0]).st_mtime >=
+                      ambiguitySeconds)
+        if newerIsOld or olderIsNew:
+            resp = -1
+            while (resp < 0 or resp >= len(notebooks)):
+                print("Cannot determine the current notebook.")
+                for idx in range(len(notebooks)):
+                    print("%d) %s" % (idx + 1, notebooks[idx]))
+                print("Please select (1-%d) " % (len(notebooks)))
+                resp = int(input()) - 1
+                if (resp < 0 or resp >= len(notebooks)):
+                    print(
+                        "Invalid option for current notebook. Please try again and choose a value between [1,%s]"
+                        % (num_printed_notebooks))
+            the_current_notebook = notebooks[resp]
+            return notebooks[resp]
+    return notebooks[0]
 
 
 def debug_config_value(heading: str, key: str):
@@ -49,22 +88,32 @@ def debug_config_value(heading: str, key: str):
     return os.getenv("HISEPY_%s_%s" % (heading.upper(), key.upper()))
 
 
-def get_filetype(this_filename):
-    if "." in this_filename:
-        return this_filename.split(".")[-1]
-    else:
-        return "json"
+def download_response_content(resp, dest):
+    # check status
+    if resp.status_code != 200:
+        raise SystemError(
+            "%s request to %s returned with status %d. %s" %
+            (resp.request.method, resp.url, resp.status_code, resp.text))
 
+    # separate filename and path
+    dest_list = dest.split('/')
+    this_file_name = dest_list[-1]
+    dest_list.pop()
+    this_path = '/'.join(dest_list)
+    if '.' not in this_file_name:
+        raise SystemError("Unable to parse out fileName, %s" %
+                          (this_file_name))
 
-def tardir(output_filename, source_dir):
-    """ Utility function that will create a tar file for an entire directory and its children """
-    with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.basename(source_dir))
+    # create directory if it doesn't exist; download
+    pathlib.Path(this_path).mkdir(parents=True, exist_ok=True)
+    if not os.path.isdir(this_path):
+        raise SystemError("unable to create path, %s" % (this_path))
 
-
-def list_files_and_dirs(directory):
-    """ Lists all files and directories in a given path """
-    return os.listdir(directory)
+    with open(dest, 'wb') as f:
+        for chunk in resp.iter_content(CONFIG['IDE']['DOWNLOAD_CHUNK_SIZE']):
+            f.write(chunk)
+    print('file successfully downloaded: {}'.format(dest))
+    return
 
 
 def find_files(directory, filenames):
@@ -78,47 +127,77 @@ def find_files(directory, filenames):
     return files_list
 
 
-def remove_dir(directory):
-    """ Removes entire directory, including any child files """
-    shutil.rmtree(directory)
-    return True
+def get_filetype(this_filename):
+    if "." in this_filename:
+        return this_filename.split(".")[-1]
+    else:
+        return "json"
 
 
-def parse_file_descriptor_from_hise_file(hise_file):
-    """
-    Takes a hise_file object and returns its file_id, file_name and the descriptor object
-
-    Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object 
-    Returns: 
-        a tuple (file_id, file_name, descriptor object)
-    """
-    if type(hise_file['descriptors']) is list:
-        this_file_id = hise_file['descriptors'][0]['file']['id']
-        this_file_name = hise_file['descriptors'][0]['file']['name']
-        this_desc = hise_file['descriptors'][0]
-    elif type(hise_file['descriptors']) is dict:
-        this_file_id = hise_file['descriptors']['file']['id']
-        this_file_name = hise_file['descriptors']['file']['name']
-        this_desc = hise_file['descriptors']
-    return this_file_id, this_file_name, this_desc
+def get_from_config(heading: str, key: str):
+    if debug():
+        v = debug_config_value(heading, key)
+        if v is not None:
+            return v
+    if heading.upper() in CONFIG:
+        if key.upper() in CONFIG[heading.upper()]:
+            return CONFIG[heading.upper()][key.upper()]
+    raise ValueError("config value %s:%s not found" % (heading, key))
 
 
-def log_replica_file_download(hise_file, file_id):
-    """
-    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged 
+def get_server(service):
+    test_hydration_server = os.getenv("TEST_HYDRATION_SERVER")
+    test_toolchain_server = os.getenv("TEST_TOOLCHAIN_SERVER")
+    test_tracer_server = os.getenv("TEST_TRACER_SERVER")
+    test_ledger_server = os.getenv("TEST_LEDGER_SERVER")
+    if service == "hydration" and test_hydration_server is not None:
+        return test_hydration_server
+    elif service == "toolchain" and test_toolchain_server is not None:
+        return test_toolchain_server
+    elif service == "tracer" and test_tracer_server is not None:
+        return test_tracer_server
+    elif service == "ledger" and test_ledger_server is not None:
+        return test_ledger_server
+    else:
+        return get_from_metadata_server(server_id_path)
 
-    Parameters: 
-        hise_file (hise_file): hisepy.reader.hise_file object 
-        file_id (str): original file_id that's passed in to read_files() or cache_files() 
-    """
-    this_file_id, this_file_name, this_desc = parse_file_descriptor_from_hise_file(
-        hise_file)
-    if (this_file_id != file_id):
-        tmp_hise_file = copy.deepcopy(this_desc)
-        tmp_hise_file["id"] = file_id
-        log_downloaded_files(tmp_hise_file)
-    return
+
+def hise_get(url: str):
+    return parse_hise_response(
+        requests.get(url, headers=get_bearer_token_header()))
+
+
+def hise_url(service: str,
+             config_path: str,
+             resource: str = None,
+             args: dict = None):
+    if service.upper() not in CONFIG:
+        raise ValueError("%s is not a known HISE service" % service)
+    if config_path.upper() not in CONFIG[service.upper()]:
+        raise ValueError("%s is not a known path in %s service" %
+                         (config_path, service))
+
+    server = get_server(service)
+    protocol = "http" if "localhost" in server else "https"
+    url = "%s://%s/%s" % (protocol, server,
+                          CONFIG[service.upper()][config_path.upper()])
+    if resource is not None:
+        if type(resource) is not str:
+            raise ValueError("resource argument was a %s, not a string" %
+                             (type(resource)))
+        url += "/%s" % resource
+
+    if args is not None:
+        if type(args) is not dict:
+            raise ValueError("query string argument was a %s, not a dict" %
+                             (type(args)))
+        url += "?%s" % (urllib.parse.urlencode(args, doseq=True))
+    return url
+
+
+def list_files_and_dirs(directory):
+    """ Lists all files and directories in a given path """
+    return os.listdir(directory)
 
 
 def log_downloaded_files(hise_file):
@@ -166,6 +245,188 @@ def log_downloaded_files(hise_file):
         pyreadr.write_rds(
             '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
                              d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
+    return
+
+
+# TODO: combine this log_downloaded_files()
+def log_project_download(file_id: str):
+    """
+    Attaches fileId for the project folder file that was downloaded 
+    
+    Parameters: 
+        file_id (str) : file_id of file in project folder 
+    """
+    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
+                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
+    cache_df = pd.DataFrame(columns=[
+        'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
+    ])
+    download_workdir = os.getcwd()
+    if os.path.exists(cache_file_path):
+        cache_file = pyreadr.read_r(cache_file_path)
+
+        # extract out the data.frame
+        cache_df = cache_file[None]
+
+    # check if the file_id is already logged
+    if file_id in cache_df['fileId'].values:
+        pass
+    else:
+        new_entry = pd.DataFrame(
+            data={
+                'fileId': [file_id],
+                'sampleId': [''],
+                'downloadSourceDir': [download_workdir],
+                'downloadTimeStamp': [str(datetime.datetime.now())]
+            })
+
+        cache_df = pd.concat([cache_df, new_entry])
+        pyreadr.write_rds(
+            '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
+                             d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
+    return
+
+
+def log_replica_file_download(hise_file, file_id):
+    """
+    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged 
+
+    Parameters: 
+        hise_file (hise_file): hisepy.reader.hise_file object 
+        file_id (str): original file_id that's passed in to read_files() or cache_files() 
+    """
+    this_file_id, this_file_name, this_desc = parse_file_descriptor_from_hise_file(
+        hise_file)
+    if (this_file_id != file_id):
+        tmp_hise_file = copy.deepcopy(this_desc)
+        tmp_hise_file["id"] = file_id
+        log_downloaded_files(tmp_hise_file)
+    return
+
+
+def parse_file_descriptor_from_hise_file(hise_file):
+    """
+    Takes a hise_file object and returns its file_id, file_name and the descriptor object
+
+    Parameters:
+        hise_file (hise_file): hisepy.reader.hise_file object 
+    Returns: 
+        a tuple (file_id, file_name, descriptor object)
+    """
+    if type(hise_file['descriptors']) is list:
+        this_file_id = hise_file['descriptors'][0]['file']['id']
+        this_file_name = hise_file['descriptors'][0]['file']['name']
+        this_desc = hise_file['descriptors'][0]
+    elif type(hise_file['descriptors']) is dict:
+        this_file_id = hise_file['descriptors']['file']['id']
+        this_file_name = hise_file['descriptors']['file']['name']
+        this_desc = hise_file['descriptors']
+    return this_file_id, this_file_name, this_desc
+
+
+def parse_hise_response(resp):
+    obj = None
+    try:
+        obj = json.loads(resp.text)
+        if "Errors" in obj and len(obj["Errors"]) > 0:
+            msg = obj["Errors"][0]["Message"]
+        else:
+            msg = resp.reason
+    except:
+        msg = resp.reason
+
+    if resp.status_code != 200:
+        raise SystemError(
+            "%s request to %s returned with status %d. %s" %
+            (resp.request.method, resp.url, resp.status_code, msg))
+    return obj
+
+
+def prompt_from_options(prompt: str, opts: list, returnIndex: bool = False):
+    print(prompt)
+    if len(opts) == 0:
+        raise ValueError("Cannot prompt for '%s' with no options" % prompt)
+    if len(opts) == 1:
+        return 0 if returnIndex else opts[0]
+
+    selected = -1
+    while True:
+        for i, o in enumerate(opts):
+            print("%2d) %s" % ((i + 1), o))
+        try:
+            selected = int(input("[1 - %d]" % len(opts)))
+        except ValueError:
+            selected = 0
+        if selected > 0 and selected <= len(opts):
+            return selected - 1 if returnIndex else opts[selected - 1]
+        print('Please enter a number.')
+
+
+def prompt_user(msg: str = None, additional_fields=None):
+    """ Prompts end users in order to continue """
+    if msg is None:
+        raise ValueError("Must provide a contextual message")
+    if additional_fields is None:
+        additional_fields = ""
+    print("{m}: {af}. Do you want to Proceed? [Y/N]".format(
+        m=msg, af=additional_fields))
+    user_input = input('(y/n')
+    while user_input.lower() not in ['y', 'n']:
+        print('please enter either "n" for no, or "y" for yes.')
+        user_input = input('(y/n)')
+    if user_input.lower() == 'y':
+        return True
+    elif user_input.lower() == 'n':
+        return False
+
+
+def prompt_yn(prompt: str):
+    print(prompt)
+    user_input = None
+    while True:
+        user_input = input('(y/n)')
+        if user_input.lower() == 'y':
+            return True
+        elif user_input.lower() == 'n':
+            return False
+        print('please enter either "n" for no, or "y" for yes.')
+
+
+def remove_dir(directory):
+    """ Removes entire directory, including any child files """
+    shutil.rmtree(directory)
+    return True
+
+
+def string_contains_whitespaces(file_str):
+    """ returns True if a string contains whitespaces"""
+
+    # loop through the each string character and check if it's a whitespace
+    if any(s.isspace() for s in file_str):
+        return True
+    else:
+        return False
+
+
+def tardir(output_filename, source_dir):
+    """ Utility function that will create a tar file for an entire directory and its children """
+    with tarfile.open(output_filename, "w:gz") as tar:
+        tar.add(source_dir, arcname=os.path.basename(source_dir))
+
+
+def validate_download_params(file_list: list, query_id: list,
+                             query_dict: dict):
+    # verify input parameters are sane
+    if file_list is not None and type(file_list) is not list:
+        raise Exception("file_ids parameter must be a list")
+    if query_id is not None and type(query_id) is not list:
+        raise Exception("query_id parameter must be a list")
+    if query_id is not None and len(query_id) > 1:
+        raise Exception(
+            "You can only specify a single query_if per function call")
+    if file_list is None and query_id is None and query_dict is None:
+        raise Exception(
+            "One of file_ids, query_dict, or query_id must be non-null")
     return
 
 
@@ -228,169 +489,3 @@ def verify_file_count(dir, expected_num_files):
         raise ValueError("Expected to find %d files, but only %d were found" %
                          (expected_num_files, file_count))
     return True
-
-
-def hise_get(url: str):
-    return parse_hise_response(
-        requests.get(url, headers=get_bearer_token_header()))
-
-
-def parse_hise_response(resp):
-    obj = None
-    try:
-        obj = json.loads(resp.text)
-        if "Errors" in obj and len(obj["Errors"]) > 0:
-            msg = obj["Errors"][0]["Message"]
-        else:
-            msg = resp.reason
-    except:
-        msg = resp.reason
-
-    if resp.status_code != 200:
-        raise SystemError(
-            "%s request to %s returned with status %d. %s" %
-            (resp.request.method, resp.url, resp.status_code, msg))
-    return obj
-
-
-def download_response_content(resp, dest):
-    # check status
-    if resp.status_code != 200:
-        raise SystemError(
-            "%s request to %s returned with status %d. %s" %
-            (resp.request.method, resp.url, resp.status_code, resp.text))
-
-    # separate filename and path
-    dest_list = dest.split('/')
-    this_file_name = dest_list[-1]
-    dest_list.pop()
-    this_path = '/'.join(dest_list)
-    if '.' not in this_file_name:
-        raise SystemError("Unable to parse out fileName, %s" %
-                          (this_file_name))
-
-    # create directory if it doesn't exist; download
-    pathlib.Path(this_path).mkdir(parents=True, exist_ok=True)
-    if not os.path.isdir(this_path):
-        raise SystemError("unable to create path, %s" % (this_path))
-
-    with open(dest, 'wb') as f:
-        for chunk in resp.iter_content(CONFIG['IDE']['DOWNLOAD_CHUNK_SIZE']):
-            f.write(chunk)
-    print('file successfully downloaded: {}'.format(dest))
-    return
-
-
-# TODO: combine this log_downloaded_files()
-def log_project_download(file_id: str):
-    """
-    Attaches fileId for the project folder file that was downloaded 
-    
-    Parameters: 
-        file_id (str) : file_id of file in project folder 
-    """
-    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
-    cache_df = pd.DataFrame(columns=[
-        'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
-    ])
-    download_workdir = os.getcwd()
-    if os.path.exists(cache_file_path):
-        cache_file = pyreadr.read_r(cache_file_path)
-
-        # extract out the data.frame
-        cache_df = cache_file[None]
-
-    # check if the file_id is already logged
-    if file_id in cache_df['fileId'].values:
-        pass
-    else:
-        new_entry = pd.DataFrame(
-            data={
-                'fileId': [file_id],
-                'sampleId': [''],
-                'downloadSourceDir': [download_workdir],
-                'downloadTimeStamp': [str(datetime.datetime.now())]
-            })
-
-        cache_df = pd.concat([cache_df, new_entry])
-        pyreadr.write_rds(
-            '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                             d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
-    return
-
-
-def prompt_user(msg: str = None, additional_fields=None):
-    """ Prompts end users in order to continue """
-    if msg is None:
-        raise ValueError("Must provide a contextual message")
-    if additional_fields is None:
-        additional_fields = ""
-    print("{m}: {af}. Do you want to Proceed? [Y/N]".format(
-        m=msg, af=additional_fields))
-    user_input = input('(y/n')
-    while user_input.lower() not in ['y', 'n']:
-        print('please enter either "n" for no, or "y" for yes.')
-        user_input = input('(y/n)')
-    if user_input.lower() == 'y':
-        return True
-    elif user_input.lower() == 'n':
-        return False
-
-
-def prompt_yn(prompt: str):
-    print(prompt)
-    user_input = None
-    while True:
-        user_input = input('(y/n)')
-        if user_input.lower() == 'y':
-            return True
-        elif user_input.lower() == 'n':
-            return False
-        print('please enter either "n" for no, or "y" for yes.')
-
-
-def prompt_from_options(prompt: str, opts: list, returnIndex: bool = False):
-    print(prompt)
-    if len(opts) == 0:
-        raise ValueError("Cannot prompt for '%s' with no options" % prompt)
-    if len(opts) == 1:
-        return 0 if returnIndex else opts[0]
-
-    selected = -1
-    while True:
-        for i, o in enumerate(opts):
-            print("%2d) %s" % ((i + 1), o))
-        try:
-            selected = int(input("[1 - %d]" % len(opts)))
-        except ValueError:
-            selected = 0
-        if selected > 0 and selected <= len(opts):
-            return selected - 1 if returnIndex else opts[selected - 1]
-        print('Please enter a number.')
-
-
-def string_contains_whitespaces(file_str):
-    """ returns True if a string contains whitespaces"""
-
-    # loop through the each string character and check if it's a whitespace
-    if any(s.isspace() for s in file_str):
-        return True
-    else:
-        return False
-
-
-def validate_download_params(file_list: list, query_id: list,
-                             query_dict: dict):
-    # verify input parameters are sane
-    if file_list is not None and type(file_list) is not list:
-        raise Exception("file_ids parameter must be a list")
-    if query_id is not None and type(query_id) is not list:
-        raise Exception("query_id parameter must be a list")
-    if query_id is not None and len(query_id) > 1:
-        raise Exception(
-            "You can only specify a single query_if per function call")
-    if file_list is None and query_id is None and query_dict is None:
-        raise Exception(
-            "One of file_ids, query_dict, or query_id must be non-null")
-    return

@@ -8,8 +8,7 @@ import pathlib as pl
 import hisepy.common_utils as cu
 import hisepy.upload as cup
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
-from hisepy.reader import parse_hise_response, hise_url
-from hisepy.scheduler import current_notebook
+from hisepy.common_utils import current_notebook
 import pandas as pd
 from hisepy import auth
 
@@ -27,8 +26,8 @@ def get_projects(to_df: bool = True):
         to_df (bool): reshape to tabular, if True
     """
     keep_cols = ['guid', 'short_name', 'name']
-    resp = parse_hise_response(
-        requests.get(hise_url("amds", "project_path"),
+    resp = cu.parse_hise_response(
+        requests.get(cu.hise_url("amds", "project_path"),
                      headers=get_bearer_token_header()))
 
     # reshape to tabular format and concatenate each entry
@@ -104,8 +103,8 @@ def get_result_files(to_df=True):
         'id', 'fileType', 'friendlyName', 'description', 'projectGuid',
         'isSearchable'
     ]
-    resp = parse_hise_response(
-        requests.get(hise_url("ledger", "result_file_search_path"),
+    resp = cu.parse_hise_response(
+        requests.get(cu.hise_url("ledger", "result_file_search_path"),
                      headers=get_bearer_token_header()))
     if to_df:
         result_df = result_json_to_df(resp)
@@ -213,7 +212,7 @@ class AbstractionAppImg:
         self.viz_configs_path = CONFIG['ABSTRACTION']['VIZ_CONFIGS_PATH']
 
     def create_static_image_url(self):
-        return hise_url("hydration", "hise_wide_static_img_path")
+        return cu.hise_url("hydration", "hise_wide_static_img_path")
 
     def send_static_image_post(self, url, img_dict):
         resp = requests.post(url,
@@ -307,7 +306,7 @@ class AbstractionAppImg:
         return abstraction_img
 
     def create_url(self, args):
-        return hise_url("toolchain", "abstraction_path", args=args)
+        return cu.hise_url("toolchain", "abstraction_path", args=args)
 
     def send_post(self, url, file):
         resp = requests.post(url,
@@ -471,7 +470,7 @@ def save_abstraction(app_filepath: str = None,
             is_subject_metadata_app=is_subject_metadata_app)
 
         # POST to hydration and save the static image
-        resp = parse_hise_response(
+        resp = cu.parse_hise_response(
             aobj.send_static_image_post(aobj.create_static_image_url(),
                                         aobj.create_image_dict()))
 
@@ -483,7 +482,7 @@ def save_abstraction(app_filepath: str = None,
             aobj.copy_files_to_tmp(aobj.abstraction_config_filenames +
                                    aobj.user_filenames + additional_files)
             aobj.create_tarball()
-            resp = parse_hise_response(
+            resp = cu.parse_hise_response(
                 aobj.send_post(aobj.create_url(aobj.create_args(resp)),
                                aobj.create_file_arg()))
 
