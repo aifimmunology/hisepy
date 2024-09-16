@@ -12,7 +12,8 @@ from .project_folder import (list_project_folders,
                              download_from_project_folder)
 from .reader import (hise_file, read_files, read_files_v2, read_subjects,
                      read_samples, query_files, get_file_descriptors,
-                     cache_filesets, list_filesets, cache_files)
+                     cache_filesets, list_filesets, cache_files,
+                     cache_files_v2)
 from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
                         clear_notebook_job)
 from .upload import (upload_files, save_static_image, save_visualization,
