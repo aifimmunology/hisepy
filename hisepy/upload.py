@@ -347,6 +347,10 @@ class DashAppImg:
             ],
                         check=True)
         else:
+            wd = self.workdir
+            app = os.path.dirname(self.app_filepath)
+            print(f'wd: {wd}')
+            print(f'app: {app}')
             subprocess.run([
                 'pip-compile', '--no-annotate', '--no-header', '--quiet', '--strip-extras',
                 '--output-file={wd}/home/jupyter/requirements.txt'.format(
