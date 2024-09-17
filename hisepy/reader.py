@@ -8,7 +8,7 @@ import copy
 from termcolor import colored
 
 import requests
-
+from hisepy.instances import IDEInstance
 import hisepy.common_utils as cu
 import hisepy.formatter as hf
 import hisepy.lookup as hl
@@ -143,7 +143,7 @@ def query_files(user_query: dict):
     endpoint = "https://{s}/{de}".format(
         s=get_from_metadata_server(server_id_path),
         de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
-    obj = parse_hise_response(
+    obj = cu.parse_hise_response(
         requests.post(endpoint,
                       data=json.dumps({"filter": query_dict}),
                       headers=get_bearer_token_header()))
@@ -257,7 +257,7 @@ def post_query(file_list: list = None,
             s=get_from_metadata_server(server_id_path),
             q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
             qid=query_id)
-        resp_obj = parse_hise_response(
+        resp_obj = cu.parse_hise_response(
             requests.request('POST',
                              q_endpoint,
                              headers=get_bearer_token_header()))
@@ -450,43 +450,6 @@ def read_files(file_list: list = None,
         return response
 
 
-def download_files(file_dict: dict):
-    """
-    Read the contents of a dictionary of non-result file ids into hise_file objects
-    These files will contain NULL descriptors (since they are not result files)
-
-    Parameters:
-        file_dict (dict): a dictionary of file_uuid: file_name
-
-    Returns:
-        a list of hise_file objects with empty descriptors
-
-    """
-    if type(file_dict) is not dict:
-        raise TypeError(
-            "You must pass a dictionary of file_uuid: file_name to download_files"
-        )
-
-    response = []
-    #use a dummy batch id for these files
-    download_cache = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], "downloadable")
-    for f_id in file_dict:
-        endpoint = "https://%s/%s/%s" % (get_from_metadata_server(
-            server_id_path), CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id)
-        hf = hise_file(f_id)
-        try:
-            cache_file(endpoint, file_dict[f_id], download_cache)
-            hf.status = True
-            hf.message = "OK"
-            hf.path = "%s/%s" % (download_cache, file_dict[f_id])
-        except Exception as e:
-            hf.status = False
-            hf.message = str(e)
-        response.append(hf)
-
-    return response
-
-
 def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
     """ Helper function to convert files into a hise_file object """
     if type(file_data) is not dict:
@@ -573,6 +536,46 @@ def cache_files(file_ids: list = None,
     return
 
 
+def cache_files_v2(file_ids: list = None,
+                   query_id: list = None,
+                   query_dict: dict = None):
+    """ 
+    Downloads requested files to the following directory: "./cache/<fileID>" # TODO: update path example 
+    Parameters: 
+        file_ids (list): list of file IDs
+        query_id (list): list of a single query ID
+    """
+    cu.validate_download_params(file_ids, query_id, query_dict)
+    # check if user submitted a query_id vs file_id
+    if query_id is not None:
+        # expand file_ids from query_id, if needed
+        resp_obj = post_query(query_id=query_id[0])
+    elif query_dict is not None:
+        resp_obj = post_query(query_dict=query_dict)
+    else:
+        # TODO: don't need to call this since we already have the file_ids..
+        # something to handle during refactoring
+        resp_obj = post_query(file_list=file_ids)
+
+    idx = 0
+    fail_files = []
+    ide_name = IDEInstance().friendlyName
+    for f in resp_obj:
+        if 'error' in f:
+            print("Error downloading file: {}".format(f['error']['Message']))
+            fail_files += [f['error']['File']]
+            continue
+        this_file_id, _, _ = cu.parse_file_descriptor_from_hise_file(f)
+        endpoint = "https://%s/%s/%s/%s" % (
+            get_from_metadata_server(server_id_path),
+            CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
+        cu.parse_hise_response(
+            requests.request("GET",
+                             endpoint,
+                             headers=get_bearer_token_header()))
+    return
+
+
 def cache_file(url: str, file_name: str, file_dir: str):
     if not os.path.exists(file_dir):
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
@@ -591,6 +594,43 @@ def cache_file(url: str, file_name: str, file_dir: str):
                 for chunk in resp.iter_content(
                         chunk_size=CONFIG['IDE']["DOWNLOAD_CHUNK_SIZE"]):
                     file.write(chunk)
+
+
+def download_files(file_dict: dict):
+    """
+    Read the contents of a dictionary of non-result file ids into hise_file objects
+    These files will contain NULL descriptors (since they are not result files)
+
+    Parameters:
+        file_dict (dict): a dictionary of file_uuid: file_name
+
+    Returns:
+        a list of hise_file objects with empty descriptors
+
+    """
+    if type(file_dict) is not dict:
+        raise TypeError(
+            "You must pass a dictionary of file_uuid: file_name to download_files"
+        )
+
+    response = []
+    #use a dummy batch id for these files
+    download_cache = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], "downloadable")
+    for f_id in file_dict:
+        endpoint = "https://%s/%s/%s" % (get_from_metadata_server(
+            server_id_path), CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id)
+        hf = hise_file(f_id)
+        try:
+            cache_file(endpoint, file_dict[f_id], download_cache)
+            hf.status = True
+            hf.message = "OK"
+            hf.path = "%s/%s" % (download_cache, file_dict[f_id])
+        except Exception as e:
+            hf.status = False
+            hf.message = str(e)
+        response.append(hf)
+
+    return response
 
 
 def read_samples(sample_ids=None, query_dict=None, to_df=True):
@@ -728,68 +768,6 @@ def read_subjects(subject_ids: str = None,
         return obj["payload"]
 
 
-def get_server(service):
-    test_hydration_server = os.getenv("TEST_HYDRATION_SERVER")
-    test_toolchain_server = os.getenv("TEST_TOOLCHAIN_SERVER")
-    test_tracer_server = os.getenv("TEST_TRACER_SERVER")
-    test_ledger_server = os.getenv("TEST_LEDGER_SERVER")
-    if service == "hydration" and test_hydration_server is not None:
-        return test_hydration_server
-    elif service == "toolchain" and test_toolchain_server is not None:
-        return test_toolchain_server
-    elif service == "tracer" and test_tracer_server is not None:
-        return test_tracer_server
-    elif service == "ledger" and test_ledger_server is not None:
-        return test_ledger_server
-    else:
-        return get_from_metadata_server(server_id_path)
-
-
-def hise_url(service: str,
-             config_path: str,
-             resource: str = None,
-             args: dict = None):
-    if service.upper() not in CONFIG:
-        raise ValueError("%s is not a known HISE service" % service)
-    if config_path.upper() not in CONFIG[service.upper()]:
-        raise ValueError("%s is not a known path in %s service" %
-                         (config_path, service))
-
-    server = get_server(service)
-    protocol = "http" if "localhost" in server else "https"
-    url = "%s://%s/%s" % (protocol, server,
-                          CONFIG[service.upper()][config_path.upper()])
-    if resource is not None:
-        if type(resource) is not str:
-            raise ValueError("resource argument was a %s, not a string" %
-                             (type(resource)))
-        url += "/%s" % resource
-
-    if args is not None:
-        if type(args) is not dict:
-            raise ValueError("query string argument was a %s, not a dict" %
-                             (type(args)))
-        url += "?%s" % (urllib.parse.urlencode(args, doseq=True))
-    return url
-
-
-def parse_hise_response(resp):
-    obj = None
-    try:
-        obj = json.loads(resp.text)
-        if "Errors" in obj and len(obj["Errors"]) > 0:
-            msg = obj["Errors"][0]["Message"]
-        else:
-            msg = resp.reason
-    except:
-        msg = resp.reason
-    if resp.status_code != 200:
-        raise SystemError(
-            "%s request to %s returned with status %d. %s" %
-            (resp.request.method, resp.url, resp.status_code, msg))
-    return obj
-
-
 def list_filesets(study_space_id):
     """ 
     Returns a list of filesets for a given study 
@@ -805,8 +783,8 @@ def list_filesets(study_space_id):
     """
     # get me all the filesets
     query_dict = {'studySpaceId': study_space_id}
-    obj = parse_hise_response(
-        requests.get(hise_url('tracer', 'file_set'),
+    obj = cu.parse_hise_response(
+        requests.get(cu.hise_url('tracer', 'file_set'),
                      params=query_dict,
                      headers=get_bearer_token_header()))
 

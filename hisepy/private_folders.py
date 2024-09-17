@@ -6,7 +6,6 @@ import requests
 
 import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
-from hisepy.reader import hise_url
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -40,9 +39,9 @@ def update_private_folder(folder_name: str = None,
         "fileExpiration": file_expiration,
         "description": description
     }
-    url = hise_url('hydration',
-                   'user_folder_path',
-                   resource='%s' % (folder_name))
+    url = cu.hise_url('hydration',
+                      'user_folder_path',
+                      resource='%s' % (folder_name))
     resp = cu.parse_hise_response(
         requests.put(url,
                      data=json.dumps(folder_info),
@@ -67,9 +66,9 @@ def upload_file_to_private_folder(folder_name: str, file_path: str):
         file_path) < 1024, 'file_name character length cannot exceed 1024'
 
     this_file = {'file': open(file_path, 'rb')}
-    url = hise_url('hydration',
-                   'user_folder_path',
-                   resource='%s/files' % (folder_name))
+    url = cu.hise_url('hydration',
+                      'user_folder_path',
+                      resource='%s/files' % (folder_name))
     resp = cu.parse_hise_response(
         requests.post(url, files=this_file, headers=get_bearer_token_header()))
     return resp
@@ -77,7 +76,7 @@ def upload_file_to_private_folder(folder_name: str, file_path: str):
 
 def list_files_in_all_private_folders():
     ''' Returns a data.frame of all private folders and files that are within each '''
-    url = hise_url('hydration', 'user_folder_path')
+    url = cu.hise_url('hydration', 'user_folder_path')
     resp = cu.parse_hise_response(
         requests.get(url, headers=get_bearer_token_header()))
     return pd.DataFrame(resp)
@@ -92,9 +91,9 @@ def list_files_in_private_folder(folder_name=None):
     Returns: 
         Data.frame with columns [folder,files]
     '''
-    url = hise_url('hydration',
-                   'user_folder_path',
-                   resource='%s/files' % (folder_name))
+    url = cu.hise_url('hydration',
+                      'user_folder_path',
+                      resource='%s/files' % (folder_name))
     resp = cu.parse_hise_response(
         requests.get(url, headers=get_bearer_token_header()))
     return pd.DataFrame(resp['result'])
@@ -129,7 +128,7 @@ def create_private_folder(folder_name: str, file_expiration: int = None):
         'folderName': folder_name,
         'fileExpiration': file_expiration
     }
-    url = hise_url('hydration', 'user_folder_path')
+    url = cu.hise_url('hydration', 'user_folder_path')
     resp = cu.parse_hise_response(
         requests.post(url,
                       data=json.dumps(folder_info),
@@ -154,9 +153,9 @@ def move_file_in_private_folder(file_name: str, source_folder: str,
     assert type(source_folder) is str, 'source_folder must be of type str'
     assert type(
         destination_folder) is str, 'destination_folder must be of type str'
-    url = hise_url('hydration',
-                   'user_folder_path',
-                   resource='%s/files/%s' % (source_folder, file_name))
+    url = cu.hise_url('hydration',
+                      'user_folder_path',
+                      resource='%s/files/%s' % (source_folder, file_name))
     file_info = {'newFolder': destination_folder}
 
     resp = cu.parse_hise_response(
@@ -177,9 +176,9 @@ def delete_file_in_private_folder(folder_name: str, file_name: str):
     assert type(folder_name) is str, 'folder_name must be of type str'
     assert type(file_name) is str, 'file_name must be of type str'
 
-    url = hise_url('hydration',
-                   'user_folder_path',
-                   resource='%s/files/%s' % (folder_name, file_name))
+    url = cu.hise_url('hydration',
+                      'user_folder_path',
+                      resource='%s/files/%s' % (folder_name, file_name))
     resp = cu.parse_hise_response(
         requests.delete(url, headers=get_bearer_token_header()))
     return resp
@@ -199,9 +198,9 @@ def download_from_private_folder(folder_name: str, file_name: str):
     assert type(file_name) is str, 'file_name must be of type str'
     assert len(file_name) < 1024, 'file_name must not exceed 1024 characters'
 
-    url = hise_url('hydration',
-                   'user_folder_path',
-                   resource='%s/files/%s' % (folder_name, file_name))
+    url = cu.hise_url('hydration',
+                      'user_folder_path',
+                      resource='%s/files/%s' % (folder_name, file_name))
     resp = requests.get(url, headers=get_bearer_token_header(), stream=True)
 
     # assign download path
@@ -228,9 +227,9 @@ def rename_file_in_private_folder(folder_name: str, old_file_name: str,
                ) < 1024, 'new_file_name character length cannot exceed 1024'
 
     file_info = {'newName': new_file_name}
-    url = hise_url('hydration',
-                   'user_folder_path',
-                   resource='%s/files/%s' % (folder_name, old_file_name))
+    url = cu.hise_url('hydration',
+                      'user_folder_path',
+                      resource='%s/files/%s' % (folder_name, old_file_name))
     resp = cu.parse_hise_response(
         requests.put(url,
                      data=json.dumps(file_info),
@@ -248,9 +247,9 @@ def delete_private_folder(folder_name):
         Response object 
     '''
     assert type(folder_name) is str, "folder_name must be of type str"
-    url = hise_url('hydration',
-                   'user_folder_path',
-                   resource='%s' % (folder_name))
+    url = cu.hise_url('hydration',
+                      'user_folder_path',
+                      resource='%s' % (folder_name))
     resp = cu.parse_hise_response(
         requests.delete(url, headers=get_bearer_token_header()))
     return resp

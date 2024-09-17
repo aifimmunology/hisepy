@@ -5,7 +5,7 @@ import json
 import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header
 from hisepy.upload import valid_upload_stores, project_store, permanent_store
-from hisepy.reader import hise_url
+from hisepy.common_utils import hise_url
 from hisepy.abstraction import get_projects, project_shortname_to_guid
 
 _here = os.path.abspath(os.path.dirname(__file__))
