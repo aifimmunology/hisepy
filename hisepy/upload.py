@@ -320,6 +320,7 @@ class DashAppImg:
                  input_file_ids: list,
                  work_dir: str,
                  title: str,
+                 requirements: str = None,
                  description: str = None,
                  input_sample_ids=None):
 
@@ -330,6 +331,7 @@ class DashAppImg:
         self.filepaths = {os.path.abspath(path) for path in additional_files}
         self.directories = {os.path.abspath(path) for path in additional_dirs}
         self.hero_image = os.path.abspath(hero_image)
+        self.requirements = os.path.abspath(requirements)
         self.study_space_id = study_space_id
         self.input_file_ids = input_file_ids
         self.input_sample_ids = input_sample_ids
@@ -338,19 +340,29 @@ class DashAppImg:
         self.work_dir = work_dir
 
     def create_req_txt(self):
-        subprocess.run([
-            'pipreqs', '--savepath', '{wd}/{app}/requirements.in'.format(
-                wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
-            '{}'.format(self.work_dir)
-        ],
-                       check=True,
-                       capture_output=True)
-        subprocess.run([
-            'pip-compile', '--no-annotate', '--no-header', '--quiet',
-            '{wd}/{app}/requirements.in'.format(
-                wd=self.work_dir, app=os.path.dirname(self.app_filepath))
-        ],
-                       check=True)
+        if self.requirements is None:
+            subprocess.run([
+                'pipreqs', '--savepath', '{wd}/{app}/requirements.in'.format(
+                    wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
+                '{}'.format(self.work_dir)
+            ],
+                        check=True,
+                        capture_output=True)
+            subprocess.run([
+                'pip-compile', '--no-annotate', '--no-header', '--quiet', '--strip-extras',
+                '{wd}/{app}/requirements.in'.format(
+                    wd=self.work_dir, app=os.path.dirname(self.app_filepath))
+            ],
+                        check=True)
+        else:
+            subprocess.run([
+                'pip-compile', '--no-annotate', '--no-header', '--quiet', '--strip-extras',
+                '--output-file={wd}/{app}/requirements.txt'.format(
+                    wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
+                self.requirements
+            ],
+                        check=True)
+            
 
     def upload_hero_image(self):
         # I don't think this title is ever user-visible, but save_static_image requires it
@@ -493,6 +505,7 @@ def save_dash_app(app_filepath: str,
                   title: str,
                   description: str = None,
                   image: str = None,
+                  requirements: str = None,
                   input_sample_ids: list = None):
     """
     Given a Dash app consisting of an entry point named `app.py` and a list of supporting files, upload and deploy that
@@ -543,10 +556,12 @@ def save_dash_app(app_filepath: str,
                       input_file_ids=input_file_ids,
                       title=title,
                       description=description,
+                      requirements=requirements,
                       input_sample_ids=input_sample_ids,
                       work_dir=tmpdirname)
 
     # Insert UI widget code here:
+
     # move everything to a temporary dir while creating/preserving source
     # directories
     app_files = dobj.filepaths.union({dobj.app_filepath})
@@ -555,9 +570,10 @@ def save_dash_app(app_filepath: str,
 
     # create .txt files that contains user's imported libraries
     dobj.create_req_txt()
-
+    
     # tar it up; upload; and clean up
     dobj.create_dash_image()
+
     resp = dobj.export_dash_image()
 
     print('dash image was successfully uploaded!')
