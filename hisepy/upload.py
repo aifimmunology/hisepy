@@ -10,10 +10,9 @@ import plotly.graph_objects as go
 import requests
 
 import hisepy.common_utils as cu
-from hisepy.common_utils import parse_hise_response, hise_url
+from hisepy.common_utils import parse_hise_response, hise_url, current_notebook
 from hisepy import auth
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
-from hisepy.common_utils import current_notebook
+from hisepy.auth import get_bearer_token_header, IDEInstance
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
@@ -169,7 +168,7 @@ def upload_files(files: list,
         "saveIDE": True,
         "store": store,
         "destination": destination,
-        "instanceId": get_from_metadata_server(instance_name_path),
+        "instanceId": IDEInstance().friendlyName,
         "inputFileIds": input_file_ids,
         "sampleIds": input_sample_ids,
         "notebook": current_notebook(),
@@ -404,7 +403,7 @@ class DashAppImg:
         save_args = {
             "studySpaceId": self.study_space_id,
             "title": self.title,
-            "instanceId": get_from_metadata_server(instance_name_path),
+            "instanceId": IDEInstance().friendlyName,
             "inputFileIds": self.input_file_ids,
             "sampleIds": self.input_sample_ids,
             "notebook": current_notebook(),

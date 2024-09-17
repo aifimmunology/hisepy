@@ -15,10 +15,105 @@ default_metadata = {
     instance_name_path: os.getenv("TEST_INSTANCE_NAME")
     or "local-testing-instance",
     client_id_path: os.getenv("AUTH_CLIENT_ID"),
-    server_id_path: os.getenv("HISE_SERVER")
 }
 
 defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
+DEFAULT_STORE_KEY = "default_store"
+IDE_DEFAULT_TAG = "IDE_DEFAULT"
+
+
+class HiseUser:
+
+    def __init__(self):
+        user_url = cu.hise_url("amds", "user_path")
+        user_resp = cu.hise_get(user_url)
+        for key, value in user_resp.items():
+            setattr(self, key, value)
+
+
+class IDEInstance:
+
+    def __init__(self):
+        self.__url = cu.hise_url("tracer", "ide_instance",
+                                 instance_account_guid())
+        try:
+            ide = cu.hise_get(self.__url)
+            for key, value in ide.items():
+                setattr(self, key, value)
+        except:
+            raise Exception(
+                "Your current account (%s) does not match this IDE. You must change your current account in order to use it."
+                % HiseUser().current_account_name)
+
+    def __update(self, data):
+        data["id"] = self.id
+        return requests.request("PUT",
+                                self.__url,
+                                data=json.dumps(data),
+                                headers=get_bearer_token_header())
+
+    def __tags(self):
+        rd = {}
+        if type(self.tags) is list:
+            for t in self.tags:
+                if t.startswith(IDE_DEFAULT_TAG):
+                    key, value = t.split(":")[1].split(",")
+                    rd[key] = value
+        return rd
+
+    def __set_tag(self, key: str, val: str):
+        if len(key) == 0:
+            raise ValueError("Tag key was empty")
+        for f in [key, val]:
+            for b in [":", ","]:
+                if b in f:
+                    raise ValueError("Cannot use %s in tag %s" % (b, f))
+
+        new_tags = []
+        for t in self.tags:
+            if t.startswith("%s:%s" % (IDE_DEFAULT_TAG, key)):
+                continue
+            new_tags.append(t)
+        new_tags.append("%s:%s,%s" % (IDE_DEFAULT_TAG, key, val))
+        self.__update({"tags": new_tags})
+        self.tags = new_tags
+
+    def get_default_project(self):
+        for p in get_projects(False):
+            if self.destinationProjectGuid == p["guid"]:
+                return p["short_name"]
+        return None
+
+    def set_default_project(self, projectShortName: str):
+        g = project_shortname_to_guid(projectShortName)
+        r = self.__update({"destinationProjectGuid": g})
+        self.destinationProjectGuid = g
+        return r
+
+    def get_default_store(self):
+        t = self.__tags()
+        if DEFAULT_STORE_KEY in t:
+            return t[DEFAULT_STORE_KEY]
+        return project_store
+
+    def set_default_store(self, store: str):
+        if store not in valid_upload_stores:
+            raise ValueError("Value for store must be in %s" %
+                             (", ".join(valid_upload_stores)))
+        self.__set_tag(DEFAULT_STORE_KEY, store)
+
+
+def instance_account_guid():
+    iguid = os.getenv("IDE_INSTANCE_GUID")
+    if iguid is None:
+        raise Exception(
+            "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
+        )
+    return iguid
+
+
+def hise_server():
+    return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
 
 
 def get_from_metadata_server(path):
@@ -55,10 +150,9 @@ def get_bearer_token_header():
     else:
         token = get_from_metadata_server("%s?format=full&audience=%s" %
                                          (identity_path, audience))
-        account_guid = get_from_metadata_server(account_guid_path)
         headers = {
             "Authorization": "Bearer %s" % token,
-            "InstanceAccountGuid": "%s" % account_guid
+            "InstanceAccountGuid": "%s" % IDEInstance().accountGuid
         }
     return headers
 

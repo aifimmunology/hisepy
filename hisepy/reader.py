@@ -12,7 +12,7 @@ from hisepy.instances import IDEInstance
 import hisepy.common_utils as cu
 import hisepy.formatter as hf
 import hisepy.lookup as hl
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from hisepy.auth import get_bearer_token_header, hise_server
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -141,8 +141,7 @@ def query_files(user_query: dict):
     query_dict.update((k, {'$in': v}) for k, v in query_dict.items())
 
     endpoint = "https://{s}/{de}".format(
-        s=get_from_metadata_server(server_id_path),
-        de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+        s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
     obj = cu.parse_hise_response(
         requests.post(endpoint,
                       data=json.dumps({"filter": query_dict}),
@@ -254,7 +253,7 @@ def post_query(file_list: list = None,
     # if user submits a query_id, grab all fileIds associated with that query
     if query_id is not None:
         q_endpoint = 'https://{s}/{q}/{qid}'.format(
-            s=get_from_metadata_server(server_id_path),
+            s=hise_server(),
             q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
             qid=query_id)
         resp_obj = cu.parse_hise_response(
@@ -267,9 +266,8 @@ def post_query(file_list: list = None,
         file_list = list(set(file_list))
 
     qstr = "&".join(map(lambda x: "id=%s" % x, file_list))
-    endpoint = "https://%s/%s?%s" % (get_from_metadata_server(server_id_path),
-                                     CONFIG['HYDRATION']['FILE_SEARCH_PATH'],
-                                     qstr)
+    endpoint = "https://%s/%s?%s" % (
+        hise_server(), CONFIG['HYDRATION']['FILE_SEARCH_PATH'], qstr)
     resp = requests.request("GET", endpoint, headers=get_bearer_token_header())
     if resp.status_code != 200:
         raise SystemError("Request to %s failed with status %d. %s" %
@@ -338,9 +336,8 @@ def read_files_v2(file_list: list = None,
             this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
                 f)
             response.append(cache_and_convert_file_data(f, False))
-            endpoint = "https://%s/%s/%s/%s" % (
-                get_from_metadata_server(server_id_path),
-                CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
+            endpoint = "https://%s/%s/%s/%s" % (hise_server(
+            ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             # download the file to user's IDE
             try:
                 dl_resp = requests.request("GET",
@@ -566,9 +563,8 @@ def cache_files_v2(file_ids: list = None,
             fail_files += [f['error']['File']]
             continue
         this_file_id, _, _ = cu.parse_file_descriptor_from_hise_file(f)
-        endpoint = "https://%s/%s/%s/%s" % (
-            get_from_metadata_server(server_id_path),
-            CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
+        endpoint = "https://%s/%s/%s/%s" % (hise_server(
+        ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
         cu.parse_hise_response(
             requests.request("GET",
                              endpoint,
@@ -617,8 +613,8 @@ def download_files(file_dict: dict):
     #use a dummy batch id for these files
     download_cache = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], "downloadable")
     for f_id in file_dict:
-        endpoint = "https://%s/%s/%s" % (get_from_metadata_server(
-            server_id_path), CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id)
+        endpoint = "https://%s/%s/%s" % (
+            hise_server(), CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id)
         hf = hise_file(f_id)
         try:
             cache_file(endpoint, file_dict[f_id], download_cache)
@@ -681,7 +677,7 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
     if query is None:
         raise TypeError(
             "You must specify either a list of sample_ids or a query")
-    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
+    endpoint = "https://%s/%s" % (hise_server(),
                                   CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
     resp = requests.post(endpoint,
                          data=json.dumps({"filter": query}),
@@ -744,7 +740,7 @@ def read_subjects(subject_ids: str = None,
         raise TypeError(
             "You must specify either a list of subject_ids or a query")
 
-    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
+    endpoint = "https://%s/%s" % (hise_server(),
                                   CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
     resp = requests.post(endpoint,
                          data=json.dumps({"filter": query}),
