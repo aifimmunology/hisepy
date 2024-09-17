@@ -5,7 +5,7 @@ import pandas as pd
 import requests
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from hisepy.auth import get_bearer_token_header
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))

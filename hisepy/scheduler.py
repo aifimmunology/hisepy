@@ -7,7 +7,7 @@ import requests
 import time
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
+from hisepy.auth import hise_server, get_bearer_token_header, IDEInstance
 from hisepy.reader import download_files
 from hisepy.common_utils import current_notebook
 
@@ -75,7 +75,7 @@ def schedule_notebook(output_files=None,
 
     print("Scheduling...")
     headers = get_bearer_token_header()
-    endpoint = "https://%s/%s" % (get_from_metadata_server(server_id_path),
+    endpoint = "https://%s/%s" % (hise_server(),
                                   CONFIG['TOOLCHAIN']['SCHEDULER_PATH'])
     resp = requests.post(endpoint, json=payload, headers=headers)
     if resp.status_code != 200:
@@ -100,14 +100,10 @@ def validate_schedule_input(output_files, input_data, platform, project,
         platform = CONFIG['SCHEDULER']['PLATFORM_DEFAULT']
 
     payload = {
-        CONFIG['SCHEDULER']['NOTEBOOK_NAME_FIELD']:
-        nbtokens[-1],
-        CONFIG['SCHEDULER']['INSTANCE_NAME_FIELD']:
-        get_from_metadata_server(instance_name_path),
-        CONFIG['SCHEDULER']['NOTEBOOK_PATH_FIELD']:
-        "/".join(nbtokens[0:-1]),
-        CONFIG['SCHEDULER']['PLATFORM_FIELD']:
-        platform
+        CONFIG['SCHEDULER']['NOTEBOOK_NAME_FIELD']: nbtokens[-1],
+        CONFIG['SCHEDULER']['INSTANCE_NAME_FIELD']: IDEInstance().friendlyName,
+        CONFIG['SCHEDULER']['NOTEBOOK_PATH_FIELD']: "/".join(nbtokens[0:-1]),
+        CONFIG['SCHEDULER']['PLATFORM_FIELD']: platform
     }
     if project is not None:
         payload[CONFIG['SCHEDULER']['PROJECT_FIELD']] = project
@@ -262,8 +258,8 @@ class notebook_job:
             return
 
         headers = get_bearer_token_header()
-        endpoint = "https://%s/%s/%s" % (get_from_metadata_server(
-            server_id_path), CONFIG['TOOLCHAIN']['SCHEDULER_PATH'], self.id)
+        endpoint = "https://%s/%s/%s" % (
+            hise_server(), CONFIG['TOOLCHAIN']['SCHEDULER_PATH'], self.id)
         resp = requests.request("GET", endpoint, headers=headers)
         if resp.status_code != 200:
             raise Exception("Request to %s failed with status %d. %s" %
@@ -312,8 +308,7 @@ class trace:
             return
 
         headers = get_bearer_token_header()
-        endpoint = "https://%s/%s/%s" % (
-            get_from_metadata_server(server_id_path), trace_path, self.id)
+        endpoint = "https://%s/%s/%s" % (hise_server(), trace_path, self.id)
         resp = requests.request("GET", endpoint, headers=headers)
         if resp.status_code != 200:
             raise Exception("Request to %s failed with status %d. %s" %
