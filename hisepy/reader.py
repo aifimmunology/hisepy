@@ -306,10 +306,19 @@ def read_files_v2(file_list: list = None,
     # if we get returned descriptors, users are allowed to download the files
     cu.validate_download_params(file_list, query_id, query_dict)
     if query_id != None:
-        obj = post_query(query_id=query_id[0])
+        if cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"]):
+            obj = post_query(query_id=query_id[0])
+        else:
+            print("Canceling read_files call")
+            return
     elif query_dict != None:
-        obj = post_query(query_dict=query_dict)
+        if cu.prompt_user(CONFIG["PROMPTS"]["QUERY_DICT_READ"]):
+            obj = post_query(query_dict=query_dict)
+        else:
+            print("Canceling read_files call")
+            return
     else:
+
         obj = post_query(file_list=file_list)
 
     # send request to hydration to download every file
