@@ -7,14 +7,12 @@ import shutil
 import pathlib as pl
 import hisepy.common_utils as cu
 import hisepy.upload as cup
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
-from hisepy.common_utils import current_notebook
+from hisepy.auth import get_bearer_token_header, IDEInstance, debug
 import pandas as pd
-from hisepy import auth
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
-IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
+IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not debug() else os.getcwd()
 any_project_urn = "urn:hise:project:any"
 
 
@@ -243,10 +241,10 @@ class AbstractionAppImg:
             "inputResultFiles": self.determine_app_type(),
             "dataContractId": self.data_contract_id,
             "projectGuid": self.project_guid,
-            "notebook": current_notebook(),
+            "notebook": cu.current_notebook(),
             "homedir": IDE_HOME_DIR,
             "heroImages": [img_resp['url']],
-            "instanceId": get_from_metadata_server(instance_name_path)
+            "instanceId": IDEInstance().friendlyName,
         }
         return pargs
 

@@ -13,7 +13,7 @@ import pandas as pd
 import requests
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from hisepy.auth import hise_server, get_bearer_token_header
 
 # setting global config
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -41,7 +41,7 @@ def lookup_queryable_fields(field_type='all'):
 
         # get a list of searchable fields
         url = 'https://{ser}/{led}?field_names=true'.format(
-            ser=get_from_metadata_server(server_id_path),
+            ser=hise_server(),
             led=CONFIG['LEDGER']['{}_SEARCH_PATH'.format(cf.upper())])
         resp = requests.post(url, headers=get_bearer_token_header())
         fields = json.loads(resp.text)
@@ -115,7 +115,7 @@ def lookup_unique_entries(field):
         # suffix ID needs to be added for pool and panel when making a request
         field = '{}ID'.format(field)
     url = 'https://{ser}/{led}/{ft}?distinct_field={fi}'.format(
-        ser=get_from_metadata_server(server_id_path),
+        ser=hise_server(),
         led=CONFIG['LEDGER']['LEDGER_NAME'],
         ft=field_type,
         fi=field)
