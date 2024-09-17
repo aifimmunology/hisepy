@@ -20,7 +20,7 @@ import json
 import pathlib
 import copy
 import time
-from hisepy.auth import debug, get_bearer_token_header, get_from_metadata_server, server_id_path
+from hisepy.auth import debug, get_bearer_token_header, hise_server
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -159,7 +159,7 @@ def get_server(service):
     elif service == "ledger" and test_ledger_server is not None:
         return test_ledger_server
     else:
-        return get_from_metadata_server(server_id_path)
+        return hise_server()
 
 
 def hise_get(url: str):

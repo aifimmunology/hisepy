@@ -4,10 +4,8 @@ import re
 import shutil
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header
+from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance
 from hisepy.abstraction import project_shortname_to_guid, project_guid_to_shortname
-from hisepy.common_utils import current_notebook
-from hisepy.instances import HiseUser, IDEInstance
 from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data, IDE_HOME_DIR
 
 no_study_default = "no study"
@@ -77,7 +75,6 @@ def upload_files_v3(files: list,
         study_space_id = select_study_space(project)
 
     if project is not None:
-        qargs["project"] = project
         if do_prompt:
             check_default_project(project)
     elif study_space_id == no_study_default:
@@ -110,7 +107,7 @@ def upload_files_v3(files: list,
         "inputFileIds": input_file_ids,
         "project": project,
         "sampleIds": input_sample_ids,
-        "notebook": current_notebook(),
+        "notebook": cu.current_notebook(),
         "homedir": IDE_HOME_DIR
     }
     if study_space_id is not no_study_default:

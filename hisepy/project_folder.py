@@ -13,7 +13,8 @@ import datetime
 from google.cloud import storage
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path
+from hisepy.auth import hise_server, get_bearer_token_header
+from hisepy.reader import hise_file
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -27,7 +28,7 @@ def list_project_folders():
         list of project short-names user has access to
     """
     url = 'https://{ser}/{hy}/{pfe}'.format(
-        ser=get_from_metadata_server(server_id_path),
+        ser=hise_server(),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
         pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'])
     resp = requests.request("GET", url, headers=get_bearer_token_header())
@@ -53,7 +54,7 @@ def list_files_in_project_folder(folder_name):
     """
     folder = {'folders': [folder_name]}
     url = 'https://{ser}/{hy}/{pfe}/{f}'.format(
-        ser=get_from_metadata_server(server_id_path),
+        ser=hise_server(),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
         pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
         f='files')
@@ -164,7 +165,7 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
         url_list = []
         for i in subdir_files:
             this_url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-                ser=get_from_metadata_server(server_id_path),
+                ser=hise_server(),
                 hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
                 pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
                 fol=folder_name,
@@ -176,7 +177,7 @@ def download_from_project_folder(folder_name, file_name='', subdir=''):
     else:
         # create url download
         url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-            ser=get_from_metadata_server(server_id_path),
+            ser=hise_server(),
             hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
             pfe=CONFIG['PROJECT_FOLDER']['PROJECT_FOLDER_ENDPOINT'],
             fol=folder_name,
