@@ -10,10 +10,10 @@ import plotly.graph_objects as go
 import requests
 
 import hisepy.common_utils as cu
+from hisepy.common_utils import parse_hise_response, hise_url
 from hisepy import auth
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, instance_name_path
-from hisepy.reader import parse_hise_response, hise_url
-from hisepy.scheduler import current_notebook
+from hisepy.common_utils import current_notebook
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}

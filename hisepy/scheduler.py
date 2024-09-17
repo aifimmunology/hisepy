@@ -9,6 +9,7 @@ import time
 import hisepy.common_utils as cu
 from hisepy.auth import get_from_metadata_server, get_bearer_token_header, server_id_path, instance_name_path
 from hisepy.reader import download_files
+from hisepy.common_utils import current_notebook
 
 the_current_notebook = None
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -16,7 +17,6 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 derived_instance_flag_file = "/%s/.derivedinstance" % (
     CONFIG['IDE']['HOME_DIR'])
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
-num_printed_notebooks = 3  # number of options user gets when a save call is invoked
 
 
 def schedule_notebook(output_files=None,
@@ -219,53 +219,6 @@ def clear_notebook_job():
         print("Cleared job %s" % (job_id))
     else:
         print("No job record found")
-
-
-def current_notebook():
-    """
-    Return the name of a notebook.
-    """
-    global the_current_notebook
-    if the_current_notebook is not None:
-        #once you specify the notebook in a kernel it should,
-        #by definition always be the same notebook
-        #This does mean you will have to reset the kernel
-        #in order to specify a different notebook
-        #if you make a mistake.
-        #Really what we should have is a jupyter plugin to figure out the notebook.
-        return the_current_notebook
-
-    test_notebook = os.getenv("TEST_SCHEDULER_NOTEBOOK")
-    if test_notebook is not None and test_notebook != "":
-        return test_notebook
-    ambiguitySeconds = 15 * 60
-    notebooks = os.popen(
-        "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n {} | cut -f2- -d ' '"
-        .format(num_printed_notebooks)).read().rstrip().split("\n")
-    if len(notebooks) == 0 or notebooks[0] == "":
-        raise TypeError(
-            "Cannot get name of the current notebook. Make sure you are working somewhere within the /home directory, save the notebook you're working in, and try again"
-        )
-    elif len(notebooks) > 1:
-        olderIsNew = (time.time() - os.stat(notebooks[1]).st_mtime <
-                      ambiguitySeconds)
-        newerIsOld = (time.time() - os.stat(notebooks[0]).st_mtime >=
-                      ambiguitySeconds)
-        if newerIsOld or olderIsNew:
-            resp = -1
-            while (resp < 0 or resp >= len(notebooks)):
-                print("Cannot determine the current notebook.")
-                for idx in range(len(notebooks)):
-                    print("%d) %s" % (idx + 1, notebooks[idx]))
-                print("Please select (1-%d) " % (len(notebooks)))
-                resp = int(input()) - 1
-                if (resp < 0 or resp >= len(notebooks)):
-                    print(
-                        "Invalid option for current notebook. Please try again and choose a value between [1,%s]"
-                        % (num_printed_notebooks))
-            the_current_notebook = notebooks[resp]
-            return notebooks[resp]
-    return notebooks[0]
 
 
 class notebook_job:
