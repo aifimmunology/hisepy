@@ -34,8 +34,7 @@ class HiseUser:
 class IDEInstance:
 
     def __init__(self):
-        self.__url = cu.hise_url("tracer", "ide_instance",
-                                 instance_account_guid())
+        self.__url = cu.hise_url("tracer", "ide_instance", ide_instance_guid())
         try:
             ide = cu.hise_get(self.__url)
             for key, value in ide.items():
@@ -103,11 +102,20 @@ class IDEInstance:
         self.__set_tag(DEFAULT_STORE_KEY, store)
 
 
-def instance_account_guid():
+def ide_instance_guid():
     iguid = os.getenv("IDE_INSTANCE_GUID")
     if iguid is None:
         raise Exception(
             "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
+        )
+    return iguid
+
+
+def instance_account_guid():
+    iguid = os.getenv("INSTANCE_ACCOUNT_GUID")
+    if iguid is None:
+        raise Exception(
+            "The Account GUID is not set. This IDE is misconfigured. Please contact support"
         )
     return iguid
 
@@ -152,7 +160,7 @@ def get_bearer_token_header():
                                          (identity_path, audience))
         headers = {
             "Authorization": "Bearer %s" % token,
-            "InstanceAccountGuid": "%s" % IDEInstance().accountGuid
+            "InstanceAccountGuid": "%s" % instance_account_guid()
         }
     return headers
 
