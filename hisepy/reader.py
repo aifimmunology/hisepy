@@ -346,7 +346,7 @@ def read_files_v2(file_list: list = None,
                 response[idx].status = True
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
-                cu.log_downloaded_files(f)
+                cu.log_downloaded_files(f, CONFIG['STORES']['TEMP_STORE'])
             except:
                 response[idx].status = False
                 response[idx].message = "Failed to download file"
@@ -356,7 +356,8 @@ def read_files_v2(file_list: list = None,
             # downloaded from a guest account
             if file_list is not None:
                 this_file_id = file_list[idx]
-                cu.log_replica_file_download(f, this_file_id)
+                cu.log_replica_file_download(f, this_file_id,
+                                             CONFIG['STORES']['TEMP_STORE'])
         idx += 1
 
     # check if we have successfully read at least 1 file
@@ -419,13 +420,14 @@ def read_files(file_list: list = None,
             continue
         else:
             response.append(cache_and_convert_file_data(f))
-            cu.log_downloaded_files(f)
+            cu.log_downloaded_files(f, CONFIG["IDE"]["HOME_DIR"])
 
             # if the response's fileId is different than the ID we original made the request with, then toolchain
             # noticed the request came from a guest account. if that's the case, we just log both files
             if file_list is not None:
                 this_file_id = file_list[idx]
-                cu.log_replica_file_download(f, this_file_id)
+                cu.log_replica_file_download(f, this_file_id,
+                                             CONFIG["IDE"]["HOME_DIR"])
         idx += 1
 
     # check if we have successfully read at least 1 file
@@ -515,13 +517,14 @@ def cache_files(file_ids: list = None,
         f_name = os.path.basename(this_file_name)
         print("downloading fileID: {}".format(this_file_id))
         cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
-        cu.log_downloaded_files(f)
+        cu.log_downloaded_files(f, CONFIG["IDE"]["HOME_DIR"])
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
         # downloaded from a guest account
         if file_ids is not None:
             this_file_id = file_ids[idx]
-            cu.log_replica_file_download(f, this_file_id)
+            cu.log_replica_file_download(f, this_file_id,
+                                         CONFIG["IDE"]["HOME_DIR"])
 
         idx += 1
 
