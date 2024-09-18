@@ -1,7 +1,10 @@
 import os
 import requests
-
+import json
+import urllib
+import pandas as pd
 import hisepy.common_utils as cu
+from hisepy.common_utils import valid_upload_stores, project_store, token_env
 
 metadata_server_root = "http://metadata.google.internal/computeMetadata/v1/instance"
 instance_name_path = "name"
@@ -9,7 +12,6 @@ client_id_path = "attributes/iap-client-id"
 account_guid_path = "attributes/currentAccountGuid"
 identity_path = "service-accounts/default/identity"
 server_id_path = "attributes/hise-server"
-token_env = "TOKEN_GENERATOR"
 
 default_metadata = {
     instance_name_path: os.getenv("TEST_INSTANCE_NAME")
@@ -20,6 +22,10 @@ default_metadata = {
 defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 DEFAULT_STORE_KEY = "default_store"
 IDE_DEFAULT_TAG = "IDE_DEFAULT"
+
+# directory of hisepy package
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
 class HiseUser:
@@ -120,8 +126,58 @@ def instance_account_guid():
     return iguid
 
 
+def hise_get(url: str):
+    return cu.parse_hise_response(
+        requests.get(url, headers=get_bearer_token_header()))
+
+
 def hise_server():
     return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
+
+
+def hise_url(service: str,
+             config_path: str,
+             resource: str = None,
+             args: dict = None):
+    if service.upper() not in CONFIG:
+        raise ValueError("%s is not a known HISE service" % service)
+    if config_path.upper() not in CONFIG[service.upper()]:
+        raise ValueError("%s is not a known path in %s service" %
+                         (config_path, service))
+
+    server = get_server(service)
+    protocol = "http" if "localhost" in server else "https"
+    url = "%s://%s/%s" % (protocol, server,
+                          CONFIG[service.upper()][config_path.upper()])
+    if resource is not None:
+        if type(resource) is not str:
+            raise ValueError("resource argument was a %s, not a string" %
+                             (type(resource)))
+        url += "/%s" % resource
+
+    if args is not None:
+        if type(args) is not dict:
+            raise ValueError("query string argument was a %s, not a dict" %
+                             (type(args)))
+        url += "?%s" % (urllib.parse.urlencode(args, doseq=True))
+    return url
+
+
+def get_server(service):
+    test_hydration_server = os.getenv("TEST_HYDRATION_SERVER")
+    test_toolchain_server = os.getenv("TEST_TOOLCHAIN_SERVER")
+    test_tracer_server = os.getenv("TEST_TRACER_SERVER")
+    test_ledger_server = os.getenv("TEST_LEDGER_SERVER")
+    if service == "hydration" and test_hydration_server is not None:
+        return test_hydration_server
+    elif service == "toolchain" and test_toolchain_server is not None:
+        return test_toolchain_server
+    elif service == "tracer" and test_tracer_server is not None:
+        return test_tracer_server
+    elif service == "ledger" and test_ledger_server is not None:
+        return test_ledger_server
+    else:
+        return hise_server()
 
 
 def get_from_metadata_server(path):
@@ -173,6 +229,72 @@ def get_audience():
     return None
 
 
-# use the presence of the token gen env as a proxy for debug env
-def debug():
-    return os.getenv(token_env) is not None
+def project_guid_to_shortname(proj_guid):
+    """
+    Takes a string, looks up if there's a Project guid with the passed in value. If there is, return the corresponding short name.
+    Otherwise, let the user know the Project doesn't exist.
+
+    Parameters: 
+        proj_guid (str) : the guid of a HISE Project
+    """
+    proj_df = get_projects()
+
+    # chosen project must be in there, right?
+    if proj_guid not in proj_df['guid'].values:
+        raise ValueError("%s is not a valid project guid." % proj_guid)
+    else:
+        this_proj = proj_df.loc[proj_df['guid'].eq(proj_guid), ].reset_index(
+            drop=True)
+
+    return this_proj.loc[0, 'short_name']
+
+
+def project_shortname_to_guid(proj_name):
+    """
+    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding 
+    guid. Otherwise, let the user know the Project doesn't exist.
+
+    Parameters: 
+        proj_name (str) : the short-name of a HISE Project
+    """
+    proj_df = get_projects()
+
+    # chosen project must be in there, right?
+    if proj_name not in proj_df['short_name'].values:
+        raise ValueError(
+            "%s is not a valid project name. The following is a list of valid projects: %s"
+            % (proj_name, proj_df['short_name'].values))
+    else:
+        this_proj = proj_df.loc[
+            proj_df['short_name'].eq(proj_name), ].reset_index(drop=True)
+
+    # error if collisions exist
+    if len(this_proj) > 1:
+        raise SystemError(
+            "Looks like there multiple Projects named %s. Please contact the software team."
+            % (proj_name))
+    else:
+        proj_guid = this_proj.loc[0, 'guid']
+        return proj_guid
+
+
+def get_projects(to_df: bool = True):
+    """
+    Returns information on all projects in the current account
+
+    Parameters: 
+        to_df (bool): reshape to tabular, if True
+    """
+    keep_cols = ['guid', 'short_name', 'name']
+    resp = cu.parse_hise_response(
+        requests.get(hise_url("amds", "project_path"),
+                     headers=get_bearer_token_header()))
+
+    # reshape to tabular format and concatenate each entry
+    if to_df:
+        proj_df = pd.DataFrame()
+        for p in resp:
+            proj_df = pd.concat([proj_df, pd.json_normalize(p)[keep_cols]])
+        return proj_df
+
+    return resp

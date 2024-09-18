@@ -3,10 +3,8 @@ import os
 import json
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header, hise_server, IDEInstance
+from hisepy.auth import get_bearer_token_header, hise_server, IDEInstance, hise_url, get_projects, project_shortname_to_guid
 from hisepy.upload import valid_upload_stores, project_store, permanent_store
-from hisepy.common_utils import hise_url
-from hisepy.abstraction import get_projects, project_shortname_to_guid
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))

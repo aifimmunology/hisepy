@@ -20,7 +20,7 @@ import json
 import pathlib
 import copy
 import time
-from hisepy.auth import debug, get_bearer_token_header, hise_server
+# from hisepy.auth import get_bearer_token_header, hise_server
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -33,6 +33,10 @@ def read_yaml(file_path):
 
 CONFIG = read_yaml('{}/config.yaml'.format(_here))
 num_printed_notebooks = 3  # number of options user gets when a save call is invoked
+permanent_store = "permanent"
+project_store = "project"
+valid_upload_stores = [permanent_store, project_store]
+token_env = "TOKEN_GENERATOR"
 
 
 def current_notebook():
@@ -80,6 +84,11 @@ def current_notebook():
             the_current_notebook = notebooks[resp]
             return notebooks[resp]
     return notebooks[0]
+
+
+# use the presence of the token gen env as a proxy for debug env
+def debug():
+    return os.getenv(token_env) is not None
 
 
 def debug_config_value(heading: str, key: str):
@@ -143,56 +152,6 @@ def get_from_config(heading: str, key: str):
         if key.upper() in CONFIG[heading.upper()]:
             return CONFIG[heading.upper()][key.upper()]
     raise ValueError("config value %s:%s not found" % (heading, key))
-
-
-def get_server(service):
-    test_hydration_server = os.getenv("TEST_HYDRATION_SERVER")
-    test_toolchain_server = os.getenv("TEST_TOOLCHAIN_SERVER")
-    test_tracer_server = os.getenv("TEST_TRACER_SERVER")
-    test_ledger_server = os.getenv("TEST_LEDGER_SERVER")
-    if service == "hydration" and test_hydration_server is not None:
-        return test_hydration_server
-    elif service == "toolchain" and test_toolchain_server is not None:
-        return test_toolchain_server
-    elif service == "tracer" and test_tracer_server is not None:
-        return test_tracer_server
-    elif service == "ledger" and test_ledger_server is not None:
-        return test_ledger_server
-    else:
-        return hise_server()
-
-
-def hise_get(url: str):
-    return parse_hise_response(
-        requests.get(url, headers=get_bearer_token_header()))
-
-
-def hise_url(service: str,
-             config_path: str,
-             resource: str = None,
-             args: dict = None):
-    if service.upper() not in CONFIG:
-        raise ValueError("%s is not a known HISE service" % service)
-    if config_path.upper() not in CONFIG[service.upper()]:
-        raise ValueError("%s is not a known path in %s service" %
-                         (config_path, service))
-
-    server = get_server(service)
-    protocol = "http" if "localhost" in server else "https"
-    url = "%s://%s/%s" % (protocol, server,
-                          CONFIG[service.upper()][config_path.upper()])
-    if resource is not None:
-        if type(resource) is not str:
-            raise ValueError("resource argument was a %s, not a string" %
-                             (type(resource)))
-        url += "/%s" % resource
-
-    if args is not None:
-        if type(args) is not dict:
-            raise ValueError("query string argument was a %s, not a dict" %
-                             (type(args)))
-        url += "?%s" % (urllib.parse.urlencode(args, doseq=True))
-    return url
 
 
 def list_files_and_dirs(directory):

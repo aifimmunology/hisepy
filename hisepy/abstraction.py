@@ -7,84 +7,14 @@ import shutil
 import pathlib as pl
 import hisepy.common_utils as cu
 import hisepy.upload as cup
-from hisepy.auth import get_bearer_token_header, IDEInstance, debug
+from hisepy.auth import get_bearer_token_header, IDEInstance, project_shortname_to_guid, project_guid_to_shortname
+from hisepy.common_utils import debug
 import pandas as pd
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not debug() else os.getcwd()
 any_project_urn = "urn:hise:project:any"
-
-
-def get_projects(to_df: bool = True):
-    """
-    Returns information on all projects in the current account
-
-    Parameters: 
-        to_df (bool): reshape to tabular, if True
-    """
-    keep_cols = ['guid', 'short_name', 'name']
-    resp = cu.parse_hise_response(
-        requests.get(cu.hise_url("amds", "project_path"),
-                     headers=get_bearer_token_header()))
-
-    # reshape to tabular format and concatenate each entry
-    if to_df:
-        proj_df = pd.DataFrame()
-        for p in resp:
-            proj_df = pd.concat([proj_df, pd.json_normalize(p)[keep_cols]])
-        return proj_df
-
-    return resp
-
-
-def project_shortname_to_guid(proj_name):
-    """
-    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding 
-    guid. Otherwise, let the user know the Project doesn't exist.
-
-    Parameters: 
-        proj_name (str) : the short-name of a HISE Project
-    """
-    proj_df = get_projects()
-
-    # chosen project must be in there, right?
-    if proj_name not in proj_df['short_name'].values:
-        raise ValueError(
-            "%s is not a valid project name. The following is a list of valid projects: %s"
-            % (proj_name, proj_df['short_name'].values))
-    else:
-        this_proj = proj_df.loc[
-            proj_df['short_name'].eq(proj_name), ].reset_index(drop=True)
-
-    # error if collisions exist
-    if len(this_proj) > 1:
-        raise SystemError(
-            "Looks like there multiple Projects named %s. Please contact the software team."
-            % (proj_name))
-    else:
-        proj_guid = this_proj.loc[0, 'guid']
-        return proj_guid
-
-
-def project_guid_to_shortname(proj_guid):
-    """
-    Takes a string, looks up if there's a Project guid with the passed in value. If there is, return the corresponding short name.
-    Otherwise, let the user know the Project doesn't exist.
-
-    Parameters: 
-        proj_guid (str) : the guid of a HISE Project
-    """
-    proj_df = get_projects()
-
-    # chosen project must be in there, right?
-    if proj_guid not in proj_df['guid'].values:
-        raise ValueError("%s is not a valid project guid." % proj_guid)
-    else:
-        this_proj = proj_df.loc[proj_df['guid'].eq(proj_guid), ].reset_index(
-            drop=True)
-
-    return this_proj.loc[0, 'short_name']
 
 
 def get_result_files(to_df=True):

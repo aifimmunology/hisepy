@@ -308,7 +308,7 @@ class trace:
             return
 
         headers = get_bearer_token_header()
-        endpoint = "https://%s/%s/%s" % (hise_server(), trace_path, self.id)
+        endpoint = cu.hise_url("tracer", "trace_path", self.id)
         resp = requests.request("GET", endpoint, headers=headers)
         if resp.status_code != 200:
             raise Exception("Request to %s failed with status %d. %s" %
