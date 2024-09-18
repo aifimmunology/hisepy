@@ -39,6 +39,8 @@ STORES:
   INPUT_STORE: /home/workspace/input
   OUTPUT_STORE: /home/workspace/output
   AUDIENCE_FILE: /home/workspace/environment/.audience
+  TEMP_STORE: /home/workspace/temp
+
   
 PROJECT_FOLDER: 
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
@@ -81,6 +83,7 @@ TRACER:
 IDE: 
   CACHE_DIR : cache
   HOME_DIR : /home/jupyter
+  HOME_DIR_V2: /home/workspace
   CACHE_LOG_NAME : .hisefilelog.rds
   DEFAULTS_LOG_NAME : .hiseprefs.rds
   DOWNLOAD_CHUNK_SIZE : 102400

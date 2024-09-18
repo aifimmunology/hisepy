@@ -6,9 +6,11 @@ import shutil
 import hisepy.common_utils as cu
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance
 from hisepy.abstraction import project_shortname_to_guid, project_guid_to_shortname
-from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data, IDE_HOME_DIR
+from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data
 
 no_study_default = "no study"
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
 def set_default_store(store=None):
@@ -93,7 +95,8 @@ def upload_files_v3(files: list,
             "destination directory %s contains whitespaces. Please rename and remove any whitespaces"
             % destination)
 
-    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
+    cu.validate_upload_input_ids(input_file_ids, input_sample_ids,
+                                 CONFIG["STORES"]["TEMP_STORE"])
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
     inst = IDEInstance()
     qargs = {
@@ -108,7 +111,7 @@ def upload_files_v3(files: list,
         "project": project,
         "sampleIds": input_sample_ids,
         "notebook": cu.current_notebook(),
-        "homedir": IDE_HOME_DIR
+        "homedir": CONFIG["IDE"]["HOME_DIR_V2"]
     }
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id

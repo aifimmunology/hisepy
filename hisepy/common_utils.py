@@ -200,14 +200,14 @@ def list_files_and_dirs(directory):
     return os.listdir(directory)
 
 
-def log_downloaded_files(hise_file):
+def log_downloaded_files(hise_file, ide_dir: str):
     """ Exports, or creates, a .rds file in data.frame format and saves it in user's 
         home directory 
 
         Parameters: 
             hise_file : hise_file object
     """
-    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
+    cache_file_path = '{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[
         'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
@@ -243,13 +243,13 @@ def log_downloaded_files(hise_file):
             })
         cache_df = pd.concat([cache_df, this_entry_df])
         pyreadr.write_rds(
-            '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                             d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
+            '{h}/{d}'.format(h=ide_dir, d=CONFIG['IDE']['CACHE_LOG_NAME']),
+            cache_df)
     return
 
 
 # TODO: combine this log_downloaded_files()
-def log_project_download(file_id: str):
+def log_project_download(file_id: str, ide_dir: str):
     """
     Attaches fileId for the project folder file that was downloaded 
     
@@ -287,7 +287,7 @@ def log_project_download(file_id: str):
     return
 
 
-def log_replica_file_download(hise_file, file_id):
+def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
     """
     Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged 
 
@@ -300,7 +300,7 @@ def log_replica_file_download(hise_file, file_id):
     if (this_file_id != file_id):
         tmp_hise_file = copy.deepcopy(this_desc)
         tmp_hise_file["id"] = file_id
-        log_downloaded_files(tmp_hise_file)
+        log_downloaded_files(tmp_hise_file, ide_dir)
     return
 
 
@@ -430,7 +430,8 @@ def validate_download_params(file_list: list, query_id: list,
     return
 
 
-def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
+def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
+                              ide_dir):
     """ Checks that files associated with a result have 
         been seen in a user's IDE
     """
@@ -443,7 +444,7 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list):
     if input_sample_ids is not None:
         assert type(input_sample_ids) is list
 
-    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
+    cache_file_path = '{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
 
     if (not os.path.exists(cache_file_path)):

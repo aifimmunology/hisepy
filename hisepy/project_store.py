@@ -12,7 +12,7 @@ import pandas as pd
 import requests
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header
+from hisepy.auth import get_bearer_token_header, hise_server
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
