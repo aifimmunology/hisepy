@@ -118,7 +118,7 @@ def upload_files_v3(files: list,
     move_file_to_output_staging(qargs['notebook'], project, study_space_id)
 
     # export conda env to file and move to output staging
-    do_conda_export(project, study_space_id)
+    qargs["condaEnvironmentFile"] = do_conda_export(project, study_space_id)
 
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
@@ -163,7 +163,7 @@ def do_conda_export(project: str, study_space_id: str):
                    shell=True)
 
     # move to output staging
-    move_file_to_output_staging(
+    return move_file_to_output_staging(
         "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"]),
         project, study_space_id)
 
