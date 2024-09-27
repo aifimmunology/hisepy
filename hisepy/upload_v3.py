@@ -2,7 +2,7 @@ import requests
 import os
 import re
 import shutil
-
+import subprocess
 import hisepy.common_utils as cu
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance
 from hisepy.abstraction import project_shortname_to_guid, project_guid_to_shortname
@@ -113,6 +113,13 @@ def upload_files_v3(files: list,
         "notebook": cu.current_notebook(),
         "homedir": CONFIG["IDE"]["HOME_DIR_V2"]
     }
+
+    # move notebook to output staging
+    move_file_to_output_staging(qargs['notebook'], project, study_space_id)
+
+    # export conda env to file and move to output staging
+    do_conda_export(project, study_space_id)
+
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
 
@@ -144,6 +151,21 @@ def check_default_project(proj: str):
     if proj != get_default_project() and cu.prompt_yn(
             "Set %s as your default project?" % proj):
         set_default_project(proj)
+
+
+def do_conda_export(project: str, study_space_id: str):
+    """
+    Exports the current conda environment to a file
+    """
+    # export to scratch and move to to staging store
+    subprocess.run("conda env export > {dir}/environment.yml".format(
+        dir=CONFIG["STORES"]["TEMP_STORE"]),
+                   shell=True)
+
+    # move to output staging
+    move_file_to_output_staging(
+        "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"]),
+        project, study_space_id)
 
 
 def select_study_space(proj):
