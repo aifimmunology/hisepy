@@ -5,7 +5,7 @@ import shutil
 
 import hisepy.common_utils as cu
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance
-from hisepy.abstraction import project_shortname_to_guid, project_guid_to_shortname
+from hisepy.common_utils import project_shortname_to_guid, project_guid_to_shortname
 from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data
 
 no_study_default = "no study"
