@@ -115,7 +115,8 @@ def upload_files_v3(files: list,
     }
 
     # move notebook to output staging
-    move_file_to_output_staging(qargs['notebook'], project, study_space_id)
+    qargs['notebook'] = move_file_to_output_staging(qargs['notebook'], project,
+                                                    study_space_id)
 
     # export conda env to file and move to output staging
     qargs["condaEnvironmentFile"] = do_conda_export(project, study_space_id)
