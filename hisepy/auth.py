@@ -1,6 +1,6 @@
 import os
 import requests
-
+import json
 import hisepy.common_utils as cu
 
 metadata_server_root = "http://metadata.google.internal/computeMetadata/v1/instance"
@@ -16,7 +16,9 @@ default_metadata = {
     or "local-testing-instance",
     client_id_path: os.getenv("AUTH_CLIENT_ID"),
 }
-
+permanent_store = "permanent"
+project_store = "project"
+valid_upload_stores = [permanent_store, project_store]
 defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 DEFAULT_STORE_KEY = "default_store"
 IDE_DEFAULT_TAG = "IDE_DEFAULT"
@@ -78,13 +80,13 @@ class IDEInstance:
         self.tags = new_tags
 
     def get_default_project(self):
-        for p in get_projects(False):
+        for p in cu.get_projects(False):
             if self.destinationProjectGuid == p["guid"]:
                 return p["short_name"]
         return None
 
     def set_default_project(self, projectShortName: str):
-        g = project_shortname_to_guid(projectShortName)
+        g = cu.project_shortname_to_guid(projectShortName)
         r = self.__update({"destinationProjectGuid": g})
         self.destinationProjectGuid = g
         return r
