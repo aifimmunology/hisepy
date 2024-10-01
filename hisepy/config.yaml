@@ -88,13 +88,15 @@ IDE:
   DEFAULTS_LOG_NAME : .hiseprefs.rds
   DOWNLOAD_CHUNK_SIZE : 102400
 
+IDE_MANAGEMENT:
+  UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
+  
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
   SCHEDULER_PATH : toolchain/scheduler
   VISUALIZATION_PATH: toolchain/visualization
   ABSTRACTION_PATH: toolchain/abstraction
   UPLOAD_FILE_PATH: toolchain/file
-  UPLOAD_FILE_V3_PATH: toolchain/filev3  
   SAVE_DASH_APP_PATH: toolchain/visualization/dash
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
   TOOLCHAIN_IDE : toolchain/instances
