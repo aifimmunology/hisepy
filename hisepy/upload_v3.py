@@ -135,7 +135,7 @@ def upload_files_v3(files: list,
                                              study_space_id)
         body["files"].append({"name": output, "type": ft})
 
-    url = cu.hise_url("toolchain", "upload_file_v3_path", args=qargs)
+    url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
     return cu.parse_hise_response(
         requests.post(url, json=body, headers=get_bearer_token_header()))
 
