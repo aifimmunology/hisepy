@@ -1,12 +1,11 @@
 from .formatter import (hise_file_to_df, subject_to_df, sample_to_df,
                         _dict_to_df)
 from .lookup import (lookup_queryable_fields, lookup_unique_entries)
-from .project_store import (list_project_stores, list_files_in_project_store,
-                            download_from_project_store,
-                            promote_file_in_project_store,
-                            undo_promote_in_project_store,
-                            delete_file_in_project_store,
-                            undo_delete_in_project_store)
+from .project_store import (
+    list_project_stores, list_files_in_project_store,
+    download_from_project_store, download_from_project_store_v3,
+    promote_file_in_project_store, undo_promote_in_project_store,
+    delete_file_in_project_store, undo_delete_in_project_store)
 from .project_folder import (list_project_folders,
                              list_files_in_project_folder,
                              download_from_project_folder)

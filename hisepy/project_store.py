@@ -12,7 +12,7 @@ import pandas as pd
 import requests
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header, hise_server
+from hisepy.auth import get_bearer_token_header, hise_server, IDEInstance
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -153,6 +153,67 @@ def download_from_project_store(store_name, file_name='', subdir=''):
         _submit_url_download(url, store_name, file_name)
         ps_file_id = ps_df.loc[ps_df['name'].eq(file_name), 'id'].item()
         cu.log_project_download(ps_file_id)
+    return True
+
+
+def download_from_project_store_v3(store_name, file_name='', subdir=''):
+    """
+    Downloads a given file onto a user's IDE. The filepath pattern is as follows:
+    '~/store_name/file_name'.
+
+    Parameters:
+        store_name (str): name of project store
+        file_name (str): name of file that you see under 'name' when utilizing 
+            list_files_in_project_store
+    Returns:
+        True if download was successful
+    """
+
+    ps_df = list_files_in_project_store(store_name)[['name', 'id']]
+
+    # case where user wants to download all files within a subdir they uploaded
+    ide_name = IDEInstance().friendlyName
+    if (file_name == '') & (subdir != ''):
+        # find all files that has that subdir in name
+        list_files = list_files_in_project_store(
+            store_name)['name'].unique().tolist()
+
+        # subset to entries with '/<subdir>/' in name
+        subdir_files = [x for x in list_files if '/{}/'.format(subdir) in x]
+
+        # create urls for each file in subset
+        url_list = []
+        for i in subdir_files:
+            this_url = 'https://{ser}/{hy}/{pfe}/{fol}/{ide}/{fil}/{fn}'.format(
+                ser=hise_server(),
+                hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+                pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
+                fol=store_name,
+                ide=ide_name,
+                fil='files',
+                fn=i)
+            resp = cu.parse_hise_response(
+                requests.request("GET", url,
+                                 headers=get_bearer_token_header()))
+            ps_file_id = ps_df.loc[ps_df['name'].eq(i), 'id'].item()
+            cu.log_project_download(ps_file_id, CONFIG['STORES']['TEMP_STORE'])
+            print("file {}, downloaded to {}".format(i, resp['file']))
+    else:
+        # create url download
+        url = 'https://{ser}/{hy}/{pfe}/{fol}/{ide}/{fil}/{fn}'.format(
+            ser=hise_server(),
+            hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+            pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
+            fol=store_name,
+            ide=ide_name,
+            fil='files',
+            fn=file_name)
+        resp = cu.parse_hise_response(
+            requests.request("GET", url, headers=get_bearer_token_header()))
+        ps_file_id = ps_df.loc[ps_df['name'].eq(file_name), 'id'].item()
+        cu.log_project_download(ps_file_id, CONFIG['STORES']['TEMP_STORE'])
+        print("file {}, successfully downloaded to {}".format(
+            file_name, resp['file']))
     return True
 
 
