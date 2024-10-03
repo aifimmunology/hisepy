@@ -116,7 +116,7 @@ def upload_files_v3(files: list,
 
     # move notebook to output staging
     qargs['notebook'] = move_file_to_output_staging(qargs['notebook'], project,
-                                                    study_space_id)
+                                                    study_space_id, True)
 
     # export conda env to file and move to output staging
     qargs["condaEnvironmentFile"] = do_conda_export(project, study_space_id)
@@ -179,7 +179,7 @@ def do_conda_export(project: str, study_space_id: str):
     # move to output staging
     return move_file_to_output_staging(
         "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"]),
-        project, study_space_id)
+        project, study_space_id, True)
 
 
 def select_study_space(proj):
@@ -203,7 +203,10 @@ def get_study_space(id):
                          headers=get_bearer_token_header()))
 
 
-def move_file_to_output_staging(file: str, project: str, study_space_id: str):
+def move_file_to_output_staging(file: str,
+                                project: str,
+                                study_space_id: str,
+                                replace_ok: bool = False):
     sdir = re.sub(r'\W+', '', study_space_id).lower()
     if study_space_id != no_study_default:
         ss = get_study_space(study_space_id)
@@ -220,10 +223,12 @@ def move_file_to_output_staging(file: str, project: str, study_space_id: str):
     dest_file = "%s/%s" % (dest_dir, os.path.basename(file))
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
-    elif os.path.exists(dest_file):
+    elif os.path.exists(dest_file) and not replace_ok:
         raise ValueError(
             "The file %s is already in the output directory for %s and study %s. Either rename the file to be uploaded or, if you are sure it isn't being used, delete it from %s manually and run the upload command again."
             % (os.path.basename(file), project, study_space_id, dest_dir))
+    elif os.path.exists(dest_file) and replace_ok:
+        os.remove(dest_file)
     shutil.copy(file, dest_file)
     return dest_file
 

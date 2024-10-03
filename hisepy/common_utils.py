@@ -328,8 +328,9 @@ def log_project_download(file_id: str, ide_dir: str):
     Parameters: 
         file_id (str) : file_id of file in project folder 
     """
-    cache_file_path = '{h}/{c}'.format(h=CONFIG['IDE']['HOME_DIR'],
+    cache_file_path = '{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
+    print(cache_file_path)
     cache_df = pd.DataFrame(columns=[
         'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
     ])
@@ -354,8 +355,8 @@ def log_project_download(file_id: str, ide_dir: str):
 
         cache_df = pd.concat([cache_df, new_entry])
         pyreadr.write_rds(
-            '{h}/{d}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                             d=CONFIG['IDE']['CACHE_LOG_NAME']), cache_df)
+            '{h}/{d}'.format(h=ide_dir, d=CONFIG['IDE']['CACHE_LOG_NAME']),
+            cache_df)
     return
 
 
