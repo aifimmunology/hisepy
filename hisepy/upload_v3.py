@@ -154,13 +154,26 @@ def check_default_project(proj: str):
         set_default_project(proj)
 
 
+def get_conda_env_name():
+    """
+    Returns the name of the current conda environment
+    """
+    # get IDE instance
+    inst = IDEInstance()
+
+    # get the name of the current conda environment
+    return inst.environment['condaEnvName']
+
+
 def do_conda_export(project: str, study_space_id: str):
     """
     Exports the current conda environment to a file
     """
     # export to scratch and move to to staging store
-    subprocess.run("conda env export > {dir}/environment.yml".format(
-        dir=CONFIG["STORES"]["TEMP_STORE"]),
+    env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
+                             get_conda_env_name())
+    subprocess.run("conda env export -p {env} > {dir}/environment.yml".format(
+        env=env_dir, dir=CONFIG["STORES"]["TEMP_STORE"]),
                    shell=True)
 
     # move to output staging
