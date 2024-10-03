@@ -330,7 +330,6 @@ def log_project_download(file_id: str, ide_dir: str):
     """
     cache_file_path = '{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
-    print(cache_file_path)
     cache_df = pd.DataFrame(columns=[
         'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
     ])
