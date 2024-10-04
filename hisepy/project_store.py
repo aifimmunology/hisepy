@@ -76,7 +76,7 @@ def list_files_in_project_store(store_name):
     return df
 
 
-def download_from_project_store(store_name, file_name='', subdir=''):
+def download_from_project_store_v1(store_name, file_name='', subdir=''):
     """
     Downloads a given file onto a user's IDE. The filepath pattern is as follows:
     '~/store_name/file_name'.
@@ -156,7 +156,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
     return True
 
 
-def download_from_project_store_v3(store_name, file_name='', subdir=''):
+def download_from_project_store(store_name, file_name='', subdir=''):
     """
     Downloads a given file onto a user's IDE. The filepath pattern is as follows:
     '~/store_name/file_name'.
