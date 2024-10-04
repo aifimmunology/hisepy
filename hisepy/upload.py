@@ -84,16 +84,16 @@ def default_study_space(must=True):
     return sspaces[0]
 
 
-def upload_files(files: list,
-                 study_space_id: str = None,
-                 project: str = None,
-                 title: str = None,
-                 input_file_ids=None,
-                 input_sample_ids=None,
-                 file_types=None,
-                 store=None,
-                 destination=None,
-                 do_prompt: bool = True):
+def upload_files_v1(files: list,
+                    study_space_id: str = None,
+                    project: str = None,
+                    title: str = None,
+                    input_file_ids=None,
+                    input_sample_ids=None,
+                    file_types=None,
+                    store=None,
+                    destination=None,
+                    do_prompt: bool = True):
     """
     Uploads files to a specified study.
 
@@ -345,23 +345,23 @@ class DashAppImg:
                     wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
                 '{}'.format(self.work_dir)
             ],
-                        check=True,
-                        capture_output=True)
+                           check=True,
+                           capture_output=True)
             subprocess.run([
-                'pip-compile', '--no-annotate', '--no-header', '--quiet', '--strip-extras',
-                '{wd}/{app}/requirements.in'.format(
+                'pip-compile', '--no-annotate', '--no-header', '--quiet',
+                '--strip-extras', '{wd}/{app}/requirements.in'.format(
                     wd=self.work_dir, app=os.path.dirname(self.app_filepath))
             ],
-                        check=True)
+                           check=True)
         else:
             subprocess.run([
-                'pip-compile', '--no-annotate', '--no-header', '--quiet', '--strip-extras',
+                'pip-compile', '--no-annotate', '--no-header', '--quiet',
+                '--strip-extras',
                 '--output-file={wd}/{app}/requirements.txt'.format(
-                    wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
-                self.requirements
+                    wd=self.work_dir, app=os.path.dirname(
+                        self.app_filepath)), self.requirements
             ],
-                        check=True)
-            
+                           check=True)
 
     def upload_hero_image(self):
         # I don't think this title is ever user-visible, but save_static_image requires it
@@ -569,7 +569,7 @@ def save_dash_app(app_filepath: str,
 
     # create .txt files that contains user's imported libraries
     dobj.create_req_txt()
-    
+
     # tar it up; upload; and clean up
     dobj.create_dash_image()
 

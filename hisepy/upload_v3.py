@@ -29,16 +29,16 @@ def get_default_project():
     return IDEInstance().get_default_project()
 
 
-def upload_files_v3(files: list,
-                    study_space_id: str = None,
-                    project: str = None,
-                    title: str = None,
-                    input_file_ids: list = [],
-                    input_sample_ids: list = [],
-                    file_types: list = [],
-                    store: str = None,
-                    destination: str = "",
-                    do_prompt: bool = True):
+def upload_files(files: list,
+                 study_space_id: str = None,
+                 project: str = None,
+                 title: str = None,
+                 input_file_ids: list = [],
+                 input_sample_ids: list = [],
+                 file_types: list = [],
+                 store: str = None,
+                 destination: str = "",
+                 do_prompt: bool = True):
     """
     Uploads files to a store and records their provenance in HISE, but V3
 

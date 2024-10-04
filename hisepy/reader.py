@@ -279,10 +279,10 @@ def post_query(file_list: list = None,
     return obj
 
 
-def read_files_v2(file_list: list = None,
-                  query_id: list = None,
-                  query_dict: dict = None,
-                  to_df: bool = True):
+def read_files(file_list: list = None,
+               query_id: list = None,
+               query_dict: dict = None,
+               to_df: bool = True):
     """
     Read the contents of a list of file ids into a hise_file object
     Note: users should only use 1 parameter per function call
@@ -379,10 +379,10 @@ def read_files_v2(file_list: list = None,
         return response
 
 
-def read_files(file_list: list = None,
-               query_id: list = None,
-               query_dict: dict = None,
-               to_df: bool = True):
+def read_files_v1(file_list: list = None,
+                  query_id: list = None,
+                  query_dict: dict = None,
+                  to_df: bool = True):
     """
     Read the contents of a list of file ids into a hise_file object
     Note: users should only use 1 parameter per function call
@@ -481,9 +481,9 @@ def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
                      file_type=this_filetype)
 
 
-def cache_files(file_ids: list = None,
-                query_id: list = None,
-                query_dict: dict = None):
+def cache_files_v1(file_ids: list = None,
+                   query_id: list = None,
+                   query_dict: dict = None):
     """ 
     Downloads requested files to the following directory: "./cache/<fileID>"
     Parameters: 
@@ -536,9 +536,9 @@ def cache_files(file_ids: list = None,
     return
 
 
-def cache_files_v2(file_ids: list = None,
-                   query_id: list = None,
-                   query_dict: dict = None):
+def cache_files(file_ids: list = None,
+                query_id: list = None,
+                query_dict: dict = None):
     """ 
     Downloads requested files to the following directory: "./cache/<fileID>" # TODO: update path example 
     Parameters: 
