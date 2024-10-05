@@ -23,12 +23,11 @@ from .upload_v3 import (set_default_store, set_default_project,
 from .abstraction import (save_abstraction, result_filetype_to_guid,
                           get_result_files)
 from .private_folders import (
-    create_private_folder, delete_file_in_private_folder,
     list_files_in_all_private_folders, list_files_in_private_folder,
     move_file_in_private_folder, delete_file_in_private_folder,
     download_from_private_folder, rename_file_in_private_folder,
     upload_file_to_private_folder, delete_private_folder,
-    update_private_folder)
+    find_private_folder_of_file)
 from .instances import (stop_ide, suspend_ide)
 from .version import __version__
 
