@@ -38,6 +38,7 @@ PROJECT_STORE:
 STORES:
   INPUT_STORE: /home/workspace/input
   OUTPUT_STORE: /home/workspace/output
+  PRIVATE_STORE: /home/workspace/private
   ENV_STORE: /home/workspace/environment
   AUDIENCE_FILE: /home/workspace/environment/.audience
   TEMP_STORE: /home/workspace/temp

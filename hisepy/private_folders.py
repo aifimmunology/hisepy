@@ -3,6 +3,7 @@ import os
 
 import pandas as pd
 import requests
+import shutil
 
 import hisepy.common_utils as cu
 from hisepy.auth import get_bearer_token_header
@@ -49,7 +50,7 @@ def update_private_folder(folder_name: str = None,
     return resp['name']
 
 
-def upload_file_to_private_folder(folder_name: str, file_path: str):
+def do_post_file_to_private_folder(folder_name: str, file_path: str):
     '''
     Uploads a file to a private folder.
 
@@ -74,6 +75,39 @@ def upload_file_to_private_folder(folder_name: str, file_path: str):
     return resp
 
 
+def upload_file_to_private_folder(file_path: str, folder_name: str = None):
+    '''
+    Uploads a file to a private folder.
+
+    Parameters: 
+        folder_name (str) : (optional)  Name of Private Folder.
+        file_path (str): Filepath of file you want uploaded.
+
+    Returns: 
+        Response object
+    '''
+    assert type(
+        folder_name
+    ) is str or folder_name is None, 'folder_name must be of type str'
+    assert type(file_path) is str, 'file_name must be of type str'
+    assert len(
+        file_path) < 1024, 'file_name character length cannot exceed 1024'
+
+    if folder_name is not None:
+        return do_post_file_to_private_folder(folder_name, file_path)
+    else:  # use nextgen-ide private folder
+        pfs = list(list_files_in_all_private_folders()['folder'].values)
+        if len(pfs) > 1:
+            raise ValueError(
+                'Multiple private folders found. Please specify the folder_name parameter. options are: %s'
+                % pfs)
+        elif len(pfs) == 0:
+            raise ValueError(
+                'No private folders found. Please contact immunology support')
+        else:
+            return do_post_file_to_private_folder(pfs[0], file_path)
+
+
 def list_files_in_all_private_folders():
     ''' Returns a data.frame of all private folders and files that are within each '''
     url = cu.hise_url('hydration', 'user_folder_path')
@@ -82,7 +116,7 @@ def list_files_in_all_private_folders():
     return pd.DataFrame(resp)
 
 
-def list_files_in_private_folder(folder_name=None):
+def list_files_in_private_folder(folder_name: str = None):
     ''' 
     Lists files inside a given private folder.
     
@@ -91,9 +125,26 @@ def list_files_in_private_folder(folder_name=None):
     Returns: 
         Data.frame with columns [folder,files]
     '''
-    url = cu.hise_url('hydration',
-                      'user_folder_path',
-                      resource='%s/files' % (folder_name))
+    assert type(
+        folder_name
+    ) is str or folder_name is None, 'folder_name must be of type str'
+    if folder_name is not None:
+        url = cu.hise_url('hydration',
+                          'user_folder_path',
+                          resource='%s/files' % (folder_name))
+    else:
+        pfs = list(list_files_in_all_private_folders()['folder'].values)
+        if len(pfs) > 1:
+            raise ValueError(
+                'Multiple private folders found. Please specify the folder_name parameter. options are: %s'
+                % pfs)
+        elif len(pfs) == 0:
+            raise ValueError(
+                'No private folders found. Please contact immunology support')
+        else:
+            url = cu.hise_url('hydration',
+                              'user_folder_path',
+                              resource='%s/files' % (pfs[0]))
     resp = cu.parse_hise_response(
         requests.get(url, headers=get_bearer_token_header()))
     return pd.DataFrame(resp['result'])
@@ -165,7 +216,7 @@ def move_file_in_private_folder(file_name: str, source_folder: str,
     return resp
 
 
-def delete_file_in_private_folder(folder_name: str, file_name: str):
+def delete_file_in_private_folder(file_name: str, folder_name: str = None):
     '''
     Delete a file from a Private Folder. 
 
@@ -173,9 +224,22 @@ def delete_file_in_private_folder(folder_name: str, file_name: str):
         folder_name (str) : name of Private Folder.
         file_name (str) : Name of the file you want deleted.
     '''
-    assert type(folder_name) is str, 'folder_name must be of type str'
+    assert type(
+        folder_name
+    ) is str or folder_name is None, 'folder_name must be of type str'
     assert type(file_name) is str, 'file_name must be of type str'
 
+    if folder_name is None:
+        pfs = list(list_files_in_all_private_folders()['folder'].values)
+        if len(pfs) > 1:
+            raise ValueError(
+                'Multiple private folders found. Please specify the folder_name parameter. options are: %s'
+                % pfs)
+        elif len(pfs) == 0:
+            raise ValueError(
+                'No private folders found. Please contact immunology support')
+        else:
+            folder_name = pfs[0]
     url = cu.hise_url('hydration',
                       'user_folder_path',
                       resource='%s/files/%s' % (folder_name, file_name))
@@ -184,32 +248,50 @@ def delete_file_in_private_folder(folder_name: str, file_name: str):
     return resp
 
 
-def download_from_private_folder(folder_name: str, file_name: str):
+def download_from_private_folder(file_name: str,
+                                 folder_name: str = None,
+                                 dest_path: str = None):
     '''
     Download a file from a Project Folder to your local working directory.
 
     Parameters:
-        folder_name (str) : Name of Private Folder. 
         file_name (str) : Name of file you want downloaded.
+        folder_name (str) : (optional) Name of Private Folder. 
+        dest_path (str) : (optional) Destination path to save the file.
     Returns: 
         Response object
     '''
-    assert type(folder_name) is str, 'folder_name must be of type str'
+    assert type(
+        folder_name
+    ) is str or folder_name is None, 'folder_name must be of type str'
     assert type(file_name) is str, 'file_name must be of type str'
     assert len(file_name) < 1024, 'file_name must not exceed 1024 characters'
 
+    if folder_name is None:
+        pfs = list(list_files_in_all_private_folders()['folder'].values)
+        if len(pfs) > 1:
+            raise ValueError(
+                'Multiple private folders found. Please specify the folder_name parameter. options are: %s'
+                % pfs)
+        elif len(pfs) == 0:
+            raise ValueError(
+                'No private folders found. Please contact immunology support')
+        else:
+            folder_name = pfs[0]
     url = cu.hise_url('hydration',
                       'user_folder_path',
                       resource='%s/files/%s' % (folder_name, file_name))
     resp = requests.get(url, headers=get_bearer_token_header(), stream=True)
 
     # assign download path
-    dest_path = '{}/{}/{}'.format(os.getcwd(), folder_name, file_name)
+    if dest_path is None:
+        dest_path = '{}/{}'.format(os.getcwd(), file_name)
     return cu.download_response_content(resp, dest_path)
 
 
-def rename_file_in_private_folder(folder_name: str, old_file_name: str,
-                                  new_file_name: str):
+def rename_file_in_private_folder(old_file_name: str,
+                                  new_file_name: str,
+                                  folder_name: str = None):
     '''
     Rename a file in a Private Folder.
 
@@ -220,12 +302,25 @@ def rename_file_in_private_folder(folder_name: str, old_file_name: str,
     Returns: 
         Response object
     '''
-    assert type(folder_name) is str, 'folder_name must be of type str'
+    assert type(
+        folder_name
+    ) is str or folder_name is None, 'folder_name must be of type str'
     assert type(old_file_name) is str, 'old_file_name must be of type str'
     assert type(new_file_name) is str, 'new_file_name must be of type str'
     assert len(new_file_name
                ) < 1024, 'new_file_name character length cannot exceed 1024'
 
+    if folder_name is None:
+        pfs = list(list_files_in_all_private_folders()['folder'].values)
+        if len(pfs) > 1:
+            raise ValueError(
+                'Multiple private folders found. Please specify the folder_name parameter. options are: %s'
+                % pfs)
+        elif len(pfs) == 0:
+            raise ValueError(
+                'No private folders found. Please contact immunology support')
+        else:
+            folder_name = pfs[0]
     file_info = {'newName': new_file_name}
     url = cu.hise_url('hydration',
                       'user_folder_path',
@@ -252,4 +347,22 @@ def delete_private_folder(folder_name):
                       resource='%s' % (folder_name))
     resp = cu.parse_hise_response(
         requests.delete(url, headers=get_bearer_token_header()))
+    return resp
+
+
+def find_private_folder_of_file(file_name: str):
+    """
+    Returns the name of the private folder that the given file belongs to
+    
+    Parameters: 
+        file_name (str) : Name of the file you like to search for. If the file is in a subdirectory, include the entire path.
+    Returns:
+        Name of private folder that the file belongs to. 
+    """
+
+    assert type(file_name) is str, 'file_name must be of type str'
+    url = "{}/{}?file={}".format(cu.hise_url("hydration", "user_folder_path"),
+                                 "find", file_name)
+    resp = cu.parse_hise_response(
+        requests.get(url, headers=get_bearer_token_header()))
     return resp
