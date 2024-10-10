@@ -117,6 +117,7 @@ def _create_mongo_query_in(user_query: dict):
     return user_query
 
 
+# TODO: factor out logic that creates that query_dict
 def query_files(user_query: dict):
     """ 
     POST request to ledger by submitting user's query parameters
@@ -724,6 +725,8 @@ def read_subjects(subject_ids: str = None,
             "You must specify either subject_ids or query_dict, but not both.")
     if query_dict is not None:
         # check that fields are within sample materialized view
+
+        # TODO: refactor to its' own validation function
         subject_fields = hl.lookup_queryable_fields('subject')['field']
         query_fields = query_dict.keys()
         field_diff = set(query_fields) - set(subject_fields)

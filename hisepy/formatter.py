@@ -18,6 +18,8 @@ import hisepy.common_utils as cu
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
+# TODO: move hard-coded named fields to config.yaml file
+
 
 def convert_data_values(filepath: str, filetype: str):
     try:
