@@ -10,6 +10,7 @@ from termcolor import colored
 import requests
 from hisepy.instances import IDEInstance
 import hisepy.common_utils as cu
+import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
 from hisepy.auth import get_bearer_token_header, hise_server
@@ -335,7 +336,7 @@ def read_files(file_list: list = None,
             # parse descriptors with info we need to send our request
             this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
                 f)
-            response.append(cache_and_convert_file_data(f, False))
+
             endpoint = "https://%s/%s/%s/%s" % (hise_server(
             ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             # download the file to user's IDE
@@ -343,6 +344,16 @@ def read_files(file_list: list = None,
                 dl_resp = requests.request("GET",
                                            endpoint,
                                            headers=get_bearer_token_header())
+                parsed_dl_resp = cu.parse_hise_response(dl_resp)
+                download_filepath = '{}/{}'.format(
+                    CONFIG['IDE']['HOME_DIR_V2'], parsed_dl_resp['Path'])
+                # if we succeeded, continually check for the file in /inputs
+                if dl_resp.status_code == 200:
+                    while (not os.path.exists(download_filepath)):
+                        time.sleep(3)
+                        print("Waiting for file to download...")
+                    response.append(
+                        convert_file_data(f, parsed_dl_resp['Path']))
                 response[idx].status = True
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
@@ -449,6 +460,32 @@ def read_files_v1(file_list: list = None,
         return response
 
 
+def convert_file_data(file_data: dict, path_to_file: str):
+    if type(file_data) is not dict:
+        raise Exception("Item in response is not a dict, it is a %s." %
+                        (type(file_data)))
+    elif "descriptors" not in file_data:
+        raise Exception("Descriptors not found in file data %s" % file_data)
+    elif "url" not in file_data:
+        raise Exception("No download url found in file data %s" % file_data)
+
+    # always working with a single file-id at this point. but there may be multiple descriptor objects
+    try:
+        f_desc = file_data["descriptors"]["file"]
+    except:
+        f_desc = file_data['descriptors'][0]['file']
+    file_name = f_desc["name"].split("/")[-1]
+    this_filetype = cu.get_filetype(file_name)
+    this_file_values = hf.convert_data_values(
+        '{}/{}'.format(CONFIG['IDE']['HOME_DIR_V2'], path_to_file),
+        this_filetype)
+    return hise_file(file_id=f_desc["id"],
+                     file_path=path_to_file,
+                     descriptors=f_desc,
+                     file_type=this_filetype,
+                     data_values=this_file_values)
+
+
 def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
     """ Helper function to convert files into a hise_file object """
     if type(file_data) is not dict:
@@ -470,7 +507,6 @@ def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
     file_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], batch_id)
     file_name = f_desc["name"].split("/")[-1]
     this_filetype = cu.get_filetype(file_name)
-
     if do_cache:
         cache_file(file_data["url"], file_name, file_dir)
         this_file_values = hf.convert_data_values(
