@@ -323,7 +323,7 @@ def read_files(file_list: list = None,
     # send request to hydration to download every file
     idx = 0
     response = []
-    ide_name = os.getenv("HOSTNAME")[:-2]
+    ide_name = IDEInstance().podName
     for f in obj:
         if "id" not in f:
             f["id"] = uuid.UUID(int=0)
@@ -595,7 +595,7 @@ def cache_files(file_ids: list = None,
 
     idx = 0
     fail_files = []
-    ide_name = IDEInstance().friendlyName
+    ide_name = IDEInstance().podName
     for f in resp_obj:
         if 'error' in f:
             print("Error downloading file: {}".format(f['error']['Message']))

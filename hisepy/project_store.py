@@ -172,7 +172,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
     ps_df = list_files_in_project_store(store_name)[['name', 'id']]
 
     # case where user wants to download all files within a subdir they uploaded
-    ide_name = IDEInstance().friendlyName
+    ide_name = IDEInstance().podName
     if (file_name == '') & (subdir != ''):
         # find all files that has that subdir in name
         list_files = list_files_in_project_store(
