@@ -367,11 +367,12 @@ def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
         hise_file (hise_file): hisepy.reader.hise_file object 
         file_id (str): original file_id that's passed in to read_files() or cache_files() 
     """
-    this_file_id, this_file_name, this_desc = parse_file_descriptor_from_hise_file(
+    this_file_id, this_file_name, _ = parse_file_descriptor_from_hise_file(
         hise_file)
     if (this_file_id != file_id):
-        tmp_hise_file = copy.deepcopy(this_desc)
-        tmp_hise_file["id"] = file_id
+        tmp_hise_file = copy.deepcopy(hise_file)
+        # tmp_hise_file["id"] = file_id
+        # import pdb; pdb.set_trace()
         log_downloaded_files(tmp_hise_file, ide_dir)
     return
 
