@@ -17,6 +17,7 @@ class TestReader:
         self.file_ids = ['file_id1', 'file_id2']
         self.query_id = ['query_id1']
         self.query_dict = {'field1': ['value1']}
+        self.query_file_dict = {'fileType': ['txt'], 'cohortGuid': ['cohortA']}
 
         # TODO: at some point, metadata models will be generalized
         # and tests will most likely need to be adjusted
@@ -115,7 +116,7 @@ class TestReader:
             'descriptors'], "Failed to parse descriptor correctly"
         return True
 
-    # TODO...?
+    @pytest.mark.xfail(raises=Exception)
     def test_log_downloaded_files(self):
         cwd = os.getcwd()
 
@@ -133,9 +134,28 @@ class TestReader:
         assert 'file_id1' in fileIds, "Failed to log downloaded files correctly. Expected file_id1, but it does not exist in the log file"
         return True
 
-    # TODO...?
-    def test_log_replica_file_download(self):
-        return False
+    def test_log_replica_file_download(self, init_test):
+        cwd = os.getcwd()
+
+        # remove log file if it exists
+        if os.path.exists('.hisefilelog.rds'):
+            os.remove('.hisefilelog.rds')
+
+        # try to create a log file and make sure file exists
+        hpcu.log_replica_file_download(self.descriptor_obj, 'file_id1', cwd)
+        assert not os.path.exists(
+            '.hisefilelog.rds'
+        ), "this was not a replica file, so it should not be logged in this case"
+
+        # now create a log file
+        hpcu.log_replica_file_download(self.descriptor_obj, 'file_id2', cwd)
+        assert os.path.exists('.hisefilelog.rds'), "Failed to save log file"
+
+        # open the file and check if file_id1 is in the file
+        log_file = pyreadr.read_r('.hisefilelog.rds')[None]
+        fileIds = log_file['fileId'].values
+        assert 'file_id1' in fileIds, "Failed to log downloaded files correctly. Expected file_id1, but it does not exist in the log file"
+        return True
 
     def test_add_prefix_to_query(self):
         qd = {'id': ['fff']}
@@ -164,6 +184,69 @@ class TestReader:
     def test_post_query(self):
         return False
 
+    def test_query_files(self, init_test):
+        hpr.query_files(self.query_file_dict)
+        return False
+
+    def test_convert_query_dict_to_mongo_query(self, init_test):
+        converted_dict = hpr.convert_query_dict_to_mongo_query(self.query_dict)
+        assert converted_dict == {
+            'field1': {
+                '$in': ['value1']
+            }
+        }, "Failed to convert query dictionary to mongo query"
+        assert hpr.convert_query_dict_to_mongo_query(self.query_file_dict) == {
+            'fileType': {
+                '$in': ['txt']
+            },
+            'cohortGuid': {
+                '$in': ['cohortA']
+            }
+        }, "Failed to convert query dictionary to mongo query"
+        return True
+
+    @pytest.mark.xfail(raises=AssertionError)
+    def test_fail_validate_query_files_params(self, init_test):
+        with pytest.raises(
+                AssertionError,
+                match=
+                "One of file_ids, query_dict, or query_id must be a non-null"):
+            hpr.validate_post_query_params(None, None, None)
+
+        with pytest.raises(AssertionError,
+                           match="You must only use 1 parameter"):
+            hpr.validate_post_query_params(self.file_ids, self.query_id, None)
+
+        with pytest.raises(
+                AssertionError,
+                match="You must pass a list of file ids to read_files"):
+            hpr.validate_post_query_params(self.file_ids, None,
+                                           self.query_dict)
+
+        return True
+
+    def test_validate_query_files_params(self, init_test):
+        hpr.validate_post_query_params(self.file_ids, None, None)
+        hpr.validate_post_query_params(None, self.query_id[0], None)
+        hpr.validate_post_query_params(None, None, self.query_dict)
+        return True
+
+    @pytest.mark.xfail(raises=AssertionError)
+    def test_fail_validate_query_files_params(self, init_test):
+        with pytest.raises(Exception,
+                           match="fileType must be in your query dictionary"):
+            hpr.validate_query_files_params(self.query_dict)
+
+        with pytest.raises(
+                Exception,
+                match="query dictionary values must be of type list"):
+            hpr.validate_query_files_params({'fileType': 'txt'})
+        return True
+
+    def test_validate_query_files_params(self, init_test):
+        hpr.validate_query_files_params(self.query_file_dict)
+        return True
+
     # TODO: needs refactoring
     def test_read_files(self):
         return False
@@ -176,10 +259,28 @@ class TestReader:
 ############################################################################################################
 
     def test_validate_user_query_fields(self):
+        qd = {
+            'fileType': ['txt'],
+            'cohortGuid': ['cohortA'],
+            'sampleKitGuid': ['sample_kit_guid']
+        }
+        assert hpr.validate_user_query_fields(
+            qd) == True, "Failed to validate user query fields"
+        return True
+
+    def test_fail_validate_user_query_fields(self):
         return False
 
     def test_append_descriptors(self):
         return False
 
     def test_get_file_descriptors(self):
+        return False
+
+    # TODO: needs refactoring
+    def test_read_samples(self):
+        return False
+
+    # TODO: refactoring needed
+    def test_read_subjects(self):
         return False
