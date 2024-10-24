@@ -595,6 +595,7 @@ def cache_files(file_ids: list = None,
 
     idx = 0
     fail_files = []
+    dl_paths = []
     ide_name = IDEInstance().podName
     for f in resp_obj:
         if 'error' in f:
@@ -604,11 +605,12 @@ def cache_files(file_ids: list = None,
         this_file_id, _, _ = cu.parse_file_descriptor_from_hise_file(f)
         endpoint = "https://%s/%s/%s/%s" % (hise_server(
         ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
-        cu.parse_hise_response(
+        dl_resp = cu.parse_hise_response(
             requests.request("GET",
                              endpoint,
                              headers=get_bearer_token_header()))
-    return
+        dl_paths.append(dl_resp['Path'])
+    return dl_paths
 
 
 def cache_file(url: str, file_name: str, file_dir: str):
