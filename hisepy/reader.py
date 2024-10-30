@@ -609,7 +609,8 @@ def cache_files(file_ids: list = None,
             requests.request("GET",
                              endpoint,
                              headers=get_bearer_token_header()))
-        dl_paths.append(dl_resp['Path'])
+        this_path = "%s/%s" % (CONFIG['IDE']['HOME_DIR_V2'], dl_resp['Path'])
+        dl_paths.append(this_path)
     return dl_paths
 
 
