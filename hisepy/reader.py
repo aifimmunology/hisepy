@@ -609,8 +609,18 @@ def cache_files(file_ids: list = None,
             requests.request("GET",
                              endpoint,
                              headers=get_bearer_token_header()))
+
+        cu.log_downloaded_files(f, CONFIG["STORES"]["TEMP_STORE"])
+
+        # if the user passes in a file_list, make sure they didn't get redirected because they
+        # downloaded from a guest account
+        if file_ids is not None:
+            this_file_id = file_ids[idx]
+            cu.log_replica_file_download(f, this_file_id,
+                                         CONFIG["STORES"]["TEMP_STORE"])
         this_path = "%s/%s" % (CONFIG['IDE']['HOME_DIR_V2'], dl_resp['Path'])
         dl_paths.append(this_path)
+        idx += 1
     return dl_paths
 
 
