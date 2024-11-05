@@ -44,9 +44,6 @@ class TestReader:
         self.list_descriptor = [
         ]  # TODO for olink data, or any other data has multiple samples per file
 
-        #
-        return
-
     def test_validate_download_params(self):
         file_ids = ['file_id1', 'file_id2']
         query_id = ['query_id1']
@@ -62,8 +59,6 @@ class TestReader:
         assert hpcu.validate_download_params(
             file_list=None, query_id=None, query_dict=query_dict
         ), "Failed to validate download params but it should have passed"
-
-        return True
 
     @pytest.mark.xfail(raises=Exception)
     def test_fail_validate_download_params(self):
@@ -105,7 +100,6 @@ class TestReader:
             hpcu.validate_download_params(file_list=None,
                                           query_id=None,
                                           query_dict=query_dict_not_dict)
-        return True
 
     def test_parse_file_descriptor_from_file(self, init_test):
         file_id, file_name, desc = hpcu.parse_file_descriptor_from_hise_file(
@@ -114,7 +108,6 @@ class TestReader:
         assert file_name == "file_name1", "Failed to parse file name correctly"
         assert desc == self.descriptor_obj[
             'descriptors'], "Failed to parse descriptor correctly"
-        return True
 
     @pytest.mark.xfail(raises=Exception)
     def test_log_downloaded_files(self):
@@ -132,7 +125,6 @@ class TestReader:
         log_file = pyreadr.read_r('.hisefilelog.rds')[None]
         fileIds = log_file['fileId'].values
         assert 'file_id1' in fileIds, "Failed to log downloaded files correctly. Expected file_id1, but it does not exist in the log file"
-        return True
 
     def test_log_replica_file_download(self, init_test):
         cwd = os.getcwd()
@@ -155,7 +147,6 @@ class TestReader:
         log_file = pyreadr.read_r('.hisefilelog.rds')[None]
         fileIds = log_file['fileId'].values
         assert 'file_id1' in fileIds, "Failed to log downloaded files correctly. Expected file_id1, but it does not exist in the log file"
-        return True
 
     def test_add_prefix_to_query(self):
         qd = {'id': ['fff']}
@@ -169,7 +160,6 @@ class TestReader:
             'sample.visitName': ['vn1'],
             'sample.sampleKitGuid': ['skg']
         }, "Failed to add prefix to query correctly"
-        return True
 
     def test_get_filetype(self):
         file1 = 'file1.txt'
@@ -178,15 +168,14 @@ class TestReader:
             file1) == 'txt', "Failed to get filetype correctly"
         assert hpcu.get_filetype(
             file2) == 'csv', "Failed to get filetype correctly"
-        return True
 
     # TODO: needs refactoring
     def test_post_query(self):
-        return False
+        return
 
     def test_query_files(self, init_test):
         hpr.query_files(self.query_file_dict)
-        return False
+        return
 
     def test_convert_query_dict_to_mongo_query(self, init_test):
         converted_dict = hpr.convert_query_dict_to_mongo_query(self.query_dict)
@@ -203,7 +192,6 @@ class TestReader:
                 '$in': ['cohortA']
             }
         }, "Failed to convert query dictionary to mongo query"
-        return True
 
     @pytest.mark.xfail(raises=AssertionError)
     def test_fail_validate_query_files_params(self, init_test):
@@ -223,13 +211,10 @@ class TestReader:
             hpr.validate_post_query_params(self.file_ids, None,
                                            self.query_dict)
 
-        return True
-
     def test_validate_query_files_params(self, init_test):
         hpr.validate_post_query_params(self.file_ids, None, None)
         hpr.validate_post_query_params(None, self.query_id[0], None)
         hpr.validate_post_query_params(None, None, self.query_dict)
-        return True
 
     @pytest.mark.xfail(raises=AssertionError)
     def test_fail_validate_query_files_params(self, init_test):
@@ -241,21 +226,18 @@ class TestReader:
                 Exception,
                 match="query dictionary values must be of type list"):
             hpr.validate_query_files_params({'fileType': 'txt'})
-        return True
-
-    def test_validate_query_files_params(self, init_test):
-        hpr.validate_query_files_params(self.query_file_dict)
-        return True
 
     # TODO: needs refactoring
     def test_read_files(self):
-        return False
+        return
 
     # TODO: needs refactoring
     def test_cache_files(self):
-        return False
+        return
 
 
+############################################################################################################
+## tests below still need to be implemented, but are lower priority for nextgen v1
 ############################################################################################################
 
     def test_validate_user_query_fields(self):
@@ -266,21 +248,21 @@ class TestReader:
         }
         assert hpr.validate_user_query_fields(
             qd) == True, "Failed to validate user query fields"
-        return True
+        return
 
     def test_fail_validate_user_query_fields(self):
-        return False
+        return
 
     def test_append_descriptors(self):
-        return False
+        return
 
     def test_get_file_descriptors(self):
-        return False
+        return
 
     # TODO: needs refactoring
     def test_read_samples(self):
-        return False
+        return
 
     # TODO: refactoring needed
     def test_read_subjects(self):
-        return False
+        return

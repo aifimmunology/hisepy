@@ -139,7 +139,6 @@ def convert_query_dict_to_mongo_query(query_dict: dict):
     return query_dict
 
 
-# TODO: factor out logic that creates that query_dict
 def query_files(user_query: dict):
     """ 
     POST request to ledger by submitting user's query parameters
