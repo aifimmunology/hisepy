@@ -301,8 +301,6 @@ def reshape_descriptors(this_desc):
         ]) | (this_desc[dk] is None) | (this_desc[dk] == []):
             continue
         # convert dictionary to dataframe
-        print(dk)
-        print(this_desc[dk])
         copy_tmp = this_desc[dk].copy()
         copy_tmp.update((k, [v]) for k, v in copy_tmp.items())
         tmp_df = pd.DataFrame(copy_tmp)
