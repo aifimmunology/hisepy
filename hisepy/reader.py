@@ -118,6 +118,27 @@ def _create_mongo_query_in(user_query: dict):
     return user_query
 
 
+def validate_query_files_params(user_query: dict):
+    """ 
+    Validates user's query parameters for query_files
+    """
+    if 'fileType' not in user_query.keys():
+        raise Exception("fileType must be in your query dictionary")
+    for d in user_query.keys():
+        if type(user_query[d]) is not list:
+            raise Exception("query dictionary values must be of type list")
+    return True
+
+
+def convert_query_dict_to_mongo_query(query_dict: dict):
+    """
+    Converts user's query dictionary to a mongo query language
+    """
+    # take the user's query and reformat it using mongo  query language
+    query_dict.update((k, {'$in': v}) for k, v in query_dict.items())
+    return query_dict
+
+
 def query_files(user_query: dict):
     """ 
     POST request to ledger by submitting user's query parameters
@@ -130,16 +151,12 @@ def query_files(user_query: dict):
         query_files(user_query={'cohortGuid' : ['FH1']})
     """
 
-    assert 'fileType' in user_query.keys(
-    ), "fileType must be in your query dictionary"
+    validate_query_files_params(user_query)
     query_dict = user_query.copy()
     query_dict = _add_prefix_to_query(query_dict)
-    for d in query_dict.keys():
-        assert type(
-            query_dict[d]) == list, "key {} has values not in a list".format(d)
 
     # take the user's query and reformat it using mongo  query language
-    query_dict.update((k, {'$in': v}) for k, v in query_dict.items())
+    query_dict = convert_query_dict_to_mongo_query(query_dict)
 
     endpoint = "https://{s}/{de}".format(
         s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
@@ -160,7 +177,7 @@ def validate_user_query_fields(query):
         raise Exception("""The following field names are invalid: {uf}. \n
         Valid field names you can use in your query are: {ac}
         """.format(uf=setdiff, ac=acceptable_fields))
-    return
+    return True
 
 
 def get_file_descriptors(query_dict: dict = None):
@@ -211,6 +228,33 @@ def get_file_descriptors(query_dict: dict = None):
     return dict_df
 
 
+def validate_post_query_params(file_list: list = None,
+                               query_id: str = None,
+                               query_dict: dict = None):
+    """ 
+    Validates user's query parameters for POST request to ledger
+    """
+    # make sure users only use 1 parameter
+    assert file_list is not None or query_id is not None or query_dict is not None, "One of file_ids, query_dict, or query_id must be a non-null"
+    if file_list is not None:
+        assert type(file_list) is list
+        assert (query_id is None) and (query_dict is
+                                       None), "You must only use 1 parameter"
+    elif query_id is not None:
+        assert type(query_id) is str
+        assert (file_list is None) and (query_dict is
+                                        None), "You must only use 1 parameter"
+    elif query_dict is not None:
+        assert type(query_dict) is dict
+        assert (file_list is None) and (query_id is
+                                        None), "You must only use 1 parameter"
+
+    if (file_list != None) & (type(file_list) is not list):
+        raise TypeError("You must pass a list of file ids to read_files")
+
+    return True
+
+
 def post_query(file_list: list = None,
                query_id: str = None,
                query_dict: dict = None):
@@ -227,19 +271,9 @@ def post_query(file_list: list = None,
         obj : dict
             - JSON output from POST request
     """
-    # make sure users only use 1 parameter
-    if file_list is not None:
-        assert type(file_list) is list
-        assert (query_id is None) & (query_dict is None)
-    elif query_id is not None:
-        assert type(query_id) is str
-        assert (file_list is None) & (query_dict is None)
-    elif query_dict is not None:
-        assert type(query_dict) is dict
-        assert (file_list is None) & (query_id is None)
-
-    if (file_list != None) & (type(file_list) is not list):
-        raise TypeError("You must pass a list of file ids to read_files")
+    # validate params
+    assert validate_post_query_params(
+        file_list, query_id, query_dict), "failed to validate query parameters"
 
     # if user submits query, do the query and grab fileIds
     if query_dict is not None:
@@ -331,6 +365,7 @@ def read_files(file_list: list = None,
             fobj = hise_file(f['error']['File'])
             fobj.message = f["error"]["Message"]
             response.append(fobj)
+            idx += 1
             continue
         else:
             # parse descriptors with info we need to send our request
@@ -358,28 +393,25 @@ def read_files(file_list: list = None,
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
                 cu.log_downloaded_files(f, CONFIG['STORES']['TEMP_STORE'])
+
+                # if the user passes in a file_list, make sure they didn't get redirected because they
+                # downloaded from a guest account
+                if file_list is not None:
+                    this_file_id = file_list[idx]
+                    cu.log_replica_file_download(
+                        f, this_file_id, CONFIG['STORES']['TEMP_STORE'])
             except:
                 response[idx].status = False
                 response[idx].message = "Failed to download file"
+                idx += 1
                 continue
 
-            # if the user passes in a file_list, make sure they didn't get redirected because they
-            # downloaded from a guest account
-            if file_list is not None:
-                this_file_id = file_list[idx]
-                cu.log_replica_file_download(f, this_file_id,
-                                             CONFIG['STORES']['TEMP_STORE'])
         idx += 1
-
-    # check if we have successfully read at least 1 file
-    all_files_not_found = all(item.status is False for item in response)
 
     # find which files where there were errors
     # and print that information to the end-user
     files_not_found = [str(f.id) for f in response if f.status is False]
-    if all_files_not_found:
-        return response
-    elif to_df:
+    if to_df:
         if len(files_not_found) > 0:
             print(
                 colored(
@@ -773,6 +805,8 @@ def read_subjects(subject_ids: str = None,
             "You must specify either subject_ids or query_dict, but not both.")
     if query_dict is not None:
         # check that fields are within sample materialized view
+
+        # TODO: refactor to its' own validation function
         subject_fields = hl.lookup_queryable_fields('subject')['field']
         query_fields = query_dict.keys()
         field_diff = set(query_fields) - set(subject_fields)
