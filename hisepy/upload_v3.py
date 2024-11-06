@@ -113,11 +113,6 @@ def upload_files(files: list,
         "notebook": cu.current_notebook(),
         "homedir": CONFIG["IDE"]["HOME_DIR_V2"]
     }
-
-    # move notebook to output staging
-    qargs['notebook'] = move_file_to_output_staging(qargs['notebook'], project,
-                                                    study_space_id, True)
-
     # export conda env to file and move to output staging
     qargs["condaEnvironmentFile"] = do_conda_export(project, study_space_id)
 
@@ -125,15 +120,12 @@ def upload_files(files: list,
         qargs["studySpaceId"] = study_space_id
 
     body = {"files": []}
-    if do_prompt:
-        print("Copying files to output staging...")
+
     for i, f in enumerate(files):
         if not os.path.exists(f):
             raise ValueError("%s is not a valid file." % f)
         ft = file_types[i] if len(file_types) > i else cu.get_filetype(f)
-        output = move_file_to_output_staging(os.path.abspath(f), project,
-                                             study_space_id)
-        body["files"].append({"name": output, "type": ft})
+        body["files"].append({"name": os.path.abspath(f), "type": ft})
 
     url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
     return cu.parse_hise_response(
