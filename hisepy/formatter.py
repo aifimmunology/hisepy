@@ -347,12 +347,26 @@ def hise_file_to_df(list_of_hise_files):
             final_dict : dictionary with keys {'descriptors',labResults', 'specimens', 'values'} which are all data.frame objects.
             except for values, which depends on the filetype the user passes in.
     """
-    filetype = list_of_hise_files[0].filetype
     list_dict = []
     values_df = pd.DataFrame()
     values_list = []
+    errors_df = pd.DataFrame()
     for i in range(0, len(list_of_hise_files)):
+        # deal with any failed downloads
+        if list_of_hise_files[i].status is False:
+            errors_df = pd.concat([
+                errors_df,
+                pd.DataFrame(
+                    data={
+                        'filetype': [list_of_hise_files[0].filetype],
+                        'id': [list_of_hise_files[0].id],
+                        'message': [list_of_hise_files[0].message]
+                    })
+            ],
+                                  ignore_index=True)
+            continue
         this_desc = list_of_hise_files[i].descriptors
+        filetype = list_of_hise_files[i].filetype
         if type(this_desc) is list:
             for olink_desc in this_desc:
                 tmp_df = reshape_descriptors(olink_desc)
@@ -373,29 +387,43 @@ def hise_file_to_df(list_of_hise_files):
         elif filetype == 'h5':
             values_list.append(list_of_hise_files[i].data_values)
 
-    # go through all results from read_files() output, and create a master dictionary
-    # then parse through and append appropriately
+    # if everything failed, don't create data.frames
+    all_files_not_found = all(item.status is False
+                              for item in list_of_hise_files)
     desc_df = pd.DataFrame()
     lab_df = pd.DataFrame()
     spec_df = pd.DataFrame()
-    for i in range(0, len(list_dict)):
-        desc_df = pd.concat([desc_df, list_dict[i]['descriptors']],
-                            ignore_index=True)
-        lab_df = pd.concat([lab_df, list_dict[i]['labResults']],
-                           ignore_index=True)
-        spec_df = pd.concat([spec_df, list_dict[i]['specimens']],
-                            ignore_index=True)
+    if all_files_not_found:
+        return {
+            'descriptors': desc_df,
+            'labResults': lab_df,
+            'specimens': spec_df,
+            'values': [],
+            'errors': errors_df
+        }
+    else:
+        # go through all results from read_files() output, and create a master dictionary
+        # then parse through and append appropriately
 
-    if filetype == 'csv':
-        data_values = values_df
-    elif filetype == 'h5':
-        data_values = values_list
-    else:  # don't return anything useful under values
-        data_values = []
-    final_dict = {
-        'descriptors': desc_df,
-        'labResults': lab_df,
-        'specimens': spec_df,
-        'values': data_values
-    }
-    return final_dict
+        for i in range(0, len(list_dict)):
+            desc_df = pd.concat([desc_df, list_dict[i]['descriptors']],
+                                ignore_index=True)
+            lab_df = pd.concat([lab_df, list_dict[i]['labResults']],
+                               ignore_index=True)
+            spec_df = pd.concat([spec_df, list_dict[i]['specimens']],
+                                ignore_index=True)
+
+        if filetype == 'csv':
+            data_values = values_df
+        elif filetype == 'h5':
+            data_values = values_list
+        else:  # don't return anything useful under values
+            data_values = []
+        final_dict = {
+            'descriptors': desc_df,
+            'labResults': lab_df,
+            'specimens': spec_df,
+            'values': data_values,
+            'errors': errors_df
+        }
+        return final_dict

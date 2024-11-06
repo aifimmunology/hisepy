@@ -365,6 +365,7 @@ def read_files(file_list: list = None,
             fobj = hise_file(f['error']['File'])
             fobj.message = f["error"]["Message"]
             response.append(fobj)
+            idx += 1
             continue
         else:
             # parse descriptors with info we need to send our request
@@ -392,28 +393,25 @@ def read_files(file_list: list = None,
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
                 cu.log_downloaded_files(f, CONFIG['STORES']['TEMP_STORE'])
+
+                # if the user passes in a file_list, make sure they didn't get redirected because they
+                # downloaded from a guest account
+                if file_list is not None:
+                    this_file_id = file_list[idx]
+                    cu.log_replica_file_download(
+                        f, this_file_id, CONFIG['STORES']['TEMP_STORE'])
             except:
                 response[idx].status = False
                 response[idx].message = "Failed to download file"
+                idx += 1
                 continue
 
-            # if the user passes in a file_list, make sure they didn't get redirected because they
-            # downloaded from a guest account
-            if file_list is not None:
-                this_file_id = file_list[idx]
-                cu.log_replica_file_download(f, this_file_id,
-                                             CONFIG['STORES']['TEMP_STORE'])
         idx += 1
-
-    # check if we have successfully read at least 1 file
-    all_files_not_found = all(item.status is False for item in response)
 
     # find which files where there were errors
     # and print that information to the end-user
     files_not_found = [str(f.id) for f in response if f.status is False]
-    if all_files_not_found:
-        return response
-    elif to_df:
+    if to_df:
         if len(files_not_found) > 0:
             print(
                 colored(
