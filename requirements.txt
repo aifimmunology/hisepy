@@ -55,7 +55,7 @@ google-resumable-media==2.7.2
     # via google-cloud-storage
 googleapis-common-protos==1.65.0
     # via google-api-core
-h5py==3.11.0
+h5py==3.12.1
     # via -r requirements.in
 idna==3.10
     # via requests
@@ -82,7 +82,7 @@ packaging==24.1
     # via
     #   build
     #   plotly
-pandas==2.2.2
+pandas==2.2.3
     # via
     #   -r requirements.in
     #   pyreadr
