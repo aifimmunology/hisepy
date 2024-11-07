@@ -148,6 +148,7 @@ class TestReader:
         fileIds = log_file['fileId'].values
         assert 'file_id1' in fileIds, "Failed to log downloaded files correctly. Expected file_id1, but it does not exist in the log file"
 
+    """ NOTE: can't test this here because it makes an api call
     def test_add_prefix_to_query(self):
         qd = {'id': ['fff']}
         qd_sample = {'visitName': ['vn1'], 'sampleKitGuid': ['skg']}
@@ -160,6 +161,7 @@ class TestReader:
             'sample.visitName': ['vn1'],
             'sample.sampleKitGuid': ['skg']
         }, "Failed to add prefix to query correctly"
+    """
 
     def test_get_filetype(self):
         file1 = 'file1.txt'
@@ -173,9 +175,11 @@ class TestReader:
     def test_post_query(self):
         return
 
+    """ NOTE: can't test this here because it makes a POST request. need to deal with authentication
     def test_query_files(self, init_test):
         hpr.query_files(self.query_file_dict)
         return
+    """
 
     def test_convert_query_dict_to_mongo_query(self, init_test):
         converted_dict = hpr.convert_query_dict_to_mongo_query(self.query_dict)
@@ -240,6 +244,7 @@ class TestReader:
 ## tests below still need to be implemented, but are lower priority for nextgen v1
 ############################################################################################################
 
+    """ NOTE: can't test this either since it needs to make a GET request. need to deal with authentication
     def test_validate_user_query_fields(self):
         qd = {
             'fileType': ['txt'],
@@ -249,6 +254,7 @@ class TestReader:
         assert hpr.validate_user_query_fields(
             qd) == True, "Failed to validate user query fields"
         return
+    """
 
     def test_fail_validate_user_query_fields(self):
         return
