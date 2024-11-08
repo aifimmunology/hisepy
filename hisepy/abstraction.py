@@ -7,6 +7,7 @@ import shutil
 import pathlib as pl
 import hisepy.common_utils as cu
 import hisepy.upload as cup
+import hisepy.auth as auth
 from hisepy.auth import get_bearer_token_header, IDEInstance, debug
 import pandas as pd
 
@@ -136,7 +137,8 @@ class AbstractionAppImg:
         self.description = description
         self.data_contract_id = data_contract_id
         self.work_dir = work_dir
-        self.viz_configs_path = CONFIG['ABSTRACTION']['VIZ_CONFIGS_PATH']
+        self.viz_configs_path = os.getcwd() if not auth.debug(
+        ) is True else CONFIG['ABSTRACTION']['VIZ_CONFIGS_PATH']
 
     def create_static_image_url(self):
         return cu.hise_url("hydration", "hise_wide_static_img_path")
