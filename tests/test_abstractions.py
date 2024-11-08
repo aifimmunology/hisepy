@@ -8,7 +8,6 @@ import os
 import pytest
 import requests
 from unittest import mock
-import pytest_mock
 import hisepy
 import tempfile
 from hisepy.auth import get_bearer_token_header
