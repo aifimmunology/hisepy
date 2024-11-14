@@ -168,10 +168,7 @@ def do_conda_export(project: str, study_space_id: str):
         env=env_dir, dir=CONFIG["STORES"]["TEMP_STORE"]),
                    shell=True)
 
-    # move to output staging
-    return move_file_to_output_staging(
-        "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"]),
-        project, study_space_id, True)
+    return "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"])
 
 
 def select_study_space(proj):
