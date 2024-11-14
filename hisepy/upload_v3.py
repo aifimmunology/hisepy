@@ -114,22 +114,29 @@ def upload_files(files: list,
         "homedir": CONFIG["IDE"]["HOME_DIR_V2"]
     }
     # export conda env to file and move to output staging
-    qargs["condaEnvironmentFile"] = do_conda_export(project, study_space_id)
+    do_conda_export(project, study_space_id)
+    qargs["condaEnvironmentFile"] = move_file_to_output_staging(
+        "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"]),
+        project, study_space_id, True)
 
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
 
-    body = {"files": []}
+    url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
+    return cu.parse_hise_response(
+        requests.post(url,
+                      json=gen_upload_body(files, file_types),
+                      headers=get_bearer_token_header()))
 
+
+def gen_upload_body(files, filetypes):
+    body = {"files": []}
     for i, f in enumerate(files):
         if not os.path.exists(f):
             raise ValueError("%s is not a valid file." % f)
-        ft = file_types[i] if len(file_types) > i else cu.get_filetype(f)
+        ft = filetypes[i] if len(filetypes) > i else cu.get_filetype(f)
         body["files"].append({"name": os.path.abspath(f), "type": ft})
-
-    url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
-    return cu.parse_hise_response(
-        requests.post(url, json=body, headers=get_bearer_token_header()))
+    return body
 
 
 def check_default_store(store: str):
@@ -169,9 +176,7 @@ def do_conda_export(project: str, study_space_id: str):
                    shell=True)
 
     # move to output staging
-    return move_file_to_output_staging(
-        "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"]),
-        project, study_space_id, True)
+    return True
 
 
 def select_study_space(proj):
