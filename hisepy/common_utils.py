@@ -367,11 +367,12 @@ def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
         hise_file (hise_file): hisepy.reader.hise_file object 
         file_id (str): original file_id that's passed in to read_files() or cache_files() 
     """
-    this_file_id, this_file_name, this_desc = parse_file_descriptor_from_hise_file(
+    this_file_id, this_file_name, _ = parse_file_descriptor_from_hise_file(
         hise_file)
     if (this_file_id != file_id):
-        tmp_hise_file = copy.deepcopy(this_desc)
-        tmp_hise_file["id"] = file_id
+        tmp_hise_file = copy.deepcopy(hise_file)
+        # tmp_hise_file["id"] = file_id
+        # import pdb; pdb.set_trace()
         log_downloaded_files(tmp_hise_file, ide_dir)
     return
 
@@ -489,17 +490,37 @@ def tardir(output_filename, source_dir):
 def validate_download_params(file_list: list, query_id: list,
                              query_dict: dict):
     # verify input parameters are sane
-    if file_list is not None and type(file_list) is not list:
-        raise Exception("file_ids parameter must be a list")
-    if query_id is not None and type(query_id) is not list:
-        raise Exception("query_id parameter must be a list")
-    if query_id is not None and len(query_id) > 1:
-        raise Exception(
-            "You can only specify a single query_if per function call")
+    if file_list is not None:
+        if type(file_list) is not list:
+            raise Exception("file_ids parameter must be a list")
+        if query_id is not None and query_dict is not None:
+            raise Exception(
+                "You can only specify one of file_list, query_id, or query_dict per function call"
+            )
+    if query_id is not None:
+        if type(query_id) is not list:
+            raise Exception("query_id parameter must be a list")
+        if len(query_id) > 1:
+            raise Exception(
+                "You can only specify a single query_id per function call")
+        if file_list is not None or query_dict is not None:
+            raise Exception(
+                "You can only specify one of file_list, query_id, or query_dict per function call"
+            )
+    if query_dict is not None:
+        if type(query_dict) is not dict:
+            raise Exception("query_dict parameter must be a dictionary")
+        for d in query_dict.keys():
+            if type(query_dict[d]) is not list:
+                raise Exception("query dictionary values must be of type list")
+        if file_list is not None or query_id is not None:
+            raise Exception(
+                "You can only specify one of file_list, query_id, or query_dict per function call"
+            )
     if file_list is None and query_id is None and query_dict is None:
         raise Exception(
             "One of file_ids, query_dict, or query_id must be non-null")
-    return
+    return True
 
 
 def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
