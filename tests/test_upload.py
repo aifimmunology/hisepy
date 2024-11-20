@@ -46,7 +46,7 @@ class TestIDEInstance():
         mock_response.id = mock_data['id']
         mock_response.destinationProjectGuid = mock_data[
             'destinationProjectGuid']
-        with patch("requests.get", return_value=mock_response):
+        with patch("hisepy.common_utils.hise_get", return_value=mock_response):
             ide = cu.hise_get(
                 cu.hise_url("tracer", "ide_instance", ide_instance_guid()),
                 False)
