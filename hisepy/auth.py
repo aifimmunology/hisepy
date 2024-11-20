@@ -10,6 +10,7 @@ account_guid_path = "attributes/currentAccountGuid"
 identity_path = "service-accounts/default/identity"
 server_id_path = "attributes/hise-server"
 token_env = "TOKEN_GENERATOR"
+sdk_debug = "HISE_SDK_DEBUG"
 
 default_metadata = {
     instance_name_path: os.getenv("TEST_INSTANCE_NAME")
@@ -177,4 +178,4 @@ def get_audience():
 
 # use the presence of the token gen env as a proxy for debug env
 def debug():
-    return os.getenv(token_env) is not None
+    return os.getenv(sdk_debug) is not None
