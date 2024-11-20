@@ -71,6 +71,8 @@ markupsafe==3.0.2
     # via
     #   jinja2
     #   werkzeug
+mock==5.1.0
+    # via -r requirements.in
 nest-asyncio==1.6.0
     # via dash
 numpy==1.26.4
