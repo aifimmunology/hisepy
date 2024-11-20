@@ -114,7 +114,7 @@ def upload_files(files: list,
         "homedir": CONFIG["IDE"]["HOME_DIR_V2"]
     }
     # export conda env to file and move to output staging
-    do_conda_export(project, study_space_id)
+    do_conda_export()
     qargs["condaEnvironmentFile"] = move_file_to_output_staging(
         "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"]),
         project, study_space_id, True)
@@ -164,7 +164,7 @@ def get_conda_env_name():
     return inst.environment['condaEnvName']
 
 
-def do_conda_export(project: str, study_space_id: str):
+def do_conda_export():
     """
     Exports the current conda environment to a file
     """
@@ -243,4 +243,4 @@ def check_project_against_study_space(project, study_space_id):
     if pguid != ss["projectGuid"]:
         raise ValueError(
             "The specified study space %s is not in the project %s" %
-            ss["name"], project)
+            (ss["name"], project))
