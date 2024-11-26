@@ -654,9 +654,12 @@ def load_visualization(id):
                      skip_invalid=True)
 
 
-def get_size_in_megabytes(file_list):
+def get_size_in_megabytes(file_list, convert_to_megabytes=True):
     total_size = 0
     for file in file_list:
         if os.path.isfile(file):
             total_size += os.path.getsize(file)
-    return total_size / (1024 * 1024)  # convert bytes to megabytes
+    if not convert_to_megabytes:
+        return total_size
+    else:
+        return total_size / (1024 * 1024)  # convert bytes to megabytes
