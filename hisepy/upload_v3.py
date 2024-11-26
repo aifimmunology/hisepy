@@ -114,10 +114,7 @@ def upload_files(files: list,
         "homedir": CONFIG["IDE"]["HOME_DIR_V2"]
     }
     # export conda env to file and move to output staging
-    do_conda_export()
-    qargs["condaEnvironmentFile"] = move_file_to_output_staging(
-        "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"]),
-        project, study_space_id, True)
+    qargs["condaEnvironmentFile"] = do_conda_export()
 
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
