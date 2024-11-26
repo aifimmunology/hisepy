@@ -25,11 +25,9 @@ setup(
     url='https://github.com/aifimmunology/hisepy',
     packages=['hisepy'],
     install_requires=[
-        'pandas==2.2.3', 'numpy==1.26.4', 'PyYAML==6.0.2', 'plotly==5.24.1',
-        'dash==2.18.2', 'kaleido==0.2.1', 'google-cloud-storage==2.18.2',
-        'requests==2.32.3', 'h5py==3.12.0', 'google==3.0.0', 'pipreqs==0.4.12',
-        'pip-tools==7.4.1', 'pyreadr==0.5.2', 'termcolor==2.5.0',
-        'pathlib==1.0.1'
+        'pandas', 'numpy', 'PyYAML', 'plotly', 'dash', 'kaleido',
+        'google-cloud-storage', 'requests', 'h5py', 'google',
+        'pipreqs==0.4.12', 'pip-tools', 'pyreadr', 'termcolor', 'pathlib'
     ],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
