@@ -6,7 +6,7 @@ import subprocess
 import hisepy.common_utils as cu
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance
 from hisepy.common_utils import project_shortname_to_guid, project_guid_to_shortname
-from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data
+from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data, get_size_in_megabytes
 
 no_study_default = "no study"
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -171,6 +171,14 @@ def do_conda_export():
     subprocess.run("conda env export -p {env} > {dir}/environment.yml".format(
         env=env_dir, dir=CONFIG["STORES"]["TEMP_STORE"]),
                    shell=True)
+
+    # check that the environment file isn't empty
+    if (get_size_in_megabytes(
+        ["{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"])],
+            False) == 0):
+        raise ValueError(
+            "Environment file is empty, please ensure that the conda environment is active and not empty."
+        )
 
     return "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"])
 
