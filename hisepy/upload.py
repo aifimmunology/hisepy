@@ -158,7 +158,10 @@ def upload_files_v1(files: list,
         raise ValueError(
             "destination param, {}, contains whitespaces. Please rename and remove any whitespaces"
             .format(destination))
-    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
+    if auth.debug():
+        pass
+    else:
+        cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
     uploads = None
     body = None
@@ -250,7 +253,10 @@ def save_visualization(
     tmp_img_file = "/tmp/plotly.png"
 
     pl_obj.write_image(tmp_img_file)
-    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
+    if auth.debug():
+        pass
+    else:
+        cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     if study_space_id is None:
         print(
             "study space id was not submitted. Saving the static image will not happen"
@@ -540,7 +546,10 @@ def save_dash_app(app_filepath: str,
     validate_app_path(app_filepath)
     validate_files(additional_files)
     validate_hero_image(image)
-    cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
+    if auth.debug():
+        pass
+    else:
+        cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
     tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(IDE_HOME_DIR))
 
     # set permissions so toolchain can read and copy this file
