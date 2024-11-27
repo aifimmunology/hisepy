@@ -6,7 +6,7 @@ import requests
 import shutil
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header, instance_account_guid
+from hisepy.auth import get_bearer_token_header
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -73,26 +73,6 @@ def do_post_file_to_private_folder(folder_name: str, file_path: str):
     resp = cu.parse_hise_response(
         requests.post(url, files=this_file, headers=get_bearer_token_header()))
     return resp
-
-
-def migrate_file_to_nextgen_private_folder(file_path: str):
-    '''
-    '''
-
-    # get user's private folder for the account
-    pfs = list(list_files_in_all_private_folders()['folder'].values)
-
-    # get instance account guid
-    inst_account_guid = instance_account_guid()
-
-    # grep the private folder that matches the instance account guid
-    this_folder = [pf for pf in pfs if inst_account_guid[0:4] in pf]
-    import pdb
-    pdb.set_trace()
-
-    # run gsutil command to upload file to the private folder
-
-    # return and let users know how long it took to upload the file
 
 
 def upload_file_to_private_folder(file_path: str, folder_name: str = None):

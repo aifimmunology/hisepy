@@ -13,7 +13,7 @@ import hisepy.common_utils as cu
 import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
-from hisepy.auth import get_bearer_token_header, hise_server
+from hisepy.auth import get_bearer_token_header, hise_server, debug
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -81,14 +81,15 @@ class hise_file:
 class MongoQuery:  # class to handle mongo query language translation
 
     def __init__(self, query_dict):
-        self.query_dict = query_dict
+        if self.validate_query_dict(query_dict):
+            self.query_dict = query_dict
 
         # take user's query and apply metadata scheme to it
         # TODO: this is gonna need to be updated to handle generalized metadata scheme
-        self.prefixed_query = self._add_prefix_to_query()
+        # self.prefixed_query = self._add_prefix_to_query()
 
     # TODO: generalized metadata scheme will need to be implemented here
-    def _add_prefix_to_query(self):
+    def add_prefix_to_query(self):
         """ Takes user's query and adds the appropriate prefix to the field_names """
         # create data.frame of all queryable fields
         new_query_dict = self.query_dict.copy()
@@ -115,27 +116,44 @@ class MongoQuery:  # class to handle mongo query language translation
             new_query_dict.pop(ok)
         return new_query_dict
 
+    def validate_query_dict(self, query_dict):
+        for d in query_dict.keys():
+            if type(query_dict[d]) is not list:
+                raise Exception("query dictionary values must be of type list")
+
+        # TODO: this part of the validation is gonna need to be able to handle
+        # generalized metadata scheme in the near future
+        user_field_names = set(query_dict.keys())
+        acceptable_fields = hl.list_queryable_fields()
+        setdiff = user_field_names.difference(acceptable_fields)
+        if setdiff != set() and not debug():
+            raise Exception("""The following field names are invalid: {uf}. \n
+            Valid field names you can use in your query are: {ac}
+            """.format(uf=setdiff, ac=acceptable_fields))
+        return True
+
     # translate user's query dictionary to mongo query language
-    def query_dict_to_mongo_query(self, operators: list = None):
+    def query_dict_to_mongo_query(self,
+                                  query_dict: dict,
+                                  operators: list = None):
         if operators is None:
-            operators = ['in'] * len(self.prefixed_query)
+            operators = ['in'] * len(query_dict)
         assert len(operators) == len(
-            self.prefixed_query
-        ), "operators must be of same length as query_dict"
+            query_dict), "operators must be of same length as query_dict"
 
         # take the user's query and reformat it using mongo  query language
         idx = 0
-        for k, v in self.prefixed_query.items():
+        for k, v in query_dict.items():
             if operators[idx] == 'in':
-                self.prefixed_query.update({k: {'$in': v}})
+                query_dict.update({k: {'$in': v}})
             elif operators[idx] == 'or':
-                self.prefixed_query.update({k: {'$or': v}})
+                query_dict.update({k: {'$or': v}})
             elif operators[idx] == 'and':
-                self.prefixed_query.update({k: {'$and': v}})
+                query_dict.update({k: {'$and': v}})
             elif operators[idx] == 'not':
-                self.prefixed_query.update({k: {'$not': v}})
+                query_dict.update({k: {'$not': v}})
             idx += 1
-        return
+        return query_dict
 
     # methods to handle boolean query logic
     def create_mongo_query_in(self):
@@ -151,27 +169,6 @@ class MongoQuery:  # class to handle mongo query language translation
         return
 
 
-def validate_query_files_params(user_query: dict):
-    """ 
-    Validates user's query parameters for query_files
-    """
-    if 'fileType' not in user_query.keys():
-        raise Exception("fileType must be in your query dictionary")
-    for d in user_query.keys():
-        if type(user_query[d]) is not list:
-            raise Exception("query dictionary values must be of type list")
-    return True
-
-
-def convert_query_dict_to_mongo_query(query_dict: dict):
-    """
-    Converts user's query dictionary to a mongo query language
-    """
-    # take the user's query and reformat it using mongo  query language
-    query_dict.update((k, {'$in': v}) for k, v in query_dict.items())
-    return query_dict
-
-
 def query_files(user_query: dict):
     """ 
     POST request to ledger by submitting user's query parameters
@@ -184,36 +181,16 @@ def query_files(user_query: dict):
         query_files(user_query={'cohortGuid' : ['FH1']})
     """
 
-    validate_query_files_params(user_query)
     query_instance = MongoQuery(user_query)
-    query_instance.query_dict_to_mongo_query()
-    #query_dict = user_query.copy()
-    #query_dict = _add_prefix_to_query(query_dict)
-
-    # take the user's query and reformat it using mongo  query language
-    #query_dict = convert_query_dict_to_mongo_query(query_dict)
-
+    formatted_query = query_instance.query_dict_to_mongo_query(
+        query_instance.add_prefix_to_query())
     endpoint = "https://{s}/{de}".format(
         s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
     obj = cu.parse_hise_response(
         requests.post(endpoint,
-                      data=json.dumps(
-                          {"filter": query_instance.prefixed_query}),
+                      data=json.dumps({"filter": formatted_query}),
                       headers=get_bearer_token_header()))
     return obj['payload']
-
-
-def validate_user_query_fields(query):
-    ''' Checks that keys of users' dictionary all are acceptable
-    '''
-    user_field_names = set(query.keys())
-    acceptable_fields = hl.list_queryable_fields()
-    setdiff = user_field_names.difference(acceptable_fields)
-    if setdiff != set():
-        raise Exception("""The following field names are invalid: {uf}. \n
-        Valid field names you can use in your query are: {ac}
-        """.format(uf=setdiff, ac=acceptable_fields))
-    return True
 
 
 def get_file_descriptors(query_dict: dict = None):
@@ -244,8 +221,6 @@ def get_file_descriptors(query_dict: dict = None):
     assert 'fileType' in query_dict.keys(
     ), 'fileType field must be in the your query dictionary.'
     # get a list of descriptor objects
-    if query_dict is not None:
-        validate_user_query_fields(query_dict)
     obj = query_files(query_dict)
 
     dict_df = {
@@ -381,6 +356,8 @@ def read_files(file_list: list = None,
             print("Canceling read_files call")
             return
     elif query_dict != None:
+        if 'fileType' not in query_dict.keys() and not debug():
+            raise Exception("fileType must be in your query dictionary")
         if cu.prompt_user(CONFIG["PROMPTS"]["QUERY_DICT_READ"]):
             obj = post_query(query_dict=query_dict)
         else:
@@ -783,7 +760,9 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
         ), 'the following fields are not part of sample materialized view...{}'.format(
             field_diff)
         # modify user's query and convert to mongo query language
-        query = MongoQuery(query_dict)
+        mg_instance = MongoQuery(query_dict)
+        query = mg_instance.query_dict_to_mongo_query(
+            mg_instance.add_prefix_to_query())
         #qdict = query_dict.copy()
         #qdict = _add_prefix_to_query(query_dict)
         # have to hardcode cohort
@@ -851,7 +830,9 @@ def read_subjects(subject_ids: str = None,
             field_diff)
 
         # modify user's query and convert to mongo query language
-        query = MongoQuery(query_dict)
+        mg_instance = MongoQuery(query_dict)
+        query = mg_instance.query_dict_to_mongo_query(
+            mg_instance.add_prefix_to_query())
 
     elif subject_ids is not None:
         if type(subject_ids) is not list:
