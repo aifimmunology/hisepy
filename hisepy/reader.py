@@ -271,6 +271,7 @@ def post_query(file_list: list = None,
                query_dict: dict = None):
     """ 
     creates a response object from POST request to a Hydration endpoint
+    
     Parameters:
         file_list : list
             - list of file_ids
