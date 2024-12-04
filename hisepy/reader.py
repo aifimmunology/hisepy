@@ -6,7 +6,7 @@ import uuid
 import pandas as pd
 import copy
 from termcolor import colored
-
+import math 
 import requests
 from hisepy.instances import IDEInstance
 import hisepy.common_utils as cu
@@ -184,12 +184,35 @@ def query_files(user_query: dict):
     query_instance = MongoQuery(user_query)
     formatted_query = query_instance.query_dict_to_mongo_query(
         query_instance.add_prefix_to_query())
-    endpoint = "https://{s}/{de}".format(
+    
+    # count how many entries are in query 
+    count_endpoint = "https://{s}/{de}?_count=true".format(
         s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
-    obj = cu.parse_hise_response(
-        requests.post(endpoint,
-                      data=json.dumps({"filter": formatted_query}),
-                      headers=get_bearer_token_header()))
+    count = cu.parse_hise_response(requests.post(count_endpoint, 
+                                                 data = json.dumps({"filter": formatted_query}),
+                                                 headers=get_bearer_token_header()))
+    
+    # paginate/chunk if count is greater than pagination_size we set in config 
+    page_size = CONFIG['IDE']['PAGINATION_SIZE']
+    obj = {'payload': []}
+    if count['payload'] >= page_size:
+        num_chunks = math.ceil(count['payload'] / page_size)
+        for i in range(0, num_chunks):
+            endpoint = "https://{s}/{de}?page_size={ps}&page_number={pn}".format(
+                s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'], ps=page_size, pn=i+1)
+            this_chunk = cu.parse_hise_response(
+                requests.post(endpoint,
+                              data=json.dumps({"filter": formatted_query}),
+                              headers=get_bearer_token_header()))
+            obj['payload'] += this_chunk['payload']
+    else: 
+        endpoint = "https://{s}/{de}".format(
+            s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+        obj = cu.parse_hise_response(
+            requests.post(endpoint,
+                          data=json.dumps({"filter": formatted_query}),
+                          headers=get_bearer_token_header()))
+
     return obj['payload']
 
 
