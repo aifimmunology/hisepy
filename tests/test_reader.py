@@ -2,7 +2,7 @@ import sys
 
 sys.path.insert(
     0, '../')  # TODO: fix this up before getting a cloud build trigger
-
+from unittest.mock import patch
 import hisepy.reader as hpr
 import hisepy.common_utils as hpcu
 import os
@@ -182,20 +182,28 @@ class TestReader:
     """
 
     def test_convert_query_dict_to_mongo_query(self, init_test):
-        converted_dict = hpr.convert_query_dict_to_mongo_query(self.query_dict)
-        assert converted_dict == {
-            'field1': {
-                '$in': ['value1']
-            }
-        }, "Failed to convert query dictionary to mongo query"
-        assert hpr.convert_query_dict_to_mongo_query(self.query_file_dict) == {
-            'fileType': {
-                '$in': ['txt']
-            },
-            'cohortGuid': {
-                '$in': ['cohortA']
-            }
-        }, "Failed to convert query dictionary to mongo query"
+
+        with patch("hisepy.lookup.list_queryable_fields",
+                   return_value=['field1']):
+            mq = hpr.MongoQuery(self.query_dict)
+            converted_dict = mq.query_dict_to_mongo_query(mq.query_dict)
+            #converted_dict = hpr.convert_query_dict_to_mongo_query(self.query_dict)
+            assert converted_dict == {
+                'field1': {
+                    '$in': ['value1']
+                }
+            }, "Failed to convert query dictionary to mongo query"
+        with patch("hisepy.lookup.list_queryable_fields",
+                   return_value=['fileType', 'cohortGuid']):
+            mq2 = hpr.MongoQuery(self.query_file_dict)
+            assert mq2.query_dict_to_mongo_query(mq2.query_dict) == {
+                'fileType': {
+                    '$in': ['txt']
+                },
+                'cohortGuid': {
+                    '$in': ['cohortA']
+                }
+            }, "Failed to convert query dictionary to mongo query"
 
     @pytest.mark.xfail(raises=AssertionError)
     def test_fail_validate_query_files_params(self, init_test):

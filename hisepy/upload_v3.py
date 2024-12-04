@@ -4,7 +4,7 @@ import re
 import shutil
 import subprocess
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance
+from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, debug
 from hisepy.common_utils import project_shortname_to_guid, project_guid_to_shortname
 from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data, get_size_in_megabytes
 
@@ -94,9 +94,11 @@ def upload_files(files: list,
         raise ValueError(
             "destination directory %s contains whitespaces. Please rename and remove any whitespaces"
             % destination)
-
-    cu.validate_upload_input_ids(input_file_ids, input_sample_ids,
-                                 CONFIG["STORES"]["TEMP_STORE"])
+    if debug():
+        pass
+    else:
+        cu.validate_upload_input_ids(input_file_ids, input_sample_ids,
+                                     CONFIG["STORES"]["TEMP_STORE"])
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
     inst = IDEInstance()
     qargs = {
@@ -175,7 +177,7 @@ def do_conda_export():
     # check that the environment file isn't empty
     if (get_size_in_megabytes(
         ["{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"])],
-            False) == 0):
+            False) == 0) and not debug():
         raise ValueError(
             "Environment file is empty, please ensure that the conda environment is active and not empty."
         )
