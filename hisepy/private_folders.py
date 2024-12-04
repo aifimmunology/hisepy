@@ -13,15 +13,12 @@ _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
-def update_private_folder(folder_name: str = None,
-                          file_expiration: int = None,
-                          description: str = None):
+def update_private_folder(folder_name: str = None, description: str = None):
     '''
     Update the properties of a Private Folder.
 
     Parameters: 
         folder_name (str) : Name of Private Folder.
-        file_expiration (int) : Number of days until files are deleted from the Private Folder.
         description (str) : Description of the Private Folder.
 
     Returns:
@@ -30,16 +27,9 @@ def update_private_folder(folder_name: str = None,
 
     if description is not None:
         assert type(description) is str, 'description must be of type str'
-    if file_expiration is None:
-        file_expiration = ""
-    if type(file_expiration) is int:
-        file_expiration = str(file_expiration)
 
     # create url and payload
-    folder_info = {
-        "fileExpiration": file_expiration,
-        "description": description
-    }
+    folder_info = {"description": description}
     url = cu.hise_url('hydration',
                       'user_folder_path',
                       resource='%s' % (folder_name))
@@ -150,7 +140,7 @@ def list_files_in_private_folder(folder_name: str = None):
     return pd.DataFrame(resp['result'])
 
 
-def create_private_folder(folder_name: str, file_expiration: int = None):
+def create_private_folder(folder_name: str):
     '''
     Creates a new private folder. 
 
@@ -158,26 +148,15 @@ def create_private_folder(folder_name: str, file_expiration: int = None):
 
     Parameters: 
         folder_name (str) : Name of folder to create. 
-        file_expiration (int) : Days until files in Private Folder get deleted. (Default None. Files won't be deleted) 
     Returns: 
         Response object
     '''
     assert type(folder_name
                 ) is str, 'The name of folder must be assigned a string value.'
 
-    # validate file_expiration parameter
-    if file_expiration is None:
-        file_expiration = ""
-    else:
-        assert type(
-            file_expiration
-        ) is int, 'file_expiration must be an integer that denotes the number of days until a file is removed.'
-        file_expiration = str(file_expiration)
-
     # create url and payload
     folder_info = {
         'folderName': folder_name,
-        'fileExpiration': file_expiration
     }
     url = cu.hise_url('hydration', 'user_folder_path')
     resp = cu.parse_hise_response(

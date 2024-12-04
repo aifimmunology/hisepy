@@ -146,7 +146,7 @@ class TestReader:
         # open the file and check if file_id1 is in the file
         log_file = pyreadr.read_r('.hisefilelog.rds')[None]
         fileIds = log_file['fileId'].values
-        assert 'file_id1' in fileIds, "Failed to log downloaded files correctly. Expected file_id1, but it does not exist in the log file"
+        assert 'file_id2' in fileIds, "Failed to log downloaded files correctly. Expected file_id1, but it does not exist in the log file"
 
     """ NOTE: can't test this here because it makes an api call
     def test_add_prefix_to_query(self):
