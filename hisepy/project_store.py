@@ -140,7 +140,8 @@ def download_from_project_store_v1(store_name, file_name='', subdir=''):
                 fn=i)
             _submit_url_download(this_url, store_name, i)
             ps_file_id = ps_df.loc[ps_df['name'].eq(i), 'id'].item()
-            cu.log_project_download(ps_file_id)
+            
+            cu.log_downloaded_files(ps_file_id, None, CONFIG['STORES']['TEMP_STORE'])
     else:
         # create url download
         url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
@@ -152,7 +153,7 @@ def download_from_project_store_v1(store_name, file_name='', subdir=''):
             fn=file_name)
         _submit_url_download(url, store_name, file_name)
         ps_file_id = ps_df.loc[ps_df['name'].eq(file_name), 'id'].item()
-        cu.log_project_download(ps_file_id)
+        cu.log_downloaded_files(ps_file_id, None, CONFIG['STORES']['TEMP_STORE'])
     return True
 
 
@@ -196,7 +197,8 @@ def download_from_project_store(store_name, file_name='', subdir=''):
                 requests.request("GET", url,
                                  headers=get_bearer_token_header()))
             ps_file_id = ps_df.loc[ps_df['name'].eq(i), 'id'].item()
-            cu.log_project_download(ps_file_id, CONFIG['STORES']['TEMP_STORE'])
+
+            cu.log_downloaded_files(ps_file_id, None, CONFIG['STORES']['TEMP_STORE'])
             print("file {}, downloaded to {}".format(i, resp['file']))
     else:
         # create url download
@@ -211,7 +213,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
         resp = cu.parse_hise_response(
             requests.request("GET", url, headers=get_bearer_token_header()))
         ps_file_id = ps_df.loc[ps_df['name'].eq(file_name), 'id'].item()
-        cu.log_project_download(ps_file_id, CONFIG['STORES']['TEMP_STORE'])
+        cu.log_downloaded_files(ps_file_id, None, CONFIG['STORES']['TEMP_STORE'])
         print("file {}, successfully downloaded to {}".format(
             file_name, resp['file']))
     return True
