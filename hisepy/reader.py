@@ -780,9 +780,43 @@ def download_files(file_dict: dict):
         response.append(hf)
 
     return response
+def validate_samples_subjects_params(ids_list: list = None,
+                                 query_dict: dict = None):
+    """
+    Validates user's query parameters for POST request to ledger
+    """
+    # make sure users only use 1 parameter
+    assert ids_list is not None or query_dict is not None, "either list of ids or query_dict must be a non-null"
+    if ids_list is not None:
+        assert type(ids_list) is list
+        assert query_dict is None, "You must only use 1 parameter"
+    elif query_dict is not None:
+        assert type(query_dict) is dict
+        assert ids_list is None, "You must only use 1 parameter"
+    return True
+
+# TODO: this method is gonna need to change when generalized metadata models becomes a thing 
+def gen_read_samples_subjects_query(ids_list: list = None, query_dict: dict = None, is_sample_query: bool = True):
+    """
+    Generates a query for the SampleStatus materialized view.
+    """
+    if query_dict is not None:
+        # modify user's query and convert to mongo query language
+        mg_instance = MongoQuery(query_dict)
+        query = mg_instance.query_dict_to_mongo_query(
+            mg_instance.add_prefix_to_query())
+        
+        # have to hardcode cohort
+         # TODO: sanity check that this is still needed after refactor
+        if "cohort.cohortGuid" in query and is_sample_query:
+            query["subject.cohort"] = query["cohort.cohortGuid"]
+            query.pop("cohort.cohortGuid")
+    elif ids_list is not None:
+        query = {"id": {"$in": ids_list}}
+    return query 
 
 
-def read_samples(sample_ids=None, query_dict=None, to_df=True):
+def read_samples(sample_ids:list=None, query_dict:dict=None, to_df=True):
     """
     Read or search the SampleStatus materialized view. User should specify one 
     or the other of sample_ids or query.
@@ -800,54 +834,23 @@ def read_samples(sample_ids=None, query_dict=None, to_df=True):
         hp.read_samples(sample_ids=['e82714e3-d0c9-46a1-9ea6-62a34cba3265'])
 
     """
-    # check only 1 optional parameter is being assigned
-    if sum(p is not None for p in [sample_ids, query_dict]) != 1:
-        raise ValueError(
-            "You must specify either sample_ids or query_dict, but not both.")
-    if query_dict is not None:
-        if type(query_dict) is not dict:
-            raise TypeError('query_dict must be of type dictionary')
-        # check that fields are within sample materialized view
-        sample_fields = hl.lookup_queryable_fields(
-            'sample')['field'].unique().tolist() + ['subjectGuid']
-        query_fields = query_dict.keys()
-        field_diff = set(query_fields) - set(sample_fields)
-        assert field_diff == set(
-        ), 'the following fields are not part of sample materialized view...{}'.format(
-            field_diff)
-        # modify user's query and convert to mongo query language
-        mg_instance = MongoQuery(query_dict)
-        query = mg_instance.query_dict_to_mongo_query(
-            mg_instance.add_prefix_to_query())
-        #qdict = query_dict.copy()
-        #qdict = _add_prefix_to_query(query_dict)
-        # have to hardcode cohort
-        if "cohort.cohortGuid" in query:
-            query["subject.cohort"] = query["cohort.cohortGuid"]
-            query.pop("cohort.cohortGuid")
-    elif sample_ids is not None:
-        if type(sample_ids) is not list:
-            raise TypeError("sample_ids must be a list")
-        query = {"id": {"$in": sample_ids}}
+
+    # validate user params 
+    validate_samples_subjects_params(sample_ids, query_dict)
+    query = gen_read_samples_subjects_query(sample_ids, query_dict)
     if query is None:
         raise TypeError(
-            "You must specify either a list of sample_ids or a query")
+            "Failed to generate query from user's parameters. You must specify either a list of sample_ids or a query")
+    
+    # send request to ledger to get samples
     endpoint = "https://%s/%s" % (hise_server(),
                                   CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
-    resp = requests.post(endpoint,
+    obj = cu.parse_hise_response(requests.post(endpoint,
                          data=json.dumps({"filter": query}),
-                         headers=get_bearer_token_header())
-    if resp.status_code != 200:
-        raise SystemError("Request to %s failed with status %d. %s" %
-                          (endpoint, resp.status_code, resp.text))
-    obj = json.loads(resp.text)
+                         headers=get_bearer_token_header()))
+    
     if obj['payload'] is None:
         raise ValueError("User's query resulted in 0 results")
-    if type(obj) is not dict:
-        raise TypeError("Response %s is not a list, it is a %s." %
-                        (resp.text, type(obj)))
-    elif "payload" not in obj:
-        raise TypeError("Response %s contained an empty payload!" % resp.text)
     if to_df:
         return hf.sample_to_df(obj["payload"])
     else:
@@ -871,51 +874,22 @@ def read_subjects(subject_ids: str = None,
         response payload as a data.frame or JSON 
 
     """
-    if sum(p is not None for p in [subject_ids, query_dict]) != 1:
-        raise ValueError(
-            "You must specify either subject_ids or query_dict, but not both.")
-    if query_dict is not None:
-        # check that fields are within sample materialized view
+    validate_samples_subjects_params(subject_ids, query_dict)
 
-        # TODO: refactor to its' own validation function
-        subject_fields = hl.lookup_queryable_fields('subject')['field']
-        query_fields = query_dict.keys()
-        field_diff = set(query_fields) - set(subject_fields)
-        assert field_diff == set(
-        ), 'the following fields are not part of sample materialized view...{}'.format(
-            field_diff)
-
-        # modify user's query and convert to mongo query language
-        mg_instance = MongoQuery(query_dict)
-        query = mg_instance.query_dict_to_mongo_query(
-            mg_instance.add_prefix_to_query())
-
-    elif subject_ids is not None:
-        if type(subject_ids) is not list:
-            raise TypeError("subject_ids must be a list")
-        query = {"id": {"$in": subject_ids}}
+    query = gen_read_samples_subjects_query(subject_ids, query_dict, is_sample_query=False)
     if query is None:
         raise TypeError(
             "You must specify either a list of subject_ids or a query")
 
+    # send thy request to ledger
     endpoint = "https://%s/%s" % (hise_server(),
                                   CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
-    resp = requests.post(endpoint,
+    obj = cu.parse_hise_response(requests.post(endpoint,
                          data=json.dumps({"filter": query}),
-                         headers=get_bearer_token_header())
+                         headers=get_bearer_token_header()))
 
-    if resp.status_code != 200:
-        raise SystemError("Request to %s failed with status %d. %s" %
-                          (endpoint, resp.status_code, resp.text))
-
-    obj = json.loads(resp.text)
     if obj['payload'] is None:
         raise ValueError("User's query resulted in 0 results")
-    if type(obj) is not dict:
-        raise TypeError("Response %s is not a list, it is a %s." %
-                        (resp.text, type(obj)))
-    elif "payload" not in obj:
-        raise TypeError("Response %s contained an empty payload!" % resp.test)
     if to_df:
         return hf.subject_to_df(obj["payload"])
     else:
