@@ -6,7 +6,7 @@ import uuid
 import pandas as pd
 import copy
 from termcolor import colored
-
+import math 
 import requests
 from hisepy.instances import IDEInstance
 import hisepy.common_utils as cu
@@ -169,6 +169,51 @@ class MongoQuery:  # class to handle mongo query language translation
         return
 
 
+
+def count_payload_entries(query: dict):
+    """
+    """
+    count_endpoint = "https://{s}/{de}?_count=true".format(
+        s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+    count = cu.parse_hise_response(requests.post(count_endpoint, 
+                                                 data = json.dumps({"filter": query}),
+                                                 headers=get_bearer_token_header()))
+    return count['payload']
+
+
+def submit_file_descriptor_request(formatted_query: dict, count : int): 
+    
+    # paginate/chunk if count is greater than pagination_size we set in config 
+    if count > CONFIG['IDE']['PAGINATION_SIZE']:
+        obj = submit_paginated_query(formatted_query, count)
+    else: 
+        endpoint = "https://{s}/{de}".format(
+            s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+        obj = cu.parse_hise_response(
+            requests.post(endpoint,
+                          data=json.dumps({"filter": formatted_query}),
+                          headers=get_bearer_token_header()))
+    return obj
+
+def submit_paginated_query(query : dict, number_entries: int): 
+    """
+    """
+
+    # determine how many chunks 
+    page_size = CONFIG['IDE']['PAGINATION_SIZE']
+    obj = {'payload': []}
+    num_chunks = math.ceil(number_entries / page_size)
+    for i in range(0, num_chunks):
+        endpoint = "https://{s}/{de}?page_size={ps}&page_number={pn}".format(
+            s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'], ps=page_size, pn=i+1)
+        this_chunk = cu.parse_hise_response(
+            requests.post(endpoint,
+                            data=json.dumps({"filter": query}),
+                            headers=get_bearer_token_header()))
+        obj['payload'] += this_chunk['payload']
+    return obj 
+
+
 def query_files(user_query: dict):
     """ 
     POST request to ledger by submitting user's query parameters
@@ -184,12 +229,11 @@ def query_files(user_query: dict):
     query_instance = MongoQuery(user_query)
     formatted_query = query_instance.query_dict_to_mongo_query(
         query_instance.add_prefix_to_query())
-    endpoint = "https://{s}/{de}".format(
-        s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
-    obj = cu.parse_hise_response(
-        requests.post(endpoint,
-                      data=json.dumps({"filter": formatted_query}),
-                      headers=get_bearer_token_header()))
+    
+    # count how many entries are in query 
+    count = count_payload_entries(formatted_query)
+    obj = submit_file_descriptor_request(formatted_query, count)
+
     return obj['payload']
 
 
@@ -406,7 +450,11 @@ def read_files(file_list: list = None,
                 response[idx].status = True
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
-                cu.log_downloaded_files(f, CONFIG['STORES']['TEMP_STORE'])
+
+                # grab fileId and sampleID
+                this_file_id = cu.parse_file_id_from_hise_file(f)
+                this_sample_id = cu.parse_sample_id_from_hise_file(f)
+                cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG['STORES']['TEMP_STORE'])
 
                 # if the user passes in a file_list, make sure they didn't get redirected because they
                 # downloaded from a guest account
@@ -477,7 +525,9 @@ def read_files_v1(file_list: list = None,
             continue
         else:
             response.append(cache_and_convert_file_data(f))
-            cu.log_downloaded_files(f, CONFIG["IDE"]["HOME_DIR"])
+            this_file_id = cu.parse_file_id_from_hise_file(f)
+            this_sample_id = cu.parse_sample_id_from_hise_file(f)
+            cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["IDE"]["HOME_DIR"])
 
             # if the response's fileId is different than the ID we original made the request with, then toolchain
             # noticed the request came from a guest account. if that's the case, we just log both files
@@ -599,7 +649,10 @@ def cache_files_v1(file_ids: list = None,
         f_name = os.path.basename(this_file_name)
         print("downloading fileID: {}".format(this_file_id))
         cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
-        cu.log_downloaded_files(f, CONFIG["IDE"]["HOME_DIR"])
+
+        this_file_id = cu.parse_file_id_from_hise_file(f)
+        this_sample_id = cu.parse_sample_id_from_hise_file(f)
+        cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["IDE"]["HOME_DIR"])
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
         # downloaded from a guest account
@@ -656,7 +709,9 @@ def cache_files(file_ids: list = None,
                              endpoint,
                              headers=get_bearer_token_header()))
 
-        cu.log_downloaded_files(f, CONFIG["STORES"]["TEMP_STORE"])
+        this_file_id = cu.parse_file_id_from_hise_file(f)
+        this_sample_id = cu.parse_sample_id_from_hise_file(f)
+        cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["STORES"]["TEMP_STORE"])
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
         # downloaded from a guest account
@@ -770,7 +825,6 @@ def read_samples(sample_ids:list=None, query_dict:dict=None, to_df=True):
         sample_ids (list): a list of UUIDS to retrieve.
         query_dict (dict): a dictionary object containing search 
             parameters using mongo query language.
-        query_id (str): string value of queryID from Advanced Search.
         to_df (bool) : If true, returns a data.frame object
 
     Returns:

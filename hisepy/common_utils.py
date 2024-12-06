@@ -168,6 +168,40 @@ def get_projects(to_df: bool = True):
     return resp
 
 
+def parse_file_id_from_hise_file(hise_file):
+    """
+    Takes a hise_file object and returns the file_id
+
+    Parameters:
+        hise_file (hise_file): hisepy.reader.hise_file object 
+    Returns: 
+        a string file_id
+    """
+    # descriptors can have > 1 entry if filetype == Olink
+    if type(hise_file['descriptors']) is list:
+        this_file_id = hise_file['descriptors'][0]['file']['id']
+    elif type(hise_file['descriptors']) is dict:
+        this_file_id = hise_file['descriptors']['file']['id']
+    return this_file_id
+
+
+def parse_sample_id_from_hise_file(hise_file):
+    """
+    Takes a hise_file object and returns the sample_id
+
+    Parameters:
+        hise_file (hise_file): hisepy.reader.hise_file object 
+    Returns: 
+        a string sample_id
+    """
+    # descriptors can have > 1 entry if filetype == Olink
+    if type(hise_file['descriptors']) is list:
+        this_sample_id = hise_file['descriptors'][0]['sample']['id']
+    elif type(hise_file['descriptors']) is dict:
+        this_sample_id = hise_file['descriptors']['sample']['id']
+    return this_sample_id
+
+
 def project_guid_to_shortname(proj_guid):
     """
     Takes a string, looks up if there's a Project guid with the passed in value. If there is, return the corresponding short name.
@@ -272,62 +306,21 @@ def list_files_and_dirs(directory):
     return os.listdir(directory)
 
 
-def log_downloaded_files(hise_file, ide_dir: str):
-    """ Exports, or creates, a .rds file in data.frame format and saves it in user's 
-        home directory 
-
-        Parameters: 
-            hise_file : hise_file object
-    """
-    cache_file_path = '{h}/{c}'.format(h=ide_dir,
-                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
-    cache_df = pd.DataFrame(columns=[
-        'fileId', 'sampleId', 'downloadSourceDir', 'downloadTimeStamp'
-    ])
-    download_workdir = os.getcwd()
-
-    if os.path.exists(cache_file_path):
-        cache_file = pyreadr.read_r(cache_file_path)
-
-        # extract out the data.frame
-        cache_df = cache_file[None]
-
-    # do some logging - what samples and files were downloaded?
-    # descriptors can have > 1 entry if filetype == Olink
-    # so lets just take the first sampleID if that's the case
-    if type(hise_file['descriptors']) is list:
-        this_sample_id = hise_file['descriptors'][0]['sample']['id']
-        this_file_id = hise_file['descriptors'][0]['file']['id']
-    elif type(hise_file['descriptors']) is dict:
-        this_sample_id = hise_file['descriptors']['sample']['id']
-        this_file_id = hise_file['descriptors']['file']['id']
-
-    # no need to append something a user has already downloaded and logged
-    if this_file_id in cache_df['fileId'].values:
-        pass
-    else:
-        this_entry_df = pd.DataFrame(
-            data={
-                'fileId': [this_file_id],
-                'sampleId': [this_sample_id],
-                'downloadSourceDir': [download_workdir],
-                'downloadTimeStamp': [str(datetime.datetime.now())]
-            })
-        cache_df = pd.concat([cache_df, this_entry_df])
-        pyreadr.write_rds(
-            '{h}/{d}'.format(h=ide_dir, d=CONFIG['IDE']['CACHE_LOG_NAME']),
-            cache_df)
-    return
-
-
-# TODO: combine this log_downloaded_files()
-def log_project_download(file_id: str, ide_dir: str):
+def log_downloaded_files(file_id: str, sample_id: str = None, ide_dir: str= None):
     """
     Attaches fileId for the project folder file that was downloaded 
     
     Parameters: 
         file_id (str) : file_id of file in project folder 
     """
+    # fileID must not be null at least 
+    if file_id is None:
+        raise ValueError("must pass in a file_id to log_download_files()")
+    
+    # if null, assume ide directory is (/home/jupyter)
+    if ide_dir is None:
+        ide_dir = CONFIG['IDE']['HOME_DIR']
+    
     cache_file_path = '{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[
@@ -347,7 +340,7 @@ def log_project_download(file_id: str, ide_dir: str):
         new_entry = pd.DataFrame(
             data={
                 'fileId': [file_id],
-                'sampleId': [''],
+                'sampleId': [sample_id],
                 'downloadSourceDir': [download_workdir],
                 'downloadTimeStamp': [str(datetime.datetime.now())]
             })
@@ -373,7 +366,7 @@ def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
         tmp_hise_file = copy.deepcopy(hise_file)
         # tmp_hise_file["id"] = file_id
         # import pdb; pdb.set_trace()
-        log_downloaded_files(tmp_hise_file, ide_dir)
+        log_downloaded_files(this_file_id, None, ide_dir)
     return
 
 
