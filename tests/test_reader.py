@@ -239,44 +239,16 @@ class TestReader:
                 match="query dictionary values must be of type list"):
             hpr.validate_query_files_params({'fileType': 'txt'})
 
-    # TODO: needs refactoring
-    def test_read_files(self):
-        return
+    def test_validate_samples_subjects_params(self, init_test):
+        hpr.validate_samples_subjects_params(self.file_ids, None)
+        hpr.validate_samples_subjects_params(None, self.query_dict)
 
-    # TODO: needs refactoring
-    def test_cache_files(self):
-        return
-
-
-############################################################################################################
-## tests below still need to be implemented, but are lower priority for nextgen v1
-############################################################################################################
-
-    """ NOTE: can't test this either since it needs to make a GET request. need to deal with authentication
-    def test_validate_user_query_fields(self):
-        qd = {
-            'fileType': ['txt'],
-            'cohortGuid': ['cohortA'],
-            'sampleKitGuid': ['sample_kit_guid']
-        }
-        assert hpr.validate_user_query_fields(
-            qd) == True, "Failed to validate user query fields"
-        return
-    """
-
-    def test_fail_validate_user_query_fields(self):
-        return
-
-    def test_append_descriptors(self):
-        return
-
-    def test_get_file_descriptors(self):
-        return
-
-    # TODO: needs refactoring
-    def test_read_samples(self):
-        return
-
-    # TODO: refactoring needed
-    def test_read_subjects(self):
-        return
+    def test_fail_validate_samples_subjects_params(self, init_test):
+        with pytest.raises(
+                Exception,
+                match="either list of ids or query_dict must be a non-null"):
+            hpr.validate_samples_subjects_params(None, None)
+        with pytest.raises(
+                Exception,
+                match="You must only use 1 parameter"):
+            hpr.validate_samples_subjects_params(self.file_ids, self.query_dict)
