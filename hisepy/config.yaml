@@ -89,6 +89,7 @@ IDE:
   CACHE_LOG_NAME : .hisefilelog.rds
   DEFAULTS_LOG_NAME : .hiseprefs.rds
   DOWNLOAD_CHUNK_SIZE : 102400
+  PAGINATION_SIZE : 100
 
 IDE_MANAGEMENT:
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
