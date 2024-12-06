@@ -406,7 +406,11 @@ def read_files(file_list: list = None,
                 response[idx].status = True
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
-                cu.log_downloaded_files(f, CONFIG['STORES']['TEMP_STORE'])
+
+                # grab fileId and sampleID
+                this_file_id = cu.parse_file_id_from_hise_file(f)
+                this_sample_id = cu.parse_sample_id_from_hise_file(f)
+                cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG['STORES']['TEMP_STORE'])
 
                 # if the user passes in a file_list, make sure they didn't get redirected because they
                 # downloaded from a guest account
@@ -477,7 +481,9 @@ def read_files_v1(file_list: list = None,
             continue
         else:
             response.append(cache_and_convert_file_data(f))
-            cu.log_downloaded_files(f, CONFIG["IDE"]["HOME_DIR"])
+            this_file_id = cu.parse_file_id_from_hise_file(f)
+            this_sample_id = cu.parse_sample_id_from_hise_file(f)
+            cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["IDE"]["HOME_DIR"])
 
             # if the response's fileId is different than the ID we original made the request with, then toolchain
             # noticed the request came from a guest account. if that's the case, we just log both files
@@ -599,7 +605,10 @@ def cache_files_v1(file_ids: list = None,
         f_name = os.path.basename(this_file_name)
         print("downloading fileID: {}".format(this_file_id))
         cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
-        cu.log_downloaded_files(f, CONFIG["IDE"]["HOME_DIR"])
+
+        this_file_id = cu.parse_file_id_from_hise_file(f)
+        this_sample_id = cu.parse_sample_id_from_hise_file(f)
+        cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["IDE"]["HOME_DIR"])
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
         # downloaded from a guest account
@@ -656,7 +665,9 @@ def cache_files(file_ids: list = None,
                              endpoint,
                              headers=get_bearer_token_header()))
 
-        cu.log_downloaded_files(f, CONFIG["STORES"]["TEMP_STORE"])
+        this_file_id = cu.parse_file_id_from_hise_file(f)
+        this_sample_id = cu.parse_sample_id_from_hise_file(f)
+        cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["STORES"]["TEMP_STORE"])
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
         # downloaded from a guest account
