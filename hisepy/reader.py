@@ -369,6 +369,45 @@ def post_query(file_list: list = None,
                         (resp.text, type(obj)))
     return obj
 
+def get_ide(ide_instance_guid): 
+    endpoint = "https://{s}/{de}/{ig}".format(
+        s=hise_server(), de=CONFIG['TRACER']['IDE_PATH'], ig=ide_instance_guid)
+    resp = cu.parse_hise_response(requests.request("GET", endpoint, headers=get_bearer_token_header()))
+    return resp 
+
+
+def get_ide_instance(ide_instance_guid): 
+    endpoint = "https://{s}/{de}/{ig}".format(
+        s=hise_server(), de=CONFIG['TRACER']['IDE_INSTANCE'], ig=ide_instance_guid)
+    resp = cu.parse_hise_response(requests.request("GET", endpoint, headers=get_bearer_token_header()))
+    return resp 
+
+def is_legacy_ide():
+    """
+    """
+    # grab IDE instance GUID from env var 
+    ide_instance_guid = os.getenv("IDE_INSTANCE_GUID")
+    if ide_instance_guid is None:
+        raise Exception(
+            "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
+        )
+    
+    # try tracer/ide endpoint first
+    try:
+        resp = get_ide(ide_instance_guid)
+    except:   # if that fails, try tracer/ideinstances endpoint
+        resp = get_ide_instance(ide_instance_guid)
+
+    # if this fails, send a system error to user  
+    if resp is None: 
+        raise SystemError("Failed to get IDE instance information in order to determine if IDE is legacy vs nextgen")
+    
+    if resp['type'] == CONFIG['IDE']['NEXTGEN_IDE_TAG']:
+        return False
+    elif resp['type'] == CONFIG['IDE']['LEGACY_IDE_TAG']: 
+        return True
+    else: 
+        raise SystemError("ide instance type is not recognized. Please contact support")
 
 def read_files(file_list: list = None,
                query_id: list = None,
@@ -434,19 +473,22 @@ def read_files(file_list: list = None,
             ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             # download the file to user's IDE
             try:
-                dl_resp = requests.request("GET",
-                                           endpoint,
-                                           headers=get_bearer_token_header())
-                parsed_dl_resp = cu.parse_hise_response(dl_resp)
-                download_filepath = '{}/{}'.format(
-                    CONFIG['IDE']['HOME_DIR_V2'], parsed_dl_resp['Path'])
-                # if we succeeded, continually check for the file in /inputs
-                if dl_resp.status_code == 200:
-                    while (not os.path.exists(download_filepath)):
-                        time.sleep(3)
-                        print("Waiting for file to download...")
-                    response.append(
-                        convert_file_data(f, parsed_dl_resp['Path']))
+                if is_legacy_ide():
+                    response.append(cache_and_convert_file_data(f))
+                else: # download file to user's workspace
+                    dl_resp = requests.request("GET",
+                                            endpoint,
+                                            headers=get_bearer_token_header())
+                    parsed_dl_resp = cu.parse_hise_response(dl_resp)
+                    download_filepath = '{}/{}'.format(
+                        CONFIG['IDE']['HOME_DIR_V2'], parsed_dl_resp['Path'])
+                    # if we succeeded, continually check for the file in /inputs
+                    if dl_resp.status_code == 200:
+                        while (not os.path.exists(download_filepath)):
+                            time.sleep(3)
+                            print("Waiting for file to download...")
+                        response.append(
+                            convert_file_data(f, parsed_dl_resp['Path']))
                 response[idx].status = True
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
@@ -474,78 +516,6 @@ def read_files(file_list: list = None,
     # and print that information to the end-user
     files_not_found = [str(f.id) for f in response if f.status is False]
     if to_df:
-        if len(files_not_found) > 0:
-            print(
-                colored(
-                    "The following files failed to download: {}".format(
-                        files_not_found), "red"))
-        return hf.hise_file_to_df(response)
-    else:
-        return response
-
-
-def read_files_v1(file_list: list = None,
-                  query_id: list = None,
-                  query_dict: dict = None,
-                  to_df: bool = True):
-    """
-    Read the contents of a list of file ids into a hise_file object
-    Note: users should only use 1 parameter per function call
-
-    Parameters:
-        file_list (list): a list of UUIDS to retrieve
-        query_id (str): string value of queryID from Advanced Search
-        query_dict (dict): dictionary that allows users to submit a query.
-            Note: for each key:value pair, the value must be of type list
-        to_df (bool):  boolean determining whether result should be returned as a data.frame. 
-
-    Returns:
-        a list of hise_file objects
-
-    Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
-    """
-    cu.validate_download_params(file_list, query_id, query_dict)
-    if query_id != None:
-        obj = post_query(query_id=query_id[0])
-    elif query_dict != None:
-        obj = post_query(query_dict=query_dict)
-    else:
-        obj = post_query(file_list=file_list)
-    #each object should be a set of descriptors and a url to download a file
-    response = []
-    idx = 0
-    for f in obj:
-        if "id" not in f:
-            f["id"] = uuid.UUID(int=0)
-
-        if "error" in f:
-            fobj = hise_file(f['error']['File'])
-            fobj.message = f["error"]["Message"]
-            response.append(fobj)
-            continue
-        else:
-            response.append(cache_and_convert_file_data(f))
-            this_file_id = cu.parse_file_id_from_hise_file(f)
-            this_sample_id = cu.parse_sample_id_from_hise_file(f)
-            cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["IDE"]["HOME_DIR"])
-
-            # if the response's fileId is different than the ID we original made the request with, then toolchain
-            # noticed the request came from a guest account. if that's the case, we just log both files
-            if file_list is not None:
-                this_file_id = file_list[idx]
-                cu.log_replica_file_download(f, this_file_id,
-                                             CONFIG["IDE"]["HOME_DIR"])
-        idx += 1
-
-    # check if we have successfully read at least 1 file
-    all_files_not_found = all(item.status is False for item in response)
-
-    # find which files where there were errors
-    # and print that information to the end-user
-    files_not_found = [str(f.id) for f in response if f.status is False]
-    if all_files_not_found:
-        return response
-    elif to_df:
         if len(files_not_found) > 0:
             print(
                 colored(
@@ -604,72 +574,13 @@ def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
     file_name = f_desc["name"].split("/")[-1]
     this_filetype = cu.get_filetype(file_name)
     if do_cache:
-        cache_file(file_data["url"], file_name, file_dir)
+        cache_file(file_data["url"], file_name, '{}/{}'.format(CONFIG['IDE']['HOME_DIR'], file_dir))
         this_file_values = hf.convert_data_values(
             '{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id=f_desc["id"],
                      file_path="%s/%s" % (file_dir, file_name),
                      descriptors=f_desc,
                      file_type=this_filetype)
-
-
-def cache_files_v1(file_ids: list = None,
-                   query_id: list = None,
-                   query_dict: dict = None):
-    """ 
-    Downloads requested files to the following directory: "./cache/<fileID>"
-    Parameters: 
-        file_ids (list): list of file IDs
-        query_id (list): list of a single query ID
-    """
-    cu.validate_download_params(file_ids, query_id, query_dict)
-    # check if user submitted a query_id vs file_id
-    if query_id is not None:
-        # expand file_ids from query_id, if needed
-        resp_obj = post_query(query_id=query_id[0])
-    elif query_dict is not None:
-        resp_obj = post_query(query_dict=query_dict)
-    else:
-        resp_obj = post_query(file_list=file_ids)
-
-    # make request to hydration to download every file
-    idx = 0
-    fail_files = []
-    for f in resp_obj:
-        if 'error' in f:
-            print("Error downloading file: {}".format(f['error']['Message']))
-            fail_files += [f['error']['File']]
-            continue
-
-        this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
-            f)
-        download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                                             c=CONFIG['IDE']['CACHE_DIR'],
-                                             id=this_file_id)
-        f_name = os.path.basename(this_file_name)
-        print("downloading fileID: {}".format(this_file_id))
-        cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
-
-        this_file_id = cu.parse_file_id_from_hise_file(f)
-        this_sample_id = cu.parse_sample_id_from_hise_file(f)
-        cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["IDE"]["HOME_DIR"])
-
-        # if the user passes in a file_list, make sure they didn't get redirected because they
-        # downloaded from a guest account
-        if file_ids is not None:
-            this_file_id = file_ids[idx]
-            cu.log_replica_file_download(f, this_file_id,
-                                         CONFIG["IDE"]["HOME_DIR"])
-
-        idx += 1
-
-    # alert user which files failed to download
-    if len(fail_files) > 0:
-        print("The following files failed to download: {}".format(fail_files))
-    else:
-        print("Files have been successfully downloaded!")
-    return
-
 
 def cache_files(file_ids: list = None,
                 query_id: list = None,
@@ -701,14 +612,23 @@ def cache_files(file_ids: list = None,
             print("Error downloading file: {}".format(f['error']['Message']))
             fail_files += [f['error']['File']]
             continue
-        this_file_id, _, _ = cu.parse_file_descriptor_from_hise_file(f)
-        endpoint = "https://%s/%s/%s/%s" % (hise_server(
-        ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
-        dl_resp = cu.parse_hise_response(
-            requests.request("GET",
-                             endpoint,
-                             headers=get_bearer_token_header()))
-
+        this_file_id, this_file_name, _ = cu.parse_file_descriptor_from_hise_file(f)
+        if is_legacy_ide():
+            download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
+                                             c=CONFIG['IDE']['CACHE_DIR'],
+                                             id=this_file_id)
+            f_name = os.path.basename(this_file_name)
+            print("downloading fileID: {}".format(this_file_id))
+            cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
+        else: 
+            endpoint = "https://%s/%s/%s/%s" % (hise_server(
+            ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
+            dl_resp = cu.parse_hise_response(
+                requests.request("GET",
+                                endpoint,
+                                headers=get_bearer_token_header()))
+            this_path = "%s/%s" % (CONFIG['IDE']['HOME_DIR_V2'], dl_resp['Path'])
+            dl_paths.append(this_path)
         this_file_id = cu.parse_file_id_from_hise_file(f)
         this_sample_id = cu.parse_sample_id_from_hise_file(f)
         cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["STORES"]["TEMP_STORE"])
@@ -719,8 +639,7 @@ def cache_files(file_ids: list = None,
             this_file_id = file_ids[idx]
             cu.log_replica_file_download(f, this_file_id,
                                          CONFIG["STORES"]["TEMP_STORE"])
-        this_path = "%s/%s" % (CONFIG['IDE']['HOME_DIR_V2'], dl_resp['Path'])
-        dl_paths.append(this_path)
+
         idx += 1
     return dl_paths
 
