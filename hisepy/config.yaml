@@ -89,7 +89,7 @@ IDE:
   HOME_DIR_V2: /home/workspace
   CACHE_LOG_NAME : .hisefilelog.rds
   DEFAULTS_LOG_NAME : .hiseprefs.rds
-  LEGACY_IDE_TAG: "legacy"
+  LEGACY_IDE_TAG: "Legacy"
   NEXTGEN_IDE_TAG: "nextgen"
   DOWNLOAD_CHUNK_SIZE : 102400
   PAGINATION_SIZE : 100
