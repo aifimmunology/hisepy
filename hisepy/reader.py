@@ -475,7 +475,9 @@ def read_files(file_list: list = None,
             try:
                 if is_legacy_ide():
                     response.append(cache_and_convert_file_data(f))
+                    log_dir = CONFIG['IDE']['HOME_DIR']
                 else: # download file to user's workspace
+                    log_dir = CONFIG['STORES']['TEMP_STORE']
                     dl_resp = requests.request("GET",
                                             endpoint,
                                             headers=get_bearer_token_header())
@@ -496,14 +498,14 @@ def read_files(file_list: list = None,
                 # grab fileId and sampleID
                 this_file_id = cu.parse_file_id_from_hise_file(f)
                 this_sample_id = cu.parse_sample_id_from_hise_file(f)
-                cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG['STORES']['TEMP_STORE'])
+                cu.log_downloaded_files(this_file_id, this_sample_id, log_dir)
 
                 # if the user passes in a file_list, make sure they didn't get redirected because they
                 # downloaded from a guest account
                 if file_list is not None:
                     this_file_id = file_list[idx]
                     cu.log_replica_file_download(
-                        f, this_file_id, CONFIG['STORES']['TEMP_STORE'])
+                        f, this_file_id, log_dir)
             except:
                 response[idx].status = False
                 response[idx].message = "Failed to download file"
@@ -614,6 +616,7 @@ def cache_files(file_ids: list = None,
             continue
         this_file_id, this_file_name, _ = cu.parse_file_descriptor_from_hise_file(f)
         if is_legacy_ide():
+            log_dir = CONFIG['IDE']['HOME_DIR']
             download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                              c=CONFIG['IDE']['CACHE_DIR'],
                                              id=this_file_id)
@@ -621,6 +624,7 @@ def cache_files(file_ids: list = None,
             print("downloading fileID: {}".format(this_file_id))
             cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
         else: 
+            log_dir = CONFIG['STORES']['TEMP_STORE']
             endpoint = "https://%s/%s/%s/%s" % (hise_server(
             ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             dl_resp = cu.parse_hise_response(
@@ -631,14 +635,14 @@ def cache_files(file_ids: list = None,
             dl_paths.append(this_path)
         this_file_id = cu.parse_file_id_from_hise_file(f)
         this_sample_id = cu.parse_sample_id_from_hise_file(f)
-        cu.log_downloaded_files(this_file_id, this_sample_id, CONFIG["STORES"]["TEMP_STORE"])
+        cu.log_downloaded_files(this_file_id, this_sample_id, log_dir)
 
         # if the user passes in a file_list, make sure they didn't get redirected because they
         # downloaded from a guest account
         if file_ids is not None:
             this_file_id = file_ids[idx]
             cu.log_replica_file_download(f, this_file_id,
-                                         CONFIG["STORES"]["TEMP_STORE"])
+                                         log_dir)
 
         idx += 1
     return dl_paths
