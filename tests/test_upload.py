@@ -11,13 +11,11 @@ import pyreadr
 
 sys.path.insert(0, '../')
 
-import hisepy.upload_v3 as hpu3
 import hisepy.upload as hpu
 import hisepy.common_utils as cu
 from hisepy.auth import ide_instance_guid, instance_account_guid, IDEInstance
-from hisepy.upload_v3 import get_study_space
 
-_here = os.path.abspath(os.path.dirname(hpu3.__file__))
+_here = os.path.abspath(os.path.dirname(hpu.__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
@@ -147,9 +145,9 @@ class TestUploader():
             "name": "test study",
             "shortName": "testing"
         }
-        with patch('hisepy.upload_v3.get_study_space',
+        with patch('hisepy.upload.get_study_space',
                    return_value=mock_study):
-            assert hpu3.get_study_space(
+            assert hpu.get_study_space(
                 "84dfd43c-e034-4ae8-8a50-25ecbce6fe24") == mock_study
 
     @patch('subprocess.run')
@@ -157,9 +155,9 @@ class TestUploader():
         # Simulate successful export
         mock_subprocess_run.return_value = 0
 
-        with patch('hisepy.upload_v3.get_conda_env_name',
+        with patch('hisepy.upload.get_conda_env_name',
                    return_value="test_env") as gce:
-            export_path = hpu3.do_conda_export()
+            export_path = hpu.do_conda_export()
 
             expected_env_dir = f"{CONFIG['STORES']['ENV_STORE']}/{gce()}"
             expected_command = f"conda env export -p {expected_env_dir} > {CONFIG['STORES']['TEMP_STORE']}/environment.yml"
@@ -169,12 +167,12 @@ class TestUploader():
             mock_subprocess_run.assert_called_once_with(expected_command,
                                                         shell=True)
 
-    @patch('hisepy.upload_v3.get_study_space',
+    @patch('hisepy.upload.get_study_space',
            return_value={
                "projectGuid": "mock_project_guid",
                "name": "mock_study_space"
            })
-    @patch('hisepy.upload_v3.project_guid_to_shortname',
+    @patch('hisepy.upload.project_guid_to_shortname',
            return_value="mock_project")
     @patch('hisepy.common_utils.get_from_config',
            return_value='{}/tmp'.format(os.getcwd()))
@@ -189,24 +187,24 @@ class TestUploader():
         source_file = '{}/{}'.format(self.wd, "test_file.txt")
         os.system("touch {}".format(source_file))
 
-        dest_file = hpu3.move_file_to_output_staging(str(source_file), None,
+        dest_file = hpu.move_file_to_output_staging(str(source_file), None,
                                                      "mock_study_space_id")
         assert os.path.exists(dest_file)
 
         # Test file overwrite
-        hpu3.move_file_to_output_staging(str(source_file),
+        hpu.move_file_to_output_staging(str(source_file),
                                          None,
                                          "mock_study_space_id",
                                          replace_ok=True)
 
         # Test error for existing file without replace_ok
         with pytest.raises(ValueError):
-            hpu3.move_file_to_output_staging(str(source_file), None,
+            hpu.move_file_to_output_staging(str(source_file), None,
                                              "mock_study_space_id")
 
         # Test error for missing project and study space
         with pytest.raises(ValueError):
-            hpu3.move_file_to_output_staging(str(source_file), None,
+            hpu.move_file_to_output_staging(str(source_file), None,
                                              "no study")
 
         # clean up test file
@@ -216,18 +214,18 @@ class TestUploader():
     def test_check_project_against_study_space(self):
         # patch helper methods and
         # Test successful match
-        with patch('hisepy.upload_v3.get_study_space', return_value={"projectGuid": "mock_project_guid", "name": "mock_study_space"}), \
-            patch('hisepy.upload_v3.project_guid_to_shortname', return_value="mock_project"), \
+        with patch('hisepy.upload.get_study_space', return_value={"projectGuid": "mock_project_guid", "name": "mock_study_space"}), \
+            patch('hisepy.upload.project_guid_to_shortname', return_value="mock_project"), \
             patch('hisepy.common_utils.get_projects', return_value=pd.DataFrame({"guid": ["mock_project_guid"], "short_name": ["mock_project"]})):
-            assert hpu3.check_project_against_study_space(
+            assert hpu.check_project_against_study_space(
                 "mock_project", "mock_study_guid") is None
 
         # Test error for mismatch
         with pytest.raises(ValueError), \
-        patch('hisepy.upload_v3.get_study_space', return_value={"badProjectGuid": "mock_project_guid", "name": "mock_study_space"}), \
-        patch('hisepy.upload_v3.project_guid_to_shortname', return_value='mock_project'), \
+        patch('hisepy.upload.get_study_space', return_value={"badProjectGuid": "mock_project_guid", "name": "mock_study_space"}), \
+        patch('hisepy.upload.project_guid_to_shortname', return_value='mock_project'), \
         patch('hisepy.common_utils.get_projects', return_value=pd.DataFrame({"guid": ["mock_project_guid"], "short_name": ["mock_project"]})):
-            hpu3.check_project_against_study_space("mock_project",
+            hpu.check_project_against_study_space("mock_project",
                                                    "bad_study_id")
 
     def test_validate_upload_input_ids(self):
@@ -281,7 +279,7 @@ class TestUploader():
         os.system(f"touch {self.wd}/file1.txt")
         os.system(f"touch {self.wd}/file2.txt")
 
-        assert hpu3.gen_upload_body(
+        assert hpu.gen_upload_body(
             [f"{self.wd}/file1.txt", f"{self.wd}/file2.txt"],
             ["txt", "txt"]) == {
                 "files": [{

@@ -44,7 +44,7 @@ class TestReader:
         self.list_descriptor = [
         ]  # TODO for olink data, or any other data has multiple samples per file
 
-        self.mock_ide_obj = {'id': 'ide_id1', 'name': 'ide_name1', 'type': 'legacy'}
+        self.mock_ide_obj = {'id': 'ide_id1', 'name': 'ide_name1', 'type': 'Legacy'}
 
     def test_validate_download_params(self):
         file_ids = ['file_id1', 'file_id2']
@@ -242,8 +242,8 @@ class TestReader:
             hpr.validate_query_files_params({'fileType': 'txt'})
 
     def test_is_legacy_ide(self, init_test):
-        with patch('hisepy.reader.get_ide', return_value=self.mock_ide_obj), patch('hisepy.auth.IDEInstance', return_value=self.mock_ide_obj):
-            assert hpr.is_legacy_ide(), "Expected legacy IDE, but did not get it"
+        with patch('hisepy.common_utils.get_ide', return_value=self.mock_ide_obj), patch('hisepy.auth.IDEInstance', return_value=self.mock_ide_obj):
+            assert hpcu.is_legacy_ide(), "Expected legacy IDE, but did not get it"
 
     # TODO: needs refactoring
     def test_read_files(self):
