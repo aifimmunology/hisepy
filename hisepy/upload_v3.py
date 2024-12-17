@@ -4,7 +4,7 @@ import re
 import shutil
 import subprocess
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, debug
+from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, debug, ide_instance_guid, get_from_metadata_server
 from hisepy.common_utils import project_shortname_to_guid, project_guid_to_shortname
 from hisepy.upload import valid_upload_stores, get_study_spaces, validate_upload_data, get_size_in_megabytes
 
@@ -61,6 +61,17 @@ def upload_files(files: list,
                         title='a upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
+    # determine if ide is legaxy or nextgen; and assign variables accordingly
+    inst = IDEInstance()
+    ide_name = inst.podName
+    ide_guid = inst.id
+    if cu.is_legacy_ide(): 
+        file_log_dir = CONFIG['IDE']['HOME_DIR']
+        home_dir = CONFIG["IDE"]["HOME_DIR"]
+    else: 
+        file_log_dir = CONFIG['STORES']['TEMP_STORE']
+        home_dir = CONFIG["IDE"]["HOME_DIR_V2"]
+
     if len(file_types) > 0 and len(file_types) != len(files):
         raise ValueError(
             "File types must be a list with one type for each upload")
@@ -98,25 +109,26 @@ def upload_files(files: list,
         pass
     else:
         cu.validate_upload_input_ids(input_file_ids, input_sample_ids,
-                                     CONFIG["STORES"]["TEMP_STORE"])
+                                     file_log_dir)
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
-    inst = IDEInstance()
     qargs = {
         "title": title,
         "fileType": [],
         "saveIDE": True,
         "store": store,
         "destination": destination,
-        "instanceId": inst.podName,
-        "instanceGuid": inst.id,
+        "instanceId": ide_name,
+        "instanceGuid": ide_guid,
         "inputFileIds": input_file_ids,
         "project": project,
         "sampleIds": input_sample_ids,
         "notebook": cu.current_notebook(),
-        "homedir": CONFIG["IDE"]["HOME_DIR_V2"]
+        "homedir": home_dir
     }
-    # export conda env to file and move to output staging
-    qargs["condaEnvironmentFile"] = do_conda_export()
+    # export conda env to file 
+    # TODO: test without exporting anything 
+    if not cu.is_legacy_ide():
+        qargs["condaEnvironmentFile"] = do_conda_export()
 
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
