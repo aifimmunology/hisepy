@@ -4,21 +4,23 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import re
 import uuid
 
 import plotly.graph_objects as go
 import requests
 
 import hisepy.common_utils as cu
-from hisepy.common_utils import parse_hise_response, hise_url, current_notebook
+from hisepy.common_utils import parse_hise_response, hise_url, current_notebook, project_shortname_to_guid, project_guid_to_shortname
 from hisepy import auth
-from hisepy.auth import get_bearer_token_header, IDEInstance
+from hisepy.auth import get_bearer_token_header, IDEInstance, debug
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
 permanent_store = "permanent"
 project_store = "project"
 valid_upload_stores = [permanent_store, project_store]
+no_study_default = "no study"
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -26,6 +28,258 @@ IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 UPLOAD_HARVEST_LOWER_BOUND = CONFIG['TOOLCHAIN'][
     'UPLOAD_HARVEST_LOWER_BOUND_MB']
 
+
+
+def set_default_store(store=None):
+    return IDEInstance().set_default_store(store)
+
+
+def set_default_project(project=None):
+    return IDEInstance().set_default_project(project)
+
+
+def get_default_store():
+    return IDEInstance().get_default_store()
+
+
+def get_default_project():
+    return IDEInstance().get_default_project()
+
+
+def upload_files(files: list,
+                 study_space_id: str = None,
+                 project: str = None,
+                 title: str = None,
+                 input_file_ids: list = [],
+                 input_sample_ids: list = [],
+                 file_types: list = [],
+                 store: str = None,
+                 destination: str = "",
+                 do_prompt: bool = True):
+    """
+    Uploads files to a store and records their provenance in HISE, but V3
+
+    Parameters:
+        files (list): absolute filepath of file to be uploaded
+        study_space_id (str): ID that pertains to a study in the collaboration space (optional)
+        project (str): project short name (required if study space is not specified, defaults to the ide's default setting
+        title (str): 10+ character title for upload result 
+        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
+        input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
+        file_types (str): filetype of uploaded files 
+        store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
+        destination (str): Destination folder for the files 
+        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
+    Returns: 
+        dictionary with keys ["trace_id", "files"]
+    Example: 
+        hp.upload_files(files=['/home/jupyter/upload_file.csv'],
+                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                        title='a upload title',
+                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
+    """
+    # determine if ide is legaxy or nextgen; and assign variables accordingly
+    inst = IDEInstance()
+    ide_name = inst.podName
+    ide_guid = inst.id
+    if cu.is_legacy_ide(): 
+        file_log_dir = CONFIG['IDE']['HOME_DIR']
+        home_dir = CONFIG["IDE"]["HOME_DIR"]
+    else: 
+        file_log_dir = CONFIG['STORES']['TEMP_STORE']
+        home_dir = CONFIG["IDE"]["HOME_DIR_V2"]
+
+    if len(file_types) > 0 and len(file_types) != len(files):
+        raise ValueError(
+            "File types must be a list with one type for each upload")
+    if store is not None:
+        if store not in valid_upload_stores:
+            raise ValueError("Value for store must be in %s" %
+                             (", ".join(valid_upload_stores)))
+        if do_prompt:
+            check_default_store(store)
+    else:
+        store = get_default_store()
+
+    if study_space_id is None:
+        study_space_id = select_study_space(project)
+
+    if project is not None:
+        if do_prompt:
+            check_default_project(project)
+    elif study_space_id == no_study_default:
+        project = get_default_project()
+        if project is None:
+            raise ValueError(
+                "Neither project nor study space was specified and there is no default project set for this IDE. You must specify one of the former or set the latter."
+            )
+
+    check_project_against_study_space(project, study_space_id)
+
+    if len(files) == 0:
+        raise ValueError("No files specified for upload")
+    if cu.string_contains_whitespaces(destination):
+        raise ValueError(
+            "destination directory %s contains whitespaces. Please rename and remove any whitespaces"
+            % destination)
+    if debug():
+        pass
+    else:
+        cu.validate_upload_input_ids(input_file_ids, input_sample_ids,
+                                     file_log_dir)
+    validate_upload_data(files, study_space_id, project, title, input_file_ids)
+    qargs = {
+        "title": title,
+        "fileType": [],
+        "saveIDE": True,
+        "store": store,
+        "destination": destination,
+        "instanceId": ide_name,
+        "instanceGuid": ide_guid,
+        "inputFileIds": input_file_ids,
+        "project": project,
+        "sampleIds": input_sample_ids,
+        "notebook": cu.current_notebook(),
+        "homedir": home_dir
+    }
+    # export conda env to file 
+    # TODO: test without exporting anything 
+    if not cu.is_legacy_ide():
+        qargs["condaEnvironmentFile"] = do_conda_export()
+
+    if study_space_id is not no_study_default:
+        qargs["studySpaceId"] = study_space_id
+
+    url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
+    return cu.parse_hise_response(
+        requests.post(url,
+                      json=gen_upload_body(files, file_types),
+                      headers=get_bearer_token_header()))
+
+
+def gen_upload_body(files, filetypes):
+    body = {"files": []}
+    for i, f in enumerate(files):
+        if not os.path.exists(f):
+            raise ValueError("%s is not a valid file." % f)
+        ft = filetypes[i] if len(filetypes) > i else cu.get_filetype(f)
+        body["files"].append({"name": os.path.abspath(f), "type": ft})
+    return body
+
+
+def check_default_store(store: str):
+    if store not in valid_upload_stores:
+        raise ValueError("%s is not a valid store" % store)
+    if store != get_default_store() and cu.prompt_yn(
+            "Set %s as your default store?" % store):
+        set_default_store(store)
+
+
+def check_default_project(proj: str):
+    if proj != get_default_project() and cu.prompt_yn(
+            "Set %s as your default project?" % proj):
+        set_default_project(proj)
+
+
+def get_conda_env_name():
+    """
+    Returns the name of the current conda environment
+    """
+    # get IDE instance
+    inst = IDEInstance()
+
+    # get the name of the current conda environment
+    return inst.environment['condaEnvName']
+
+
+def do_conda_export():
+    """
+    Exports the current conda environment to a file
+    """
+    # export to scratch and move to to staging store
+    env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
+                             get_conda_env_name())
+    subprocess.run("conda env export -p {env} > {dir}/environment.yml".format(
+        env=env_dir, dir=CONFIG["STORES"]["TEMP_STORE"]),
+                   shell=True)
+
+    # check that the environment file isn't empty
+    if (get_size_in_megabytes(
+        ["{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"])],
+            False) == 0) and not debug():
+        raise ValueError(
+            "Environment file is empty, please ensure that the conda environment is active and not empty."
+        )
+
+    return "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"])
+
+
+def select_study_space(proj):
+    pguid = None
+    if proj is not None:
+        pguid = project_shortname_to_guid(proj)
+    options = [{"name": no_study_default, "id": no_study_default}]
+    for sp in get_study_spaces():
+        if pguid is None or sp["projectGuid"] == pguid:
+            options.append(sp)
+    idx = cu.prompt_from_options("Select a study space",
+                                 [d["name"] for d in options], True)
+    return options[idx]["id"]
+
+
+def get_study_space(id):
+    """ Returns list of studies a user has access to """
+    return cu.parse_hise_response(
+        requests.request("GET",
+                         cu.hise_url("tracer", "study_space_path", id),
+                         headers=get_bearer_token_header()))
+
+
+def move_file_to_output_staging(file: str,
+                                project: str,
+                                study_space_id: str,
+                                replace_ok: bool = False):
+    sdir = re.sub(r'\W+', '', study_space_id).lower()
+    if study_space_id != no_study_default:
+        ss = get_study_space(study_space_id)
+        if project is None:
+            project = project_guid_to_shortname(ss["projectGuid"])
+        sdir = re.sub(r'\W+', '', ss['name']).lower()
+    elif project is None:
+        #this should have been caught earlier and if you get here your code is very bad
+        raise ValueError(
+            "Neither project nor study space was set, cannot move file")
+    pdir = re.sub(r'\W+', '', project).lower()
+    dest_dir = "%s/%s/%s" % (cu.get_from_config('stores',
+                                                'output_store'), pdir, sdir)
+    dest_file = "%s/%s" % (dest_dir, os.path.basename(file))
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+    elif os.path.exists(dest_file) and not replace_ok:
+        raise ValueError(
+            "The file %s is already in the output directory for %s and study %s. Either rename the file to be uploaded or, if you are sure it isn't being used, delete it from %s manually and run the upload command again."
+            % (os.path.basename(file), project, study_space_id, dest_dir))
+    elif os.path.exists(dest_file) and replace_ok:
+        os.remove(dest_file)
+    shutil.copy(file, dest_file)
+    return dest_file
+
+
+def check_project_against_study_space(project, study_space_id):
+    if project is None:
+        return
+    elif study_space_id is None or study_space_id is no_study_default:
+        return
+
+    pguid = project_shortname_to_guid(project)
+    ss = get_study_space(study_space_id)
+    if "projectGuid" not in ss:
+        raise ValueError("%s was not a valid study space" % study_space_id)
+
+    if pguid != ss["projectGuid"]:
+        raise ValueError(
+            "The specified study space %s is not in the project %s" %
+            (ss["name"], project))
 
 def get_study_spaces():
     """ Returns list of studies a user has access to """
@@ -82,141 +336,6 @@ def default_study_space(must=True):
             "User belongs to multiple study spaces. Please specify with the study_space_id parameter"
         )
     return sspaces[0]
-
-
-def upload_files_v1(files: list,
-                    study_space_id: str = None,
-                    project: str = None,
-                    title: str = None,
-                    input_file_ids=None,
-                    input_sample_ids=None,
-                    file_types=None,
-                    store=None,
-                    destination=None,
-                    do_prompt: bool = True):
-    """
-    Uploads files to a specified study.
-
-    Parameters:
-        files (list): absolute filepath of file to be uploaded
-        study_space_id (str): ID that pertains to a study in the collaboration space (optional)
-        project (str): project short name (required if study space is not specified)
-        title (str): 10+ character title for upload result 
-        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
-        input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
-        file_types (str): filetype of uploaded files 
-        store (str): Which store ('project' or 'permanent') to use for the files (default in 'project')
-        destination (str): Destination folder for the files 
-        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
-    Returns: 
-        dictionary with keys ["trace_id", "files"]
-    Example: 
-        hp.upload_files(files=['/home/jupyter/upload_file.csv'],
-                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                        title='a upload title',
-                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
-    """
-    if input_file_ids is None:
-        input_file_ids = []
-    if input_sample_ids is None:
-        input_sample_ids = []
-    if file_types is None:
-        file_types = []
-    elif type(file_types) is not list:
-        raise ValueError(
-            "File types must be a list with one type for each upload")
-    elif len(file_types) != len(files):
-        raise ValueError(
-            "File types must be a list with one type for each upload")
-    if store is not None:
-        if store not in valid_upload_stores:
-            raise ValueError("Value for store must be in %s" %
-                             (", ".join(valid_upload_stores)))
-
-    if destination is not None:
-        if type(destination) is not str:
-            raise ValueError("file destination directory must be a string")
-    else:
-        destination = ""
-
-    def _user_prompt_upload(prompt_files: list):
-        print(
-            'you are trying to upload file_ids... {}. Do you truly want to proceed?'
-            .format(prompt_files))
-        user_input = input('(y/n)')
-        while user_input.lower() not in ['y', 'n']:
-            print('please enter either "n" for no, or "y" for yes.')
-            user_input = input('(y/n)')
-        if user_input.lower() == 'y':
-            return True
-        elif user_input.lower() == 'n':
-            return False
-
-    if type(files) is not list or len(files) == 0:
-        raise ValueError("No files specified for upload")
-    if cu.string_contains_whitespaces(destination):
-        raise ValueError(
-            "destination param, {}, contains whitespaces. Please rename and remove any whitespaces"
-            .format(destination))
-    if auth.debug():
-        pass
-    else:
-        cu.validate_upload_input_ids(input_file_ids, input_sample_ids)
-    validate_upload_data(files, study_space_id, project, title, input_file_ids)
-    uploads = None
-    body = None
-    qargs = {
-        "title": title,
-        "fileType": [],
-        "saveIDE": True,
-        "store": store,
-        "destination": destination,
-        "instanceId": IDEInstance().friendlyName,
-        "inputFileIds": input_file_ids,
-        "sampleIds": input_sample_ids,
-        "notebook": current_notebook(),
-        "homedir": IDE_HOME_DIR
-    }
-    if study_space_id is not None:
-        qargs["studySpaceId"] = study_space_id
-    if project is not None:
-        qargs["project"] = project
-    if get_size_in_megabytes(files) > UPLOAD_HARVEST_LOWER_BOUND:
-        #user is uploading big stuff.
-        #do this as a harvest
-        qargs["harvest"] = True
-
-        # flag to tell toolchain to clean up any temporary directories that a SDK call creates
-        if CONFIG['FILETYPES']['DASH_APP'] in files[0]:
-            qargs['deleteFiles'] = True
-        body = {"files": []}
-        for i, f in enumerate(files):
-            if not os.path.exists(f):
-                raise ValueError("%s is not a valid file." % f)
-            ft = file_types[i] if len(file_types) > i else cu.get_filetype(f)
-            body["files"].append({"name": os.path.abspath(f), "type": ft})
-    else:
-        uploads = []
-        for i, f in enumerate(files):
-            if not os.path.exists(f):
-                raise ValueError("%s is not a valid file." % f)
-
-            uploads.append(('file', (f, open(f, 'rb'), 'application/json', {
-                'Expires': '0'
-            })))
-            qargs["fileType"].append(
-                file_types[i] if len(file_types) > i else cu.get_filetype(f))
-
-    url = hise_url("toolchain", "upload_file_path", args=qargs)
-    headers = get_bearer_token_header()
-    if not do_prompt or _user_prompt_upload(prompt_files=files):
-        df_data = parse_hise_response(
-            requests.post(url, headers=headers, json=body, files=uploads))
-        return {"trace_id": df_data["TraceId"], "files": files}
-    else:
-        print('Uploading canceled.')
-        return {}
-
 
 # Save a plotly figure
 # network call process:

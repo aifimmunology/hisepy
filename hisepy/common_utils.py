@@ -20,7 +20,7 @@ import json
 import pathlib
 import copy
 import time
-from hisepy.auth import debug, get_bearer_token_header, hise_server
+from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -153,13 +153,6 @@ def get_ide(ide_instance_guid):
     return resp 
 
 
-def get_ide_instance(ide_instance_guid): 
-    endpoint = "https://{s}/{de}/{ig}".format(
-        s=hise_server(), de=CONFIG['TRACER']['IDE_INSTANCE'], ig=ide_instance_guid)
-    resp = parse_hise_response(requests.request("GET", endpoint, headers=get_bearer_token_header()))
-    return resp 
-
-
 def get_projects(to_df: bool = True):
     """
     Returns information on all projects in the current account
@@ -193,10 +186,11 @@ def is_legacy_ide():
         )
     
     # try tracer/ide endpoint first
+    # TODO: it might be the case that we just need to GET tracer/ideinstances endpoint
     try:
         resp = get_ide(ide_instance_guid)
     except:   # if that fails, try tracer/ideinstances endpoint
-        resp = get_ide_instance(ide_instance_guid)
+        resp = IDEInstance()
 
     # if this fails, send a system error to user  
     if resp is None: 
