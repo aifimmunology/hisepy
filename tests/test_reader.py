@@ -242,7 +242,7 @@ class TestReader:
             hpr.validate_query_files_params({'fileType': 'txt'})
 
     def test_is_legacy_ide(self, init_test):
-        with patch('hisepy.reader.get_ide', return_value=self.mock_ide_obj), patch('hisepy.reader.get_ide_instance', return_value=self.mock_ide_obj):
+        with patch('hisepy.reader.get_ide', return_value=self.mock_ide_obj), patch('hisepy.auth.IDEInstance', return_value=self.mock_ide_obj):
             assert hpr.is_legacy_ide(), "Expected legacy IDE, but did not get it"
 
     # TODO: needs refactoring
