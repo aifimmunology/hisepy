@@ -548,7 +548,7 @@ def convert_file_data(file_data: dict, path_to_file: str):
         '{}/{}'.format(CONFIG['IDE']['HOME_DIR_V2'], path_to_file),
         this_filetype)
     return hise_file(file_id=f_desc["id"],
-                     file_path=path_to_file,
+                     file_path='{}/{}'.format(CONFIG['IDE']['HOME_DIR_V2'], path_to_file),
                      descriptors=f_desc,
                      file_type=this_filetype,
                      data_values=this_file_values)
