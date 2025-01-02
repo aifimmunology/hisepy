@@ -44,7 +44,7 @@ class TestReader:
         self.list_descriptor = [
         ]  # TODO for olink data, or any other data has multiple samples per file
 
-        self.mock_ide_obj = {'id': 'ide_id1', 'name': 'ide_name1', 'type': 'legacy'}
+        self.mock_ide_obj = {'id': 'ide_id1', 'name': 'ide_name1', 'type': 'Legacy'}
 
     def test_validate_download_params(self):
         file_ids = ['file_id1', 'file_id2']
