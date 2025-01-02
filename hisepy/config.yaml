@@ -130,3 +130,8 @@ SCHEDULER:
   PLATFORM_FIELD : platform 
   PROJECT_FIELD : project 
   JOB_COMPLETE_STATUS : Completed 
+
+VISUALIZATION:
+  PLOTLY_DATA_FILE: plotly_data.json
+  PLOTLY_FILE: plotly.json
+  PLOTLY_IMAGE_FILE: plotly.png

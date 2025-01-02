@@ -359,9 +359,11 @@ def save_visualization(
         input_file_ids = []
     if input_sample_ids is None:
         input_sample_ids = []
-    tmp_data_file = "/tmp/plotly_data.json"
-    tmp_plotly_file = "/tmp/plotly.json"
-    tmp_img_file = "/tmp/plotly.png"
+    if destination is None: 
+        destination = ""
+    tmp_data_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'], CONFIG['VISUALIZATION']['PLOTLY_DATA_FILE'])
+    tmp_plotly_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'], CONFIG['VISUALIZATION']['PLOTLY_FILE'])
+    tmp_img_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'], CONFIG['VISUALIZATION']['PLOTLY_IMAGE_FILE'])
     log_dir = CONFIG['STORES']['TEMP_STORE'] if not cu.is_legacy_ide() else IDE_HOME_DIR
     pl_obj.write_image(tmp_img_file)
     if auth.debug():
@@ -401,7 +403,7 @@ def save_visualization(
                           store=permanent_store,
                           destination=destination,
                           do_prompt=False)
-    args['traceId'] = up_res["trace_id"]
+    args['traceId'] = up_res["TraceId"]
 
     # now null out the data and save the plotly without it
     exp_obj["data"] = []
@@ -418,8 +420,8 @@ def save_visualization(
     url = hise_url("toolchain", "visualization_path", "json", args=args)
     parse_hise_response(
         requests.post(url, headers=get_bearer_token_header(), files=vis_dict))
-    os.remove(tmp_data_file)
-    os.remove(tmp_plotly_file)
+    #os.remove(tmp_data_file)
+    #os.remove(tmp_plotly_file)
     return up_res
 
 
