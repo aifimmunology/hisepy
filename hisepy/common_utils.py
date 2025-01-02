@@ -20,7 +20,7 @@ import json
 import pathlib
 import copy
 import time
-from hisepy.auth import debug, get_bearer_token_header, hise_server
+from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -146,6 +146,13 @@ def get_from_config(heading: str, key: str):
     raise ValueError("config value %s:%s not found" % (heading, key))
 
 
+def get_ide(ide_instance_guid): 
+    endpoint = "https://{s}/{de}/{ig}".format(
+        s=hise_server(), de=CONFIG['TRACER']['IDE_PATH'], ig=ide_instance_guid)
+    resp = parse_hise_response(requests.request("GET", endpoint, headers=get_bearer_token_header()))
+    return resp 
+
+
 def get_projects(to_df: bool = True):
     """
     Returns information on all projects in the current account
@@ -166,6 +173,35 @@ def get_projects(to_df: bool = True):
         return proj_df
 
     return resp
+
+
+def is_legacy_ide():
+    """
+    """
+    # grab IDE instance GUID from env var 
+    ide_instance_guid = os.getenv("IDE_INSTANCE_GUID")
+    if ide_instance_guid is None:
+        raise Exception(
+            "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
+        )
+    
+    # try tracer/ide endpoint first
+    # TODO: it might be the case that we just need to GET tracer/ideinstances endpoint
+    try:
+        resp = get_ide(ide_instance_guid)
+    except:   # if that fails, try tracer/ideinstances endpoint
+        resp = IDEInstance()
+
+    # if this fails, send a system error to user  
+    if resp is None: 
+        raise SystemError("Failed to get IDE instance information in order to determine if IDE is legacy vs nextgen")
+    
+    if resp.type == CONFIG['IDE']['NEXTGEN_IDE_TAG']:
+        return False
+    elif resp.type == CONFIG['IDE']['LEGACY_IDE_TAG']: 
+        return True
+    else: 
+        raise SystemError("ide instance type is not recognized. Please contact support")
 
 
 def parse_file_id_from_hise_file(hise_file):
