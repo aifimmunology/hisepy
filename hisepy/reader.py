@@ -369,46 +369,6 @@ def post_query(file_list: list = None,
                         (resp.text, type(obj)))
     return obj
 
-def get_ide(ide_instance_guid): 
-    endpoint = "https://{s}/{de}/{ig}".format(
-        s=hise_server(), de=CONFIG['TRACER']['IDE_PATH'], ig=ide_instance_guid)
-    resp = cu.parse_hise_response(requests.request("GET", endpoint, headers=get_bearer_token_header()))
-    return resp 
-
-
-def get_ide_instance(ide_instance_guid): 
-    endpoint = "https://{s}/{de}/{ig}".format(
-        s=hise_server(), de=CONFIG['TRACER']['IDE_INSTANCE'], ig=ide_instance_guid)
-    resp = cu.parse_hise_response(requests.request("GET", endpoint, headers=get_bearer_token_header()))
-    return resp 
-
-def is_legacy_ide():
-    """
-    """
-    # grab IDE instance GUID from env var 
-    ide_instance_guid = os.getenv("IDE_INSTANCE_GUID")
-    if ide_instance_guid is None:
-        raise Exception(
-            "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
-        )
-    
-    # try tracer/ide endpoint first
-    try:
-        resp = get_ide(ide_instance_guid)
-    except:   # if that fails, try tracer/ideinstances endpoint
-        resp = get_ide_instance(ide_instance_guid)
-
-    # if this fails, send a system error to user  
-    if resp is None: 
-        raise SystemError("Failed to get IDE instance information in order to determine if IDE is legacy vs nextgen")
-    
-    if resp['type'] == CONFIG['IDE']['NEXTGEN_IDE_TAG']:
-        return False
-    elif resp['type'] == CONFIG['IDE']['LEGACY_IDE_TAG']: 
-        return True
-    else: 
-        raise SystemError("ide instance type is not recognized. Please contact support")
-
 def read_files(file_list: list = None,
                query_id: list = None,
                query_dict: dict = None,
@@ -473,7 +433,7 @@ def read_files(file_list: list = None,
             ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             # download the file to user's IDE
             try:
-                if is_legacy_ide():
+                if cu.is_legacy_ide():
                     response.append(cache_and_convert_file_data(f))
                     log_dir = CONFIG['IDE']['HOME_DIR']
                 else: # download file to user's workspace
@@ -615,7 +575,7 @@ def cache_files(file_ids: list = None,
             fail_files += [f['error']['File']]
             continue
         this_file_id, this_file_name, _ = cu.parse_file_descriptor_from_hise_file(f)
-        if is_legacy_ide():
+        if cu.is_legacy_ide():
             log_dir = CONFIG['IDE']['HOME_DIR']
             download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
                                              c=CONFIG['IDE']['CACHE_DIR'],
