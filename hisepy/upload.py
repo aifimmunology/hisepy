@@ -186,14 +186,8 @@ def upload_files(files: list,
         "notebook": cu.current_notebook(),
         "homedir": CONFIG["IDE"]["HOME_DIR_V2"]
     }
-    # export conda env to file and move to output staging
-    # TODO: more robust flag/check. 
-    # NOTE: we also might want to support this conda export for dash apps in the very near future  
-    if "dash_app.tar.gz" in files[0]:
-        print("Dash app detected, skipping conda environment export")
-        pass
-    else:
-        qargs["condaEnvironmentFile"] = do_conda_export()
+    # export conda env to file and add as parameter for upload request
+    qargs["condaEnvironmentFile"] = do_conda_export()
 
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
