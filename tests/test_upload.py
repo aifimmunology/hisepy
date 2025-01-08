@@ -14,6 +14,7 @@ sys.path.insert(0, '../')
 import hisepy.upload as hpu
 import hisepy.common_utils as cu
 from hisepy.auth import ide_instance_guid, instance_account_guid, IDEInstance
+from hisepy.upload import get_study_space
 
 _here = os.path.abspath(os.path.dirname(hpu.__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -167,6 +168,7 @@ class TestUploader():
             mock_subprocess_run.assert_called_once_with(expected_command,
                                                         shell=True)
 
+    """ this method is not in use anymore: 1/2/25
     @patch('hisepy.upload.get_study_space',
            return_value={
                "projectGuid": "mock_project_guid",
@@ -227,7 +229,7 @@ class TestUploader():
         patch('hisepy.common_utils.get_projects', return_value=pd.DataFrame({"guid": ["mock_project_guid"], "short_name": ["mock_project"]})):
             hpu.check_project_against_study_space("mock_project",
                                                    "bad_study_id")
-
+    """
     def test_validate_upload_input_ids(self):
 
         # create cache log file wiht some sample and file ids
