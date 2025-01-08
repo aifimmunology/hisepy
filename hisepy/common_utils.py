@@ -196,9 +196,9 @@ def is_legacy_ide():
     if resp is None: 
         raise SystemError("Failed to get IDE instance information in order to determine if IDE is legacy vs nextgen")
     
-    if resp.type == CONFIG['IDE']['NEXTGEN_IDE_TAG']:
+    if resp['type'] == CONFIG['IDE']['NEXTGEN_IDE_TAG']:
         return False
-    elif resp.type == CONFIG['IDE']['LEGACY_IDE_TAG']: 
+    elif resp['type'] == CONFIG['IDE']['LEGACY_IDE_TAG']: 
         return True
     else: 
         raise SystemError("ide instance type is not recognized. Please contact support")
