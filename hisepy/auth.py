@@ -19,6 +19,9 @@ default_metadata = {
 }
 permanent_store = "permanent"
 project_store = "project"
+regular_account_type = 'regular'
+certificate_account_type = 'certificate'
+guest_account_type = 'guest'
 valid_upload_stores = [permanent_store, project_store]
 defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 DEFAULT_STORE_KEY = "default_store"
@@ -126,6 +129,16 @@ def instance_account_guid():
 def hise_server():
     return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
 
+
+
+def ide_is_from_regular_account():
+    return HiseUser().current_account_type == regular_account_type
+
+def ide_is_from_guest_account(): 
+    return HiseUser().current_account_type == guest_account_type
+
+def ide_is_from_certificate_account(): 
+    return HiseUser().current_account_type == certificate_account_type
 
 def get_from_metadata_server(path):
     try:
