@@ -24,9 +24,7 @@ setup(
     author_email='paul.mariz@alleninstitute.org',
     url='https://github.com/aifimmunology/hisepy',
     packages=['hisepy'],
-    install_requires=['pandas', 'numpy', 'PyYAML', 'plotly', 'dash', 'kaleido',
-        'google-cloud-storage', 'requests', 'h5py', 'google',
-        'pipreqs==0.4.12', 'pip-tools', 'pyreadr', 'termcolor', 'pathlib'],
+    install_requires=[],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
     classifiers=[
