@@ -30,7 +30,6 @@ UPLOAD_HARVEST_LOWER_BOUND = CONFIG['TOOLCHAIN'][
     'UPLOAD_HARVEST_LOWER_BOUND_MB']
 
 
-
 def set_default_store(store=None):
     return IDEInstance().set_default_store(store)
 
@@ -89,10 +88,10 @@ def upload_files(files: list,
     inst = IDEInstance()
     ide_name = inst.podName
     ide_guid = inst.id
-    if cu.is_legacy_ide(): 
+    if cu.is_legacy_ide():
         file_log_dir = CONFIG['IDE']['HOME_DIR']
         home_dir = CONFIG["IDE"]["HOME_DIR"]
-    else: 
+    else:
         file_log_dir = CONFIG['STORES']['TEMP_STORE']
         home_dir = CONFIG["IDE"]["HOME_DIR_V2"]
 
@@ -149,8 +148,8 @@ def upload_files(files: list,
         "notebook": cu.current_notebook(),
         "homedir": home_dir
     }
-    # export conda env to file 
-    # TODO: test without exporting anything 
+    # export conda env to file
+    # TODO: test without exporting anything
     if not cu.is_legacy_ide():
         qargs["condaEnvironmentFile"] = do_conda_export()
 
@@ -162,6 +161,17 @@ def upload_files(files: list,
         requests.post(url,
                       json=gen_upload_body(files, file_types),
                       headers=get_bearer_token_header()))
+
+
+def retry_ide_commit(id: str):
+    if cu.is_legacy_ide():
+        raise Exception("Cannot retry commit on a legacy IDE")
+    return cu.parse_hise_response(
+        requests.put(
+            cu.hise_url("ide_management",
+                        "upload_file_v3_path",
+                        id,
+                        args={"condaEnvironmentFile": do_conda_export()})))
 
 
 def gen_upload_body(files, filetypes):
@@ -288,6 +298,7 @@ def check_project_against_study_space(project, study_space_id):
             "The specified study space %s is not in the project %s" %
             (ss["name"], project))
 
+
 def get_study_spaces():
     """ Returns list of studies a user has access to """
     return parse_hise_response(
@@ -374,12 +385,16 @@ def save_visualization(
         input_file_ids = []
     if input_sample_ids is None:
         input_sample_ids = []
-    if destination is None: 
+    if destination is None:
         destination = ""
-    tmp_data_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'], CONFIG['VISUALIZATION']['PLOTLY_DATA_FILE'])
-    tmp_plotly_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'], CONFIG['VISUALIZATION']['PLOTLY_FILE'])
-    tmp_img_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'], CONFIG['VISUALIZATION']['PLOTLY_IMAGE_FILE'])
-    log_dir = CONFIG['STORES']['TEMP_STORE'] if not cu.is_legacy_ide() else IDE_HOME_DIR
+    tmp_data_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
+                                   CONFIG['VISUALIZATION']['PLOTLY_DATA_FILE'])
+    tmp_plotly_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
+                                     CONFIG['VISUALIZATION']['PLOTLY_FILE'])
+    tmp_img_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
+                                  CONFIG['VISUALIZATION']['PLOTLY_IMAGE_FILE'])
+    log_dir = CONFIG['STORES']['TEMP_STORE'] if not cu.is_legacy_ide(
+    ) else IDE_HOME_DIR
     pl_obj.write_image(tmp_img_file)
     if auth.debug():
         pass
@@ -464,7 +479,8 @@ class DashAppImg:
         self.filepaths = {os.path.abspath(path) for path in additional_files}
         self.directories = {os.path.abspath(path) for path in additional_dirs}
         self.hero_image = os.path.abspath(hero_image)
-        self.requirements = os.path.abspath(requirements) if requirements is not None else None
+        self.requirements = os.path.abspath(
+            requirements) if requirements is not None else None
         self.study_space_id = study_space_id
         self.input_file_ids = input_file_ids
         self.input_sample_ids = input_sample_ids
@@ -533,7 +549,8 @@ class DashAppImg:
 
         print("POST toolchain/file for dash app tarball:")
         print(upload_resp)
-        homedir = IDE_HOME_DIR if cu.is_legacy_ide() else CONFIG['IDE']['HOME_DIR_V2']
+        homedir = IDE_HOME_DIR if cu.is_legacy_ide(
+        ) else CONFIG['IDE']['HOME_DIR_V2']
         save_args = {
             "studySpaceId": self.study_space_id,
             "title": self.title,
@@ -573,7 +590,8 @@ def validate_app_path(app_path):
     if not os.path.exists(app_path):
         raise ValueError("%s is not a valid file" % app_path)
     abspath = os.path.abspath(app_path)
-    prefix_home_path = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide() else IDE_HOME_DIR
+    prefix_home_path = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
+    ) else IDE_HOME_DIR
     if not abspath.startswith(prefix_home_path):
         raise ValueError("App file must be within %s" % prefix_home_path)
     if cu.string_contains_whitespaces(app_path):
@@ -674,12 +692,14 @@ def save_dash_app(app_filepath: str,
     validate_app_path(app_filepath)
     validate_files(additional_files)
     validate_hero_image(image)
-    log_dir = CONFIG['STORES']['TEMP_STORE'] if not cu.is_legacy_ide() else IDE_HOME_DIR
+    log_dir = CONFIG['STORES']['TEMP_STORE'] if not cu.is_legacy_ide(
+    ) else IDE_HOME_DIR
     if auth.debug():
         pass
     else:
         cu.validate_upload_input_ids(input_file_ids, input_sample_ids, log_dir)
-    home_dir_prefix = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide() else IDE_HOME_DIR
+    home_dir_prefix = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
+    ) else IDE_HOME_DIR
     tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(home_dir_prefix))
 
     # set permissions so toolchain can read and copy this file
