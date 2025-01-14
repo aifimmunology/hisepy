@@ -13,7 +13,7 @@ import pandas as pd
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
-IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not debug() else os.getcwd()
+IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR_V2'] if not debug() else os.getcwd()
 any_project_urn = "urn:hise:project:any"
 
 
@@ -137,7 +137,7 @@ class AbstractionAppImg:
         self.description = description
         self.data_contract_id = data_contract_id
         self.work_dir = work_dir
-        self.viz_configs_path = os.getcwd() if not auth.debug(
+        self.viz_configs_path = os.getcwd() if auth.debug(
         ) is True else CONFIG['ABSTRACTION']['VIZ_CONFIGS_PATH']
 
     def create_static_image_url(self):
@@ -378,7 +378,7 @@ def save_abstraction(app_filepath: str = None,
     validate_abstraction_app_path(app_filepath)
 
     # convert project to its' guid
-    proj_guid = project_shortname_to_guid(project)
+    proj_guid = cu.project_shortname_to_guid(project)
 
     # also convert resultFile.fileTypes to their guid
     result_file_ids = []
