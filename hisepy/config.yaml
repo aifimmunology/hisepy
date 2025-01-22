@@ -111,7 +111,7 @@ TOOLCHAIN:
   UPLOAD_HARVEST_LOWER_BOUND_MB: 10.0
   
 ABSTRACTION: 
-  VIZ_CONFIGS_PATH : /home/workspace/demo-hise-api/demos/Visualization_apps/dash/configs
+  VIZ_CONFIGS_PATH : /home/workspace/examples/demos/Visualization_apps/dash/configs
   SUBJECT_METADATA_URN: urn:hise:metadata:subject
   SAMPLE_METADATA_URN: urn:hise:metadata:sample
 
