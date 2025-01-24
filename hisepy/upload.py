@@ -602,6 +602,7 @@ def validate_app_path(app_path):
 
 def validate_files(filenames):
     """ Verifies that all submitted input files exist and are in /home/jupyter """
+    ide_dir = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide() else IDE_HOME_DIR
     for this_f in filenames:
         abs_path = os.path.abspath(this_f)
         if cu.string_contains_whitespaces(abs_path):
@@ -616,10 +617,10 @@ def validate_files(filenames):
             # so retrying is kinda expensive, but here we are.
             raise FileNotFoundError("Can't find '%s' (no such file: %s)" %
                                     (this_f, abs_path))
-        if not abs_path.startswith(IDE_HOME_DIR):
+        if not abs_path.startswith(ide_dir):
             raise Exception(
                 "Only files under %s can be included.  Not there: %s" %
-                (IDE_HOME_DIR, abs_path))
+                (ide_dir, abs_path))
 
 
 def validate_hero_image(hero_image):
