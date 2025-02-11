@@ -203,6 +203,22 @@ def is_legacy_ide():
     else: 
         raise SystemError("ide instance type is not recognized. Please contact support")
 
+def files_within_private(files):
+    ''' 
+    Returns a list of files within the private directory
+    '''
+    assert type(files) is list, "files must be a list"
+    bad_files = []
+
+    # check if the files are within the private directory
+    for f in files:
+
+        # absolute path if passed in a relative one 
+        if not os.path.isabs(f):
+            f = os.path.abspath(f)
+        if f.startswith(CONFIG['STORES']['PRIVATE_STORE']):
+            bad_files.append(f)
+    return bad_files 
 
 def parse_file_id_from_hise_file(hise_file):
     """
