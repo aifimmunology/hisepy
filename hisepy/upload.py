@@ -800,6 +800,7 @@ def validate_upload_data(files, study_space_id, project, title,
     if len(files_in_private) > 0:
         raise ValueError(
             "The following files are in your private folder: {}. These files cannot be uploaded from their current location. Please move to another directory and try again"
+            .format(files_in_private)
         )
     if len(input_file_ids) == 0:
         raise ValueError("You must specify at least one input file UUID")
