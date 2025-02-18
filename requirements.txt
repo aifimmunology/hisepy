@@ -105,6 +105,7 @@ protobuf==5.28.3
     #   google-api-core
     #   googleapis-common-protos
     #   proto-plus
+psutil==7.0.0
 pyasn1==0.6.1
     # via
     #   pyasn1-modules
