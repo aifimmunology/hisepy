@@ -15,6 +15,9 @@ def set_memory_limit(max_size_gb : int):
     Parameters: 
         max_size (int) : memory limit (in GB) for a kernel/process.
     '''
+    assert max_size_gb > 0, "Memory limit must be greater than 0"
+    assert type(max_size_gb) == int, "Memory limit must be an integer"
+    
     maxsize = max_size_gb *  (1024 ** 3) # in GB 
     soft, hard = getrlimit(RLIMIT_AS)    
     setrlimit(RLIMIT_AS, 
