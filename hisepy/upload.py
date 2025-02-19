@@ -83,6 +83,10 @@ def upload_files(files: list,
     if ((ide_is_from_guest_account()) or (ide_is_from_certificate_account())) and (cu.is_legacy_ide()):
         if not cu.prompt_yn(CONFIG['PROMPTS']['UPLOAD_AS_GUEST']):
             return
+        
+    # check that the upload is from an acceptable kernel 
+    if not cu.is_valid_upload_kernel():
+        raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
     
     # determine if ide is legacy or nextgen; and assign variables accordingly
     inst = IDEInstance()
@@ -387,6 +391,11 @@ def save_visualization(
         input_sample_ids = []
     if destination is None:
         destination = ""
+
+    # check that the upload is from an acceptable kernel 
+    if not cu.is_valid_upload_kernel():
+        raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
+    
     tmp_data_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
                                    CONFIG['VISUALIZATION']['PLOTLY_DATA_FILE'])
     tmp_plotly_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
@@ -689,6 +698,10 @@ def save_dash_app(app_filepath: str,
     if input_sample_ids is None:
         input_sample_ids = []
 
+    # check that the upload is from an acceptable kernel 
+    if not cu.is_valid_upload_kernel():
+        raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
+    
     # validate ASAP to avoid making a couple network calls before failing
     validate_app_path(app_filepath)
     validate_files(additional_files)
