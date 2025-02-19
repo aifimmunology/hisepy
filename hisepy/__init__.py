@@ -29,7 +29,7 @@ from .private_folders import (
     download_from_private_folder, rename_file_in_private_folder,
     upload_file_to_private_folder, delete_private_folder,
     find_private_folder_of_file)
-from .instances import (stop_ide, suspend_ide)
+from .instances import (stop_ide)
 from .version import __version__
 
 # if somebody does "from somepackage import *", this is what they will
