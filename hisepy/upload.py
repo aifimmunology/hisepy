@@ -84,6 +84,10 @@ def upload_files(files: list,
     if ((ide_is_from_guest_account()) or (ide_is_from_certificate_account())) and (cu.is_legacy_ide()):
         if not cu.prompt_yn(CONFIG['PROMPTS']['UPLOAD_AS_GUEST']):
             return
+        
+    # check that the upload is from an acceptable kernel 
+    if not cu.is_valid_upload_kernel():
+        raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
     
     # check that the users' default conda environment builds
     print("checking conda env builds")
@@ -393,6 +397,11 @@ def save_visualization(
         input_sample_ids = []
     if destination is None:
         destination = ""
+
+    # check that the upload is from an acceptable kernel 
+    if not cu.is_valid_upload_kernel():
+        raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
+    
     tmp_data_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
                                    CONFIG['VISUALIZATION']['PLOTLY_DATA_FILE'])
     tmp_plotly_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
@@ -699,6 +708,10 @@ def save_dash_app(app_filepath: str,
     if input_sample_ids is None:
         input_sample_ids = []
 
+    # check that the upload is from an acceptable kernel 
+    if not cu.is_valid_upload_kernel():
+        raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
+    
     # check that the users' default conda environment builds 
     print("checking conda env builds")
     if not conda_env_builds():
