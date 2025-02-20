@@ -19,6 +19,7 @@ PROMPTS:
   QUERY_DICT_READ: You are passing a query_dict to read_files_v2. This parameter does not work well with when trying to produce a Certificate of Reproducibility. It is recommended to submit a list of file_ids instead
   UPLOAD_FROM_LEGACY: You are attempting to upload a file from a legacy IDE. This is not supported. Please migrate code, data, and results to a nextgen IDE.
   UPLOAD_AS_GUEST: "Warning: You are uploading a file from a guest or certificate account. This action generates a new input file ID but does not preserve your current environment. To save your work, continue with the upload to generate a new input file ID. Then copy the ID and use it in the next IDE node in your workflow. Continue the upload?"
+  CONDA_ENV_BUILD: "Your current conda environment failed to build successfully. Please resolve potential conflicts in your conda environment and try again."
 
 # Authorization config
 AUTHORIZE: 

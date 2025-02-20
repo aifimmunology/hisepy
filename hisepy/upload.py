@@ -14,6 +14,7 @@ import hisepy.common_utils as cu
 from hisepy.common_utils import parse_hise_response, hise_url, current_notebook, project_shortname_to_guid, project_guid_to_shortname
 from hisepy import auth
 from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_is_from_regular_account, ide_is_from_guest_account, ide_is_from_certificate_account
+from hisepy.utils import conda_env_builds
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
@@ -84,6 +85,11 @@ def upload_files(files: list,
         if not cu.prompt_yn(CONFIG['PROMPTS']['UPLOAD_AS_GUEST']):
             return
     
+    # check that the users' default conda environment builds
+    print("checking conda env builds")
+    if not conda_env_builds():
+        raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+
     # determine if ide is legacy or nextgen; and assign variables accordingly
     inst = IDEInstance()
     ide_name = inst.podName
@@ -399,6 +405,10 @@ def save_visualization(
     if auth.debug():
         pass
     else:
+        # check that the users' default conda environment builds 
+        print("checking conda env builds")
+        if not conda_env_builds():
+            raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
         cu.validate_upload_input_ids(input_file_ids, input_sample_ids, log_dir)
     if study_space_id is None:
         print(
@@ -688,6 +698,11 @@ def save_dash_app(app_filepath: str,
     """
     if input_sample_ids is None:
         input_sample_ids = []
+
+    # check that the users' default conda environment builds 
+    print("checking conda env builds")
+    if not conda_env_builds():
+        raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
 
     # validate ASAP to avoid making a couple network calls before failing
     validate_app_path(app_filepath)
