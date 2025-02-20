@@ -8,6 +8,7 @@ Contributors: James Harvey
 """
 
 import os
+import sys
 import requests
 import shutil
 import urllib
@@ -202,6 +203,25 @@ def is_legacy_ide():
         return True
     else: 
         raise SystemError("ide instance type is not recognized. Please contact support")
+
+def is_valid_upload_kernel(): 
+    ''' Validates if the current kernel is a valid one for uploading results 
+    '''
+    # get instance obj from tracer 
+    inst = IDEInstance()
+    ide_guid = inst.id
+
+    # parse out modality info from instance obj
+    modality_name = inst.environment['condaEnvName']
+    conda_env_path = '%s/%s' % (CONFIG['STORES']['ENV_STORE'], modality_name)
+
+    # determine what conda env was used for the kernel
+    kernel_source = sys.prefix
+
+    # compare conda env from instance obj to conda env from current kernel 
+    if conda_env_path != kernel_source: 
+        return False
+    return True
 
 def files_within_private(files):
     ''' 
