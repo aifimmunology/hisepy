@@ -451,6 +451,9 @@ def read_files(file_list: list = None,
                             print("Waiting for file to download...")
                         response.append(
                             convert_file_data(f, parsed_dl_resp['Path']))
+                
+                # replace name of file to absolute filepath of download location 
+                this_desc['file']['name'] = download_filepath
                 response[idx].status = True
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
