@@ -23,6 +23,9 @@ project_store = "project"
 no_study_default = "no study"
 valid_upload_stores = [permanent_store, project_store]
 no_study_default = "no study"
+upload_files_conda_env_checked = False
+save_dash_conda_env_checked = False
+save_visualization_conda_env_checked = False
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -56,7 +59,8 @@ def upload_files(files: list,
                  file_types: list = [],
                  store: str = None,
                  destination: str = "",
-                 do_prompt: bool = True):
+                 do_prompt: bool = True,
+                 do_conda_build_check=True):
     """
     Uploads files to a store and records their provenance in HISE, but V3
 
@@ -79,6 +83,7 @@ def upload_files(files: list,
                         title='a upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
+
     if (ide_is_from_regular_account()) and (cu.is_legacy_ide()): 
         raise SystemError(CONFIG['PROMPTS']['UPLOAD_FROM_LEGACY'])
     if ((ide_is_from_guest_account()) or (ide_is_from_certificate_account())) and (cu.is_legacy_ide()):
@@ -90,9 +95,15 @@ def upload_files(files: list,
         raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
     
     # check that the users' default conda environment builds
-    print("checking conda env builds")
-    if not conda_env_builds():
-        raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+    # if ran subsequently, and conda env builds successfully, skip this check
+    global upload_files_conda_env_checked
+    if not upload_files_conda_env_checked: 
+        if (not do_conda_build_check) or (debug()):
+            pass
+        elif do_conda_build_check and (not conda_env_builds()):
+            raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+        else:
+            upload_files_conda_env_checked = True
 
     # determine if ide is legacy or nextgen; and assign variables accordingly
     inst = IDEInstance()
@@ -377,7 +388,8 @@ def save_visualization(
         title=None,  # not actually optional
         destination=None,  #optional 
         input_file_ids=None,  # not optional
-        input_sample_ids=None):  # optional
+        input_sample_ids=None, # optional
+        do_conda_build_check = True):  # optional
     """
     Save a plotly figure to a user's specified study. 
 
@@ -415,9 +427,15 @@ def save_visualization(
         pass
     else:
         # check that the users' default conda environment builds 
-        print("checking conda env builds")
-        if not conda_env_builds():
-            raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+        # if ran subsequently, and conda env builds successfully, skip this check
+        global save_visualization_conda_env_checked
+        if not save_visualization_conda_env_checked: 
+            if (not do_conda_build_check) or (debug()):
+                pass
+            elif do_conda_build_check and (not conda_env_builds()):
+                raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+            else:
+                save_visualization_conda_env_checked = True
         cu.validate_upload_input_ids(input_file_ids, input_sample_ids, log_dir)
     if study_space_id is None:
         print(
@@ -677,7 +695,8 @@ def save_dash_app(app_filepath: str,
                   description: str = None,
                   image: str = None,
                   requirements: str = None,
-                  input_sample_ids: list = None):
+                  input_sample_ids: list = None,
+                  do_conda_build_check=True):
     """
     Given a Dash app consisting of an entry point named `app.py` and a list of supporting files, upload and deploy that
     app to HISE as a visualization in the given study space.
@@ -712,10 +731,16 @@ def save_dash_app(app_filepath: str,
     if not cu.is_valid_upload_kernel():
         raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
     
-    # check that the users' default conda environment builds 
-    print("checking conda env builds")
-    if not conda_env_builds():
-        raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+    # check that the users' default conda environment builds
+    # if ran subsequently, and conda env builds successfully, skip this check
+    global save_dash_conda_env_checked
+    if not save_dash_conda_env_checked: 
+        if (not do_conda_build_check) or (debug()):
+            pass
+        elif do_conda_build_check and (not conda_env_builds()):
+            raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+        else:
+            save_dash_conda_env_checked = True
 
     # validate ASAP to avoid making a couple network calls before failing
     validate_app_path(app_filepath)
