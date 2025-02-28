@@ -51,6 +51,7 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
     Returns:
         bool : True if conda env can build successfully, otherwise False.
     '''
+    print("checking if conda environment can compile...")
     if path_to_conda_env is not None: 
         assert type(path_to_conda_env) == str, "Path to conda env must be a string"
         assert os.path.exists(path_to_conda_env), "Path to conda env does not exist"
