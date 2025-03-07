@@ -3,11 +3,14 @@ useful utility methods for HISE IDE users
 '''
 
 import os 
+import sys
 import time 
+from hisepy.auth import get_bearer_token_header
 from resource import  RLIMIT_AS, getrlimit, setrlimit 
 import hisepy.common_utils as cu
 from hisepy.instances import IDEInstance
 import shutil
+import requests
 import subprocess
 import psutil
 
@@ -89,3 +92,36 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
     shutil.rmtree(tmp_env_path)
 
     return True 
+
+def save_conda_environment(): 
+    '''
+    '''
+    # grab current active Conda environment 
+    active_conda_env_path = sys.prefix
+    conda_env_name = os.path.basename(active_conda_env_path)
+
+    # prompt on user's active conda env 
+    cu.prompt_user(msg="You are attempting to save your current active Conda environment: {}. Proceed? (y/n)".format(active_conda_env_path))
+    
+     # export conda env to temp directory
+    conda_export_dest = os.path.join(CONFIG['STORES']['TEMP_STORE'], '{}_env.yml'.format(conda_env_name))
+    process = subprocess.run("conda env export -p {src} > {dst}".format(src=active_conda_env_path, dst=conda_export_dest))
+    if process.returncode != 0:
+        raise SystemError('Unable to export conda env: {}'.format(active_conda_env_path))
+        return
+    
+    # attempt to build conda env 
+    # TODO: do we need to do this if tracer/CondaPack is already doing this?
+    if not conda_env_builds(active_conda_env_path):
+        raise SystemError('Unable to build conda env: {}'.format(active_conda_env_path))
+        return 
+    
+    # save Conda env to Tracer 
+    url = CONFIG['Tracer']['CONDA_PACK'] 
+    #resp = cu.parse_hise_response(requests.post(url, headers=get_bearer_token_header, files={'file': open(conda_export_dest, 'rb')}))
+
+
+    # clean up created conda env 
+    os.remove(conda_export_dest)
+    #print(resp)
+    return 

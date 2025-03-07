@@ -85,6 +85,7 @@ TRACER:
   STUDY_SPACE_PATH: tracer/studyspace
   FILE_SET : tracer/fileset
   IDE_INSTANCE: tracer/ideinstance
+  CONDA_PACK: tracer/condaPack
   
 # globals specific for IDE 
 IDE: 
