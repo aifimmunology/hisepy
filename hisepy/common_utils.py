@@ -378,7 +378,7 @@ def list_files_and_dirs(directory):
     return os.listdir(directory)
 
 
-def log_downloaded_files(file_id: str, sample_id: str = None, ide_dir: str= None):
+def log_downloaded_files(file_id: str, sample_id: str = None, ide_dir: str= None, replica_file_id: str = None, replica_sample_id: str = None):
     """
     Attaches fileId for the project folder file that was downloaded 
     
@@ -412,7 +412,9 @@ def log_downloaded_files(file_id: str, sample_id: str = None, ide_dir: str= None
         new_entry = pd.DataFrame(
             data={
                 'fileId': [file_id],
+                'replicaFileId' : [replica_file_id],
                 'sampleId': [sample_id],
+                'replicaSampleId': [replica_sample_id],
                 'downloadSourceDir': [download_workdir],
                 'downloadTimeStamp': [str(datetime.datetime.now())]
             })
@@ -436,9 +438,7 @@ def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
         hise_file)
     if (this_file_id != file_id):
         tmp_hise_file = copy.deepcopy(hise_file)
-        # tmp_hise_file["id"] = file_id
-        # import pdb; pdb.set_trace()
-        log_downloaded_files(this_file_id, None, ide_dir)
+        log_downloaded_files(file_id, None, ide_dir, this_file_id, None)
     return
 
 
@@ -536,6 +536,32 @@ def remove_dir(directory):
     return True
 
 
+def replica_files_used(input_file_ids : list, ide_dir: str = None): 
+    '''
+    '''
+    replica_file_ids = []
+    if ide_dir is None:
+        ide_dir = CONFIG['IDE']['HOME_DIR']
+        
+    # read log file 
+    cache_file = pyreadr.read_r('{h}/{c}'.format(h=ide_dir,
+                                       c=CONFIG['IDE']['CACHE_LOG_NAME']))
+
+    # extract out the data.frame
+    cache_df = cache_file[None]
+
+    # subset to entries where input_file_ids have non-null replicaFileIds 
+    replica_subset = cache_df.loc[(cache_df['fileId'].isin(input_file_ids)) & (~cache_df['replicaFileId'].isnull()),]
+    replica_ids = replica_subset['replicaFileId'].unique().tolist()
+    # assert that the length of replicas and input_file_ids are still the same 
+    if len(input_file_ids) != len(replica_ids): 
+        raise SystemError("The number of replica Ids does not match the number of input fileIds. Please contact the support team to resolve")
+        return
+    if len(replica_ids) == 0: 
+        return None 
+    else: 
+        return replica_ids
+
 def string_contains_whitespaces(file_str):
     """ returns True if a string contains whitespaces"""
 
@@ -613,12 +639,12 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
     mismatch_download_sources = dict()
     notebook_dir = os.getcwd()
     for f in input_file_ids:
-        if f not in cache_df['fileId'].unique():
+        if (f not in cache_df['fileId'].unique()) and (f not in cache_df['replicaFileId'].unique()):
             invalid_file_ids += [f]
 
     invalid_sample_ids = []
     for s in input_sample_ids:
-        if s not in cache_df['sampleId'].unique():
+        if (s not in cache_df['sampleId'].unique()) and (s not in cache_df['replicaSampleId'].unique()):
             invalid_sample_ids += [s]
 
     if len(invalid_file_ids) > 0:
