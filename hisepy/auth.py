@@ -121,21 +121,18 @@ def instance_account_guid():
     iguid = os.getenv("INSTANCE_ACCOUNT_GUID")
     if iguid is None:
         raise Exception(
-            "The Account GUID is not set. This IDE is misconfigured. Please contact support"
+            " The Account GUID is not set. This IDE is misconfigured. Please contact support"
         )
     return iguid
 
 
 def hise_server():
-    # first, determine if server is from a guest account 
+    return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
+
+
+def guest_hise_server(): 
+    
     user_info = HiseUser()
-    if ide_is_from_guest_account() or ide_is_from_certificate_account():
-        return guest_hise_server(user_info)
-    else:
-        return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
-
-
-def guest_hise_server(user_info): 
     # validations 
     if len(user_info.current_projects) > 1:
         raise SystemError(
