@@ -432,6 +432,7 @@ def read_files(file_list: list = None,
             endpoint = "https://%s/%s/%s/%s" % (hise_server(
             ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             # download the file to user's IDE
+            import pdb; pdb.set_trace()
             try:
                 if cu.is_legacy_ide():
                     response.append(cache_and_convert_file_data(f))

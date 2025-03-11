@@ -6,14 +6,15 @@ import tarfile
 import tempfile
 import re
 import uuid
-
+import urllib
 import plotly.graph_objects as go
 import requests
 
 import hisepy.common_utils as cu
 from hisepy.common_utils import parse_hise_response, hise_url, current_notebook, project_shortname_to_guid, project_guid_to_shortname
 from hisepy import auth
-from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_is_from_regular_account, ide_is_from_guest_account, ide_is_from_certificate_account
+from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_is_from_regular_account, ide_is_from_guest_account, ide_is_from_certificate_account, guest_hise_server
+from hisepy.utils import conda_env_builds
 
 dataframe_file_type = "Visualization-dataframe"
 freezer_ignore_endpoints = {"shutdown": None}
@@ -156,7 +157,11 @@ def upload_files(files: list,
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
 
-    url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
+    if ide_is_from_guest_account(): 
+        url = guest_hise_server(cu.hise_url("ide_management", "upload_file_v3_path", args=qargs))
+        #url += "?%s" % (urllib.parse.urlencode(qargs, doseq=True))
+    else: 
+        url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
     return cu.parse_hise_response(
         requests.post(url,
                       json=gen_upload_body(files, file_types),
@@ -166,12 +171,19 @@ def upload_files(files: list,
 def retry_ide_commit(id: str):
     if cu.is_legacy_ide():
         raise Exception("Cannot retry commit on a legacy IDE")
-    return cu.parse_hise_response(
-        requests.put(
-            cu.hise_url("ide_management",
+    if ide_is_from_guest_account(): 
+        url = guest_hise_server(cu.hise_url("ide_management",
                         "upload_file_v3_path",
                         id,
-                        args={"condaEnvironmentFile": do_conda_export()})))
+                        args={"condaEnvironmentFile": do_conda_export()}))
+    else: 
+        url = cu.hise_url("ide_management",
+                        "upload_file_v3_path",
+                        id,
+                        args={"condaEnvironmentFile": do_conda_export()})
+    return cu.parse_hise_response(
+        requests.put(
+            url))
 
 
 def gen_upload_body(files, filetypes):
