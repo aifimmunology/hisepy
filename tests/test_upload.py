@@ -236,7 +236,9 @@ class TestUploader():
         cache_file = f"{self.wd}/{CONFIG['IDE']['CACHE_LOG_NAME']}"
         cache_df = pd.DataFrame({
             "fileId": ["f1", "f2"],
-            "sampleId": ["s1", "s2"]
+            'replicaFileId' : ['fr1', 'fr2'],
+            "sampleId": ["s1", "s2"],
+            'replicaSampleId' : ['sr1', 'sr2']
         })
         pyreadr.write_rds(cache_file, cache_df)
         assert cu.validate_upload_input_ids(['f1', 'f2'], ['s1', 's2'],
