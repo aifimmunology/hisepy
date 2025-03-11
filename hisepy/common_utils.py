@@ -149,7 +149,7 @@ def get_from_config(heading: str, key: str):
 
 def get_ide(ide_instance_guid): 
     endpoint = "https://{s}/{de}/{ig}".format(
-        s=guest_hise_server if ide_is_from_guest_account() else hise_server, 
+        s=hise_server(), 
         de=CONFIG['TRACER']['IDE_PATH'], 
         ig=ide_instance_guid)
     resp = parse_hise_response(requests.request("GET", endpoint, headers=get_bearer_token_header()))
