@@ -130,8 +130,10 @@ def hise_server():
     return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
 
 
-def guest_hise_server(): 
+def guest_hise_server(original_url=None): 
     
+    if original_url is None:
+        original_url = os.getenv("HISE_SERVER")
     user_info = HiseUser()
     # validations 
     if len(user_info.current_projects) > 1:
@@ -144,12 +146,16 @@ def guest_hise_server():
         )
     
     # create guest URI 
-    gcp = user_info.current_projects[0].gcp_project_id 
-    server_env = os.getenv("HISE_SERVER")
+    # query projects and grab gcp_project_id
+    project_resp = cu.parse_hise_response(requests.get(cu.hise_url('amds', 'project_path'), 
+                 headers=get_bearer_token_header()))
+    gcp = project_resp[0]['gcp_project_id'] 
+    #server_env = os.getenv("HISE_SERVER")
 
     # ensure there's at least one period before splitting 
-    uri_parts = server_env.split('.', 1)
-    uri = '.'.join(uri_parts[0], gcp, uri_parts[1]) if len(uri_parts) > 1 else f"{gcp}.{server_env}"
+
+    uri_parts = original_url.split('.', 1)
+    uri = '.'.join((uri_parts[0], gcp, uri_parts[1])) if len(uri_parts) > 1 else f"{gcp}.{uri_parts[1]}"
     return uri 
 
 def ide_is_from_regular_account():

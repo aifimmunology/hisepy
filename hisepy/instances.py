@@ -18,7 +18,7 @@ def stop_ide():
     obj = cu.parse_hise_response(
         requests.request("POST",
                          "https://{s}/{tool}/{ide}/stop".format(
-                             s=guest_hise_server if ide_is_from_guest_account() else hise_server,
+                             s=guest_hise_server() if ide_is_from_guest_account() else hise_server(),
                              tool=CONFIG['IDE_MANAGEMENT']['IDE_PATH'],
                              ide=IDEInstance().id),
                          headers=get_bearer_token_header()))
