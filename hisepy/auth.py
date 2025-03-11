@@ -127,9 +127,33 @@ def instance_account_guid():
 
 
 def hise_server():
-    return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
+    # first, determine if server is from a guest account 
+    user_info = HiseUser()
+    if ide_is_from_guest_account() or ide_is_from_certificate_account():
+        return guest_hise_server(user_info)
+    else:
+        return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
 
 
+def guest_hise_server(user_info): 
+    # validations 
+    if len(user_info.current_projects) > 1:
+        raise SystemError(
+            "You are using a guest account with multiple projects. Please contact support"
+        )
+    elif len(user_info.current_projects) == 0: 
+        raise SystemError(
+            "You are using a guest account with no projects. Please contact support"
+        )
+    
+    # create guest URI 
+    gcp = user_info.current_projects[0].gcp_project_id 
+    server_env = os.getenv("HISE_SERVER")
+
+    # ensure there's at least one period before splitting 
+    uri_parts = server_env.split('.', 1)
+    uri = '.'.join(uri_parts[0], gcp, uri_parts[1]) if len(uri_parts) > 1 else f"{gcp}.{server_env}"
+    return uri 
 
 def ide_is_from_regular_account():
     return HiseUser().current_account_type == regular_account_type
