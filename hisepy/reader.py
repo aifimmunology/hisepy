@@ -13,7 +13,7 @@ import hisepy.common_utils as cu
 import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
-from hisepy.auth import get_bearer_token_header, hise_server, debug
+from hisepy.auth import get_bearer_token_header, hise_server, debug, ide_is_from_guest_account, guest_hise_server
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -174,7 +174,8 @@ def count_payload_entries(query: dict):
     """
     """
     count_endpoint = "https://{s}/{de}?_count=true".format(
-        s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+        s=guest_hise_server if ide_is_from_guest_account() else hise_server,
+        de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
     count = cu.parse_hise_response(requests.post(count_endpoint, 
                                                  data = json.dumps({"filter": query}),
                                                  headers=get_bearer_token_header()))
@@ -188,7 +189,8 @@ def submit_file_descriptor_request(formatted_query: dict, count : int):
         obj = submit_paginated_query(formatted_query, count)
     else: 
         endpoint = "https://{s}/{de}".format(
-            s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+            s=guest_hise_server if ide_is_from_guest_account() else hise_server, 
+            de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
         obj = cu.parse_hise_response(
             requests.post(endpoint,
                           data=json.dumps({"filter": formatted_query}),
@@ -205,7 +207,8 @@ def submit_paginated_query(query : dict, number_entries: int):
     num_chunks = math.ceil(number_entries / page_size)
     for i in range(0, num_chunks):
         endpoint = "https://{s}/{de}?page_size={ps}&page_number={pn}".format(
-            s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'], ps=page_size, pn=i+1)
+            s=guest_hise_server if ide_is_from_guest_account() else hise_server,
+            de=CONFIG['LEDGER']['FILE_SEARCH_PATH'], ps=page_size, pn=i+1)
         this_chunk = cu.parse_hise_response(
             requests.post(endpoint,
                             data=json.dumps({"filter": query}),
@@ -344,7 +347,7 @@ def post_query(file_list: list = None,
     # if user submits a query_id, grab all fileIds associated with that query
     if query_id is not None:
         q_endpoint = 'https://{s}/{q}/{qid}'.format(
-            s=hise_server(),
+            s=guest_hise_server if ide_is_from_guest_account() else hise_server,
             q=CONFIG['HYDRATION']['QUERY_SEARCH_PATH'],
             qid=query_id)
         resp_obj = cu.parse_hise_response(
@@ -429,8 +432,10 @@ def read_files(file_list: list = None,
             this_file_id, this_file_name, this_desc = cu.parse_file_descriptor_from_hise_file(
                 f)
 
-            endpoint = "https://%s/%s/%s/%s" % (hise_server(
-            ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
+            endpoint = "https://%s/%s/%s/%s" % (guest_hise_server if ide_is_from_guest_account() else hise_server, 
+                                                CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], 
+                                                this_file_id, 
+                                                ide_name)
             # download the file to user's IDE
             try:
                 if cu.is_legacy_ide():
@@ -588,8 +593,10 @@ def cache_files(file_ids: list = None,
             cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
         else: 
             log_dir = CONFIG['STORES']['TEMP_STORE']
-            endpoint = "https://%s/%s/%s/%s" % (hise_server(
-            ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
+            endpoint = "https://%s/%s/%s/%s" % (guest_hise_server if ide_is_from_guest_account() else hise_server, 
+                                                CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], 
+                                                this_file_id,
+                                                ide_name)
             dl_resp = cu.parse_hise_response(
                 requests.request("GET",
                                 endpoint,
@@ -729,7 +736,7 @@ def read_samples(sample_ids:list=None, query_dict:dict=None, to_df=True):
             "Failed to generate query from user's parameters. You must specify either a list of sample_ids or a query")
     
     # send request to ledger to get samples
-    endpoint = "https://%s/%s" % (hise_server(),
+    endpoint = "https://%s/%s" % (guest_hise_server if ide_is_from_guest_account() else hise_server,
                                   CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
     obj = cu.parse_hise_response(requests.post(endpoint,
                          data=json.dumps({"filter": query}),
@@ -768,7 +775,7 @@ def read_subjects(subject_ids: str = None,
             "You must specify either a list of subject_ids or a query")
 
     # send thy request to ledger
-    endpoint = "https://%s/%s" % (hise_server(),
+    endpoint = "https://%s/%s" % (guest_hise_server if ide_is_from_guest_account() else hise_server,
                                   CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
     obj = cu.parse_hise_response(requests.post(endpoint,
                          data=json.dumps({"filter": query}),
