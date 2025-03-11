@@ -121,7 +121,7 @@ def instance_account_guid():
     iguid = os.getenv("INSTANCE_ACCOUNT_GUID")
     if iguid is None:
         raise Exception(
-            "The Account GUID is not set. This IDE is misconfigured. Please contact support"
+            " The Account GUID is not set. This IDE is misconfigured. Please contact support"
         )
     return iguid
 
