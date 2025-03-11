@@ -27,7 +27,7 @@ def list_project_stores():
         list of project short-names user has access to
     """
     url = 'https://{ser}/{hy}/{pfe}'.format(
-        ser=guest_hise_server if ide_is_from_guest_account() else hise_server,
+        ser=hise_server(),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
         pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'])
     resp = requests.request("GET", url, headers=get_bearer_token_header())
@@ -54,7 +54,7 @@ def list_files_in_project_store(store_name):
     """
     store = {'stores': [store_name]}
     url = 'https://{ser}/{hy}/{pfe}/{f}'.format(
-        ser=guest_hise_server if ide_is_from_guest_account() else hise_server,
+        ser=hise_server(),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
         pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
         f='files')
@@ -132,7 +132,7 @@ def download_from_project_store_v1(store_name, file_name='', subdir=''):
         url_list = []
         for i in subdir_files:
             this_url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-                ser=guest_hise_server if ide_is_from_guest_account() else hise_server,
+                ser=hise_server(),
                 hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
                 pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
                 fol=store_name,
@@ -145,7 +145,7 @@ def download_from_project_store_v1(store_name, file_name='', subdir=''):
     else:
         # create url download
         url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-            ser=guest_hise_server if ide_is_from_guest_account() else hise_server,
+            ser=hise_server(),
             hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
             pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
             fol=store_name,
@@ -186,7 +186,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
         url_list = []
         for i in subdir_files:
             this_url = 'https://{ser}/{hy}/{pfe}/{fol}/{ide}/{fil}/{fn}'.format(
-                ser=guest_hise_server if ide_is_from_guest_account() else hise_server,
+                ser=hise_server(),
                 hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
                 pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
                 fol=store_name,
@@ -203,7 +203,7 @@ def download_from_project_store(store_name, file_name='', subdir=''):
     else:
         # create url download
         url = 'https://{ser}/{hy}/{pfe}/{fol}/{ide}/{fil}/{fn}'.format(
-            ser=guest_hise_server if ide_is_from_guest_account() else hise_server,
+            ser=hise_server(),
             hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
             pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
             fol=store_name,
@@ -285,7 +285,7 @@ def project_store_file_action(store_name, file_name, action):
     tag_field = CONFIG['PROJECT_STORE']['TAG_FIELD_NAME']
     json_tag = {tag_field: action}
     url = 'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
-        ser=guest_hise_server if ide_is_from_guest_account() else hise_server,
+        ser=hise_server(),
         hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
         pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
         fol=store_name,
