@@ -156,6 +156,8 @@ def upload_files(files: list,
                                      file_log_dir)
 
         # if invoked from a guest account, swap the fileId with the replicaID 
+        replica_file_ids = None
+    if ide_is_from_guest_account():
         replica_file_ids = cu.replica_files_used(input_file_ids, file_log_dir)
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
     qargs = {
