@@ -437,7 +437,6 @@ def read_files(file_list: list = None,
                                                 this_file_id, 
                                                 ide_name)
             # download the file to user's IDE
-            import pdb; pdb.set_trace()
             try:
                 if cu.is_legacy_ide():
                     response.append(cache_and_convert_file_data(f))
