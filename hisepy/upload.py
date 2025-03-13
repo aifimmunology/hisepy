@@ -84,7 +84,7 @@ def upload_files(files: list,
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
 
-    if (ide_is_from_regular_account() or ide_is_from_guest_account()) and (cu.is_legacy_ide()): 
+    if (cu.is_legacy_ide()): 
         raise SystemError(CONFIG['PROMPTS']['UPLOAD_FROM_LEGACY'])
     if ((ide_is_from_guest_account()) or (ide_is_from_certificate_account())) and (cu.is_legacy_ide()):
         if not cu.prompt_yn(CONFIG['PROMPTS']['UPLOAD_AS_GUEST']):
