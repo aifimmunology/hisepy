@@ -51,16 +51,27 @@ def subject_to_df_worker(subject_out):
     single_df = pd.DataFrame()
     for dk in dict_keys:
         this_entry = subject_out[dk]
-        if type(this_entry) == dict:
+        # skip if a field is null 
+        if this_entry is None: 
+            continue 
+        elif type(this_entry) is dict:
             this_entry.update(
                 (k, [v]) for k, v in
                 this_entry.items())  # convert values to lists inplace
             metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
             metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dk))
             meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
-        elif type(this_entry) == str:
+        elif (type(this_entry) is str) or (type(this_entry) is bool) or (type(this_entry) is int):
             single_tmp = pd.DataFrame([this_entry], columns=[dk])
             single_df = pd.concat([single_df, single_tmp], axis=1)
+        elif type(this_entry) is list: 
+            for m in this_entry: 
+                # convert values to lists inplace
+                m.update((k, [v]) for k, v in m.items())
+                metadata_df_tmp = pd.DataFrame.from_dict(m)
+                metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dk))
+                    
+            meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
         else:
             raise ValueError(
                 "There's an unexpected entry for collection... {}. please contact dev support!"
