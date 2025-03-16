@@ -116,11 +116,49 @@ def sample_to_df_worker(sample_out):
     """
 
     # initialize all data.frame objects in case there is nothing to reformat
-    metadata_df = pd.DataFrame(data=[''])
+    metadata_df = pd.DataFrame()
+    single_df = pd.DataFrame() 
     specimen_df = pd.DataFrame(data=[''])
     surv_df = pd.DataFrame(data=[''])
     lab_df = pd.DataFrame(data=[''])
+    import pdb; pdb.set_trace()
+    # TODO: move everything in loop as a helper function; add unit test 
     for dv in sample_out.keys():
+        this_entry = sample_out[dv]
+        #if dv == 'additionalPayload': 
+        #    import pdb; pdb.set_trace()
+        if type(this_entry) is dict: 
+            this_entry.update(
+                (k, [v]) for k, v in
+                this_entry.items())  # convert values to lists inplace
+            metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
+            metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dv))
+            metadata_df = pd.concat([metadata_df, metadata_df_tmp], axis=1)
+        elif this_entry is None: 
+            continue # skip - nothing to format 
+            # TODO: prob should still add column name w/ blank entry 
+        elif type(this_entry) is str or (type(this_entry) is bool) or (type(this_entry) is int): 
+            single_tmp = pd.DataFrame([this_entry], columns=[dv])
+            single_df = pd.concat([single_df, single_tmp], axis=1)
+        elif type(this_entry) is list: 
+            if len(this_entry) == 0: 
+                continue
+            elif  (type(this_entry[0]) is str) or (type(this_entry[0]) is bool) or (type(this_entry[0]) is int):
+                single_tmp = pd.DataFrame([this_entry[0]], columns=[dv])
+                single_df = pd.concat([single_df, single_tmp], axis=1)
+            else: 
+                for m in this_entry: 
+                    # convert values to lists inplace
+                    m.update((k, [v]) for k, v in m.items())
+                    metadata_df_tmp = pd.DataFrame.from_dict(m)
+                    metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dv))
+                    
+                meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
+        else:
+            raise ValueError(
+                "There's an unexpected entry for collection... {}. please contact dev support!"
+                .format(dv))
+        '''
         if dv == 'specimens':
             specimen_df = pd.read_json(json.dumps(sample_out[dv]))
         elif dv == 'survey':
@@ -147,6 +185,7 @@ def sample_to_df_worker(sample_out):
 
             # clean up
             surv_df.drop(columns=['answers', 'answers.id'], inplace=True)
+        
         elif dv == 'lab':
             lab_df = pd.DataFrame([sample_out[dv]])
             # expand on lab results
@@ -154,7 +193,7 @@ def sample_to_df_worker(sample_out):
             lab_df = pd.concat([lab_df, lab_results], axis=1)
 
             lab_df.drop(columns='labResults', inplace=True)
-
+        
         # everything else goes under metadata
         else:
             this_entry = sample_out[dv]
@@ -169,7 +208,9 @@ def sample_to_df_worker(sample_out):
                     metadata_df = pd.concat([metadata_df, tmp_df], axis=1)
                 else:
                     metadata_df[dv] = [sample_out[dv]]
-
+        '''
+    import pdb; pdb.set_trace()
+    """
     # add idenftifier columns to each data.frame object (subjectGuid & sampleKitGuid)
     this_subject_id = metadata_df.loc[:, 'subject.subjectGuid'].item()
     this_samplekit_id = metadata_df.loc[:, 'sample.sampleKitGuid'].item()
@@ -185,8 +226,10 @@ def sample_to_df_worker(sample_out):
         'survey': surv_df,
         'labResults': lab_df
     }
-
-    return dict_df
+    """
+    final_df = pd.concat([single_df, meta_df], axis=1)
+    return final_df
+    #return dict_df
 
 
 def sample_to_df(list_of_sample_obj):
@@ -203,12 +246,12 @@ def sample_to_df(list_of_sample_obj):
     """
     if len(list_of_sample_obj) == 0:
         return {}
-
-    sample_df_dict = sample_to_df_worker(list_of_sample_obj[0])
+    sample_df = sample_to_df_worker(list_of_sample_obj[0])
     if len(list_of_sample_obj) > 1:
         # loop and append
         for i in range(1, len(list_of_sample_obj)):
-            tmp_df_dict = sample_to_df_worker(list_of_sample_obj[i])
+            tmp_df = sample_to_df_worker(list_of_sample_obj[i])
+            '''
             sample_df_dict['metadata'] = pd.concat(
                 [sample_df_dict['metadata'], tmp_df_dict['metadata']],
                 ignore_index=True)
@@ -221,7 +264,9 @@ def sample_to_df(list_of_sample_obj):
             sample_df_dict['labResults'] = pd.concat(
                 [sample_df_dict['labResults'], tmp_df_dict['labResults']],
                 ignore_index=True)
-    return sample_df_dict
+            '''
+            sample_df = pd.concat([sample_df, tmp_df], ignore_index=True)
+    return sample_df
 
 
 def _desc_lab_to_df(this_desc):
