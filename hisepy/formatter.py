@@ -18,8 +18,6 @@ import hisepy.common_utils as cu
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
-# TODO: move hard-coded named fields to config.yaml file
-
 
 def convert_data_values(filepath: str, filetype: str):
     try:
@@ -34,44 +32,52 @@ def convert_data_values(filepath: str, filetype: str):
             "Uh-oh, the file wasn't downloaded into the /cache directory")
 
 
-# there's another layer/dict under emr.patientData. is leaving a dict under this column okay?
-# Do we want to expand this and create a df? maybe have a parameter asking what users want?
-def subject_to_df_worker(subject_out):
+def convert_single_val_to_df(df, single_val, col_name):
+    """ Converts a single value to a data.frame object
     """
-    Takes output from readSubjects, and reformats to a data.frame
-        Parameters:
-            subject_out: list
-                list of dictionaries containing data from subject materialized view
-        Returns:
-            final_df : data.frame
-                data.frame containing data from subject materialized view
+    assert (type(single_val) is str) or (type(single_val) is int) or (type(single_val) is bool), "Expected a single value to be of type str, int, or bool. Received type %s" % type(single_val)
+    single_df_tmp = pd.DataFrame([single_val], columns=[col_name])
+    df = pd.concat([df, single_df_tmp], axis=1)
+    return df
+
+
+def convert_dict_to_df(df, dict_val, col_name):
+    """ Converts a dictionary to a data.frame object
     """
-    dict_keys = subject_out.keys()
+    assert type(dict_val) is dict, "Expected a dictionary to be of type dict. Received type %s" % type(dict_val)
+    dict_val.update((k, [v]) for k, v in dict_val.items())
+    dict_df_tmp = pd.DataFrame.from_dict(dict_val)
+    dict_df_tmp = dict_df_tmp.add_prefix('{}.'.format(col_name))
+    df = pd.concat([df, dict_df_tmp], axis=1)
+    return df
+
+
+def reshape_custom_metadata(custom_metadata):
+    """ Takes a json payload and reshapes to a data.frame object
+    """
+    dict_keys = custom_metadata.keys()
     meta_df = pd.DataFrame()
     single_df = pd.DataFrame()
     for dk in dict_keys:
-        this_entry = subject_out[dk]
+        this_entry = custom_metadata[dk]
         # skip if a field is null 
         if this_entry is None: 
-            continue 
+            single_df = convert_single_val_to_df(single_df, "", dk)
         elif type(this_entry) is dict:
-            this_entry.update(
-                (k, [v]) for k, v in
-                this_entry.items())  # convert values to lists inplace
-            metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
-            metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dk))
-            meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
+            if len(this_entry) == 0:
+                single_df = convert_single_val_to_df(single_df, "", dk)
+            else:
+                meta_df = convert_dict_to_df(meta_df, this_entry, dk)
         elif (type(this_entry) is str) or (type(this_entry) is bool) or (type(this_entry) is int):
-            single_tmp = pd.DataFrame([this_entry], columns=[dk])
-            single_df = pd.concat([single_df, single_tmp], axis=1)
-        elif type(this_entry) is list: 
-            for m in this_entry: 
-                # convert values to lists inplace
-                m.update((k, [v]) for k, v in m.items())
-                metadata_df_tmp = pd.DataFrame.from_dict(m)
-                metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dk))
-                    
-            meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
+            single_df = convert_single_val_to_df(single_df, this_entry, dk)
+        elif type(this_entry) is list:
+            # if there's just 1 entry, convert it to a data.frame  
+            if len(this_entry) == 1 and type(this_entry[0]) is not dict:
+                single_df = convert_single_val_to_df(single_df, this_entry[0], dk)
+            else: 
+                # we have a dictionary with possibly multiple entries
+                for this_dict in this_entry: 
+                    meta_df = convert_dict_to_df(meta_df, this_dict, dk)
         else:
             raise ValueError(
                 "There's an unexpected entry for collection... {}. please contact dev support!"
@@ -81,10 +87,10 @@ def subject_to_df_worker(subject_out):
 
 
 def subject_to_df(list_subject_out):
-    subject_df = subject_to_df_worker(list_subject_out[0])
+    subject_df = reshape_custom_metadata(list_subject_out[0])
     if len(list_subject_out) > 1:
         for i in range(1, len(list_subject_out)):
-            tmp_df = subject_to_df_worker(list_subject_out[i])
+            tmp_df = reshape_custom_metadata(list_subject_out[i])
             subject_df = pd.concat([subject_df, tmp_df], ignore_index=True)
     return subject_df
 
