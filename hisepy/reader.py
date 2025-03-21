@@ -768,22 +768,18 @@ def read_subjects(subject_ids: str = None,
             "You must specify either a list of subject_ids or a query")
 
     # send thy request to ledger
-    #endpoint = "https://%s/%s" % (hise_server(),
-    #                              CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
-    endpoint = "https://dev.allenimmunology.org/ledger/subject/{}".format(subject_ids[0])
-    #obj = cu.parse_hise_response(requests.post(endpoint,
-    #                     data=json.dumps({"filter": query}),
-    #                     headers=get_bearer_token_header()))
-    obj = cu.parse_hise_response(requests.get(endpoint,
-                       headers=get_bearer_token_header()))
-    #if obj['payload'] is None:
-    #    raise ValueError("User's query resulted in 0 results")
+    endpoint = "https://%s/%s" % (hise_server(),
+                                  CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
+    obj = cu.parse_hise_response(requests.post(endpoint,
+                         data=json.dumps({"filter": query}),
+                         headers=get_bearer_token_header()))
+
+    if obj['payload'] is None:
+        raise ValueError("User's query resulted in 0 results")
     if to_df:
-        #return hf.subject_to_df(obj["payload"])
-        return hf.subject_to_df([obj])        
+        return hf.subject_to_df(obj["payload"])
     else:
-        #return obj["payload"]
-        return obj
+        return obj["payload"]
 
 def list_filesets(study_space_id):
     """ 
