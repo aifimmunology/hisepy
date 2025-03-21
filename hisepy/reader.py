@@ -13,7 +13,7 @@ import hisepy.common_utils as cu
 import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
-from hisepy.auth import get_bearer_token_header, hise_server, debug, ide_is_from_guest_account, guest_hise_server
+from hisepy.auth import get_bearer_token_header, hise_server, debug
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
