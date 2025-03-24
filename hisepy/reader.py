@@ -729,20 +729,16 @@ def read_samples(sample_ids:list=None, query_dict:dict=None, to_df=True):
             "Failed to generate query from user's parameters. You must specify either a list of sample_ids or a query")
     
     # send request to ledger to get samples
-    #endpoint = "https://%s/%s" % (hise_server(),
-    #                              CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
-    endpoint = "https://dev.allenimmunology.org/ledger/sample/{}".format(sample_ids[0]) # TODO: for testing - sort this out 
-    obj = cu.parse_hise_response(requests.get(endpoint,
-                                              headers=get_bearer_token_header()))
-    #obj = cu.parse_hise_response(requests.post(endpoint,
-    #                     data=json.dumps({"filter": query}),
-    #                     headers=get_bearer_token_header()))
+    endpoint = "https://%s/%s" % (hise_server(),
+                                  CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
+    obj = cu.parse_hise_response(requests.post(endpoint,
+                         data=json.dumps({"filter": query}),
+                         headers=get_bearer_token_header()))
     
-    #if obj['payload'] is None:
-    #    raise ValueError("User's query resulted in 0 results")
+    if obj['payload'] is None:
+        raise ValueError("User's query resulted in 0 results")
     if to_df:
-        #return hf.sample_to_df(obj["payload"])
-        return hf.sample_to_df([obj]) 
+        return hf.sample_to_df(obj["payload"])
     else:
         return obj['payload']
 
