@@ -121,7 +121,7 @@ def instance_account_guid():
     iguid = os.getenv("INSTANCE_ACCOUNT_GUID")
     if iguid is None:
         raise Exception(
-            "The Account GUID is not set. This IDE is misconfigured. Please contact support"
+            " The Account GUID is not set. This IDE is misconfigured. Please contact support"
         )
     return iguid
 
@@ -130,6 +130,33 @@ def hise_server():
     return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
 
 
+def guest_hise_server(original_url=None): 
+    
+    if original_url is None:
+        original_url = os.getenv("HISE_SERVER")
+    user_info = HiseUser()
+    # validations 
+    if len(user_info.current_projects) > 1:
+        raise SystemError(
+            "You are using a guest account with multiple projects. Please contact support"
+        )
+    elif len(user_info.current_projects) == 0: 
+        raise SystemError(
+            "You are using a guest account with no projects. Please contact support"
+        )
+    
+    # create guest URI 
+    # query projects and grab gcp_project_id
+    project_resp = cu.parse_hise_response(requests.get(cu.hise_url('amds', 'project_path'), 
+                 headers=get_bearer_token_header()))
+    gcp = project_resp[0]['gcp_project_id'] 
+    #server_env = os.getenv("HISE_SERVER")
+
+    # ensure there's at least one period before splitting 
+
+    uri_parts = original_url.split('.', 1)
+    uri = '.'.join((uri_parts[0], gcp, uri_parts[1])) if len(uri_parts) > 1 else f"{gcp}.{uri_parts[1]}"
+    return uri 
 
 def ide_is_from_regular_account():
     return HiseUser().current_account_type == regular_account_type
