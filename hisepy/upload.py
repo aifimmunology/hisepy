@@ -6,14 +6,14 @@ import tarfile
 import tempfile
 import re
 import uuid
-
+import urllib
 import plotly.graph_objects as go
 import requests
 
 import hisepy.common_utils as cu
 from hisepy.common_utils import parse_hise_response, hise_url, current_notebook, project_shortname_to_guid, project_guid_to_shortname
 from hisepy import auth
-from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_is_from_regular_account, ide_is_from_guest_account, ide_is_from_certificate_account
+from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_is_from_regular_account, ide_is_from_guest_account, ide_is_from_certificate_account, guest_hise_server
 from hisepy.utils import conda_env_builds
 
 dataframe_file_type = "Visualization-dataframe"
@@ -84,7 +84,7 @@ def upload_files(files: list,
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
 
-    if (ide_is_from_regular_account()) and (cu.is_legacy_ide()): 
+    if (cu.is_legacy_ide()): 
         raise SystemError(CONFIG['PROMPTS']['UPLOAD_FROM_LEGACY'])
     if ((ide_is_from_guest_account()) or (ide_is_from_certificate_account())) and (cu.is_legacy_ide()):
         if not cu.prompt_yn(CONFIG['PROMPTS']['UPLOAD_AS_GUEST']):
@@ -154,6 +154,10 @@ def upload_files(files: list,
     else:
         cu.validate_upload_input_ids(input_file_ids, input_sample_ids,
                                      file_log_dir)
+
+    # if invoked from a guest account, swap the fileId(s) with the replicaID 
+    if ide_is_from_guest_account():
+        input_file_ids= cu.replica_files_used(input_file_ids, file_log_dir)
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
     qargs = {
         "title": title,
@@ -169,6 +173,7 @@ def upload_files(files: list,
         "notebook": cu.current_notebook(),
         "homedir": home_dir
     }
+    
     # export conda env to file
     # TODO: test without exporting anything
     if not cu.is_legacy_ide():
@@ -177,7 +182,11 @@ def upload_files(files: list,
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
 
-    url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
+    if ide_is_from_guest_account(): 
+        url = guest_hise_server(cu.hise_url("ide_management", "upload_file_v3_path", args=qargs))
+        #url += "?%s" % (urllib.parse.urlencode(qargs, doseq=True))
+    else: 
+        url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
     return cu.parse_hise_response(
         requests.post(url,
                       json=gen_upload_body(files, file_types),
@@ -187,12 +196,19 @@ def upload_files(files: list,
 def retry_ide_commit(id: str):
     if cu.is_legacy_ide():
         raise Exception("Cannot retry commit on a legacy IDE")
-    return cu.parse_hise_response(
-        requests.put(
-            cu.hise_url("ide_management",
+    if ide_is_from_guest_account(): 
+        url = guest_hise_server(cu.hise_url("ide_management",
                         "upload_file_v3_path",
                         id,
-                        args={"condaEnvironmentFile": do_conda_export()})))
+                        args={"condaEnvironmentFile": do_conda_export()}))
+    else: 
+        url = cu.hise_url("ide_management",
+                        "upload_file_v3_path",
+                        id,
+                        args={"condaEnvironmentFile": do_conda_export()})
+    return cu.parse_hise_response(
+        requests.put(
+            url))
 
 
 def gen_upload_body(files, filetypes):

@@ -3,7 +3,7 @@ import os
 import json
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header, hise_server, IDEInstance
+from hisepy.auth import get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server
 from hisepy.upload import valid_upload_stores, project_store, permanent_store
 from hisepy.common_utils import hise_url
 
@@ -18,7 +18,7 @@ def stop_ide():
     obj = cu.parse_hise_response(
         requests.request("POST",
                          "https://{s}/{tool}/{ide}/stop".format(
-                             s=hise_server(),
+                             s=guest_hise_server() if ide_is_from_guest_account() else hise_server(),
                              tool=CONFIG['IDE_MANAGEMENT']['IDE_PATH'],
                              ide=IDEInstance().id),
                          headers=get_bearer_token_header()))

@@ -781,7 +781,6 @@ def read_subjects(subject_ids: str = None,
     else:
         return obj["payload"]
 
-
 def list_filesets(study_space_id):
     """ 
     Returns a list of filesets for a given study 
