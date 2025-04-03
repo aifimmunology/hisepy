@@ -306,8 +306,8 @@ def hise_file_to_df(list_of_hise_files):
         # create an object of data values for a given data type
         if filetype == 'csv':
             # attach file_name
-            list_of_hise_files[i].data_values['filename'] = list_of_hise_files[
-                i].descriptors['file']['name']
+            list_of_hise_files[i].data_values['filename'] = str(list_of_hise_files[
+                i].descriptors['file']['name'][0])
             values_df = pd.concat(
                 [values_df, list_of_hise_files[i].data_values],
                 ignore_index=True)
