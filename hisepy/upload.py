@@ -392,6 +392,51 @@ def default_study_space(must=True):
         )
     return sspaces[0]
 
+
+def save_conda_environment(name : str, description : str, languages : list): 
+    '''
+    '''
+    # grab current active Conda environment 
+    active_conda_env_path = sys.prefix
+    conda_env_name = os.path.basename(active_conda_env_path)
+
+    # prompt on user's active conda env 
+    cu.prompt_user(msg="You are attempting to save your current active Conda environment: {}. Proceed? (y/n)".format(active_conda_env_path))
+    
+    # export conda env to temp directory
+    conda_export_dest = os.path.join(CONFIG['STORES']['TEMP_STORE'], '{}_env.yml'.format(conda_env_name))
+    process = subprocess.run("conda env export -p {src} > {dst}".format(src=active_conda_env_path, dst=conda_export_dest))
+    if process.returncode != 0:
+        raise SystemError('Unable to export conda env: {}'.format(active_conda_env_path))
+        return
+    
+    # attempt to build conda env 
+    # TODO: do we need to do this if tracer/CondaPack is already doing this?
+    if not conda_env_builds(active_conda_env_path):
+        raise SystemError('Unable to build conda env: {}'.format(active_conda_env_path))
+        return 
+    
+    qargs = { 
+        'name': name,
+        'description': description,
+        #'ownerEmail' : auth.HiseUser().email 
+        'languages': [languages],
+        'environmentName': conda_env_name, # this is the name of the conda env
+        #'isPublishedSBool' : False, # default to false
+        #'buildDate' : datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), # TODO: build date for the conda env
+        #'deleted' : False
+    }
+    # save Conda env to Tracer 
+    url = cu.hise_url("tracer", "conda_pack", args=qargs) 
+    resp = cu.parse_hise_response(requests.post(url, headers=get_bearer_token_header, files={'file': open(conda_export_dest, 'rb')}))
+
+
+    # clean up created conda env 
+    os.remove(conda_export_dest)
+    #print(resp)
+    return 
+
+
 # Save a plotly figure
 # network call process:
 # save_static_image (POST hydration/source/studyspace/file) of figure written to png
