@@ -69,6 +69,13 @@ AMDS:
   PROJECT_PATH : accountmanager/project
   USER_PATH: accountmanager/userinfo
   
+# ledger file availabilities 
+BIO_SDK_FILE_AVAILABILITIES: 
+  NOT_STARTED : bio_sdk_not_started 
+  IN_PROGRESS : bio_sdk_in_progress
+  UNDER_REVIEW : bio_sdk_under_review
+  REJECTED : bio_sdk_rejected
+
 # ledger endpoints 
 LEDGER: 
   LEDGER_NAME : ledger
@@ -85,6 +92,8 @@ TRACER:
   STUDY_SPACE_PATH: tracer/studyspace
   FILE_SET : tracer/fileset
   IDE_INSTANCE: tracer/ideinstance
+  TRAINING_JOB: tracer/TrainingJob 
+  TRAINING_IMAGE: tracer/TrainingImage
   
 # globals specific for IDE 
 IDE: 
