@@ -530,7 +530,8 @@ def save_visualization(
                           file_types=[dataframe_file_type],
                           store=permanent_store,
                           destination=destination,
-                          do_prompt=False)
+                          do_prompt=False,
+                          do_conda_build_check=do_conda_build_check)
     args['traceId'] = up_res["TraceId"]
 
     # now null out the data and save the plotly without it
@@ -566,9 +567,11 @@ class DashAppImg:
                  input_file_ids: list,
                  work_dir: str,
                  title: str,
+                 do_conda_build_check: bool,
                  requirements: str = None,
                  description: str = None,
-                 input_sample_ids=None):
+                 input_sample_ids=None,
+):
 
         if input_sample_ids is None:
             input_sample_ids = []
@@ -585,6 +588,7 @@ class DashAppImg:
         self.title = title
         self.description = description
         self.work_dir = work_dir
+        self.do_conda_build_check = do_conda_build_check
 
     def create_req_txt(self):
         if self.requirements is None:
@@ -643,7 +647,8 @@ class DashAppImg:
             input_file_ids=self.input_file_ids,
             input_sample_ids=self.input_sample_ids,
             store=permanent_store,
-            do_prompt=False)
+            do_prompt=False,
+            do_conda_build_check=self.do_conda_build_check)
 
         print("POST toolchain/file for dash app tarball:")
         print(upload_resp)
@@ -831,7 +836,8 @@ def save_dash_app(app_filepath: str,
                       description=description,
                       requirements=requirements,
                       input_sample_ids=input_sample_ids,
-                      work_dir=tmpdirname)
+                      work_dir=tmpdirname,
+                      do_conda_build_check=do_conda_build_check)
 
     # Insert UI widget code here:
 
