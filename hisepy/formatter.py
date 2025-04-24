@@ -19,6 +19,19 @@ _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
+def attach_project_info_to_df(df): 
+    """ Adds project information to a data.frame object. data.frame object must have projectGuid column
+    """
+    # get projects 
+    proj_df = cu.get_projects() 
+
+    # add 'project' prefix to project columns 
+    proj_df = proj_df.add_prefix('project.')
+
+    # merge project info to data.frame
+    return  pd.merge(df, proj_df, how='left', left_on='projectGuid', right_on='project.guid')
+
+
 def convert_data_values(filepath: str, filetype: str):
     try:
         if filetype == 'csv':
