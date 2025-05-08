@@ -92,7 +92,7 @@ TRACER:
   STUDY_SPACE_PATH: tracer/studyspace
   FILE_SET : tracer/fileset
   IDE_INSTANCE: tracer/ideinstance
-  TRAINING_JOB: tracer/TrainingJob 
+  TRAINING_JOB: tracer/trainingjob
   TRAINING_IMAGE: tracer/TrainingImage
   
 # globals specific for IDE 
