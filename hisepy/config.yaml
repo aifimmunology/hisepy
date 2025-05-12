@@ -93,7 +93,24 @@ TRACER:
   FILE_SET : tracer/fileset
   IDE_INSTANCE: tracer/ideinstance
   TRAINING_JOB: tracer/trainingjob
-  TRAINING_IMAGE: tracer/TrainingImage
+  TRAINING_JOB_COLS: 
+    - id
+    - accountGuid
+    - projectGuid
+    - status 
+    - studySpaceId
+    - title
+    - description 
+    - tags
+    - trainingImageId
+    - model 
+    - deleted 
+    - availability 
+    - promoted 
+    - promotedVisibility
+    - added
+    - addedUser
+  TRAINING_IMAGE: tracer/trainingimage
   
 # globals specific for IDE 
 IDE: 
