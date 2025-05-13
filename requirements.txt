@@ -4,6 +4,7 @@
 #
 #    pip-compile
 #
+astor==0.8.1
 beautifulsoup4==4.12.3
     # via google
 blinker==1.8.2
@@ -122,6 +123,7 @@ pytz==2024.2
     # via pandas
 pyyaml==6.0.2
     # via -r requirements.in
+ray==2.46.0
 requests==2.32.3
     # via
     #   -r requirements.in
