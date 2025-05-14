@@ -163,6 +163,12 @@ SCHEDULER:
   PROJECT_FIELD : project 
   JOB_COMPLETE_STATUS : Completed 
 
+TEMP_FILES: 
+  NBCONVERT_TMP_FILE : nbconverted_file.py 
+
+TEMP_FOLDERS:
+  TRAINING_JOB_TMP : training_job
+  
 VISUALIZATION:
   PLOTLY_DATA_FILE: plotly_data.json
   PLOTLY_FILE: plotly.json
