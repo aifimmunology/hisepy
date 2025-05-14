@@ -21,6 +21,7 @@ import json
 import pathlib
 import copy
 import time
+import subprocess
 from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server
 
 # directory of hisepy package
@@ -36,6 +37,34 @@ CONFIG = read_yaml('{}/config.yaml'.format(_here))
 num_printed_notebooks = 3  # number of options user gets when a save call is invoked
 the_current_notebook = None
 
+
+def convert_notebook_to_python(notebook_path, output_path=None): 
+    ''' Convert notebook to a python script
+    '''
+    def _validate_convert_notebook_params(notebook_path, output_path):
+        # check if the notebook_path is a valid notebook file
+        if not notebook_path.endswith('.ipynb'):
+            raise ValueError("notebook path must end in .ipynb: {}".format(notebook_path))
+        elif not os.path.isfile(notebook_path):
+            raise FileNotFoundError("notebook path does not exist: {}".format(notebook_path))
+        # check if the output path is a valid directory and ends in .py
+        elif output_path is not None and not output_path.endswith('.py'):
+            raise ValueError("output path must end in .py: {}".format(output_path))
+        return 
+
+    # TODO: ensure /temp/training_job exists
+    if output_path is None: 
+        output_path = '{}/{}/{}'.format(CONFIG['STORES']['TEMP_STORE'], 
+                                        CONFIG['TEMP_FOLDERS']['TRAINING_JOB_TMP'],
+                                        CONFIG['TEMP_FILES']['NBCONVERT_TMP_FILE'])
+    
+    # validate input params 
+    _validate_convert_notebook_params(notebook_path, output_path)
+
+    subprocess.run("jupyter nbconvert --to python {i} --output {out}".format(
+        i=notebook_path, out=output_path), shell=True, check=True)
+    print("converted notebook to python script: {}".format(output_path))
+    return 
 
 def current_notebook():
     """
