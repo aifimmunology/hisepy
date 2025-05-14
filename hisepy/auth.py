@@ -41,6 +41,7 @@ class IDEInstance:
 
     def __init__(self):
         self.__url = cu.hise_url("tracer", "ide_instance", ide_instance_guid())
+        self.__tag_ide_url = cu.hise_url("ide_management", "tag_ide", ide_instance_guid())
         try:
             ide = cu.hise_get(self.__url)
             for key, value in ide.items():
@@ -54,6 +55,13 @@ class IDEInstance:
         data["id"] = self.id
         return requests.request("PUT",
                                 self.__url,
+                                data=json.dumps(data),
+                                headers=get_bearer_token_header())
+    
+    def __update_ide_tag(self, data):
+        data['id'] = self.id
+        return requests.request("PUT",
+                                self.__tag_ide_url,
                                 data=json.dumps(data),
                                 headers=get_bearer_token_header())
 
@@ -91,7 +99,7 @@ class IDEInstance:
 
     def set_default_project(self, projectShortName: str):
         g = cu.project_shortname_to_guid(projectShortName)
-        r = self.__update({"destinationProjectGuid": g})
+        r = self.__update_ide_tag({"destinationProjectGuid": g})
         self.destinationProjectGuid = g
         return r
 

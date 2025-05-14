@@ -56,6 +56,7 @@ def validate_review_run_params(study_space_id : str,
         raise Exception("review_notes must be a str")
     return 
     
+'''
 def review_run(study_space_id, job_id, image_id, approve, review_notes):
 
     # validate params
@@ -86,12 +87,7 @@ def review_run(study_space_id, job_id, image_id, approve, review_notes):
         return 
     elif approve is False: 
         return 
-    
-
-
-    
-    return 
-
+'''
 
 # not needed for milestone 1
 def stop_training_job():

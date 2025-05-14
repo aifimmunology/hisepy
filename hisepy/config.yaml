@@ -127,6 +127,7 @@ IDE:
 IDE_MANAGEMENT:
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
   IDE_PATH: ide-nextgen/instances 
+  TAG_IDE: ide-nextgen/instances/tag/ide
   
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
