@@ -276,10 +276,14 @@ def get_file_descriptors(query_dict: dict = None):
         try:
             dict_df = _append_descriptors(dict_df,
                                           hf.reshape_descriptors(this_desc))
+
         except:
             raise Exception(
                 "appending descriptor failed. descriptor: {}".format(
                     this_desc))
+    
+    # attach project info to descriptors
+    dict_df['descriptors'] = hf.attach_project_info_to_df(dict_df['descriptors'])
     return dict_df
 
 
@@ -738,7 +742,11 @@ def read_samples(sample_ids:list=None, query_dict:dict=None, to_df=True):
     if obj['payload'] is None:
         raise ValueError("User's query resulted in 0 results")
     if to_df:
-        return hf.sample_to_df(obj["payload"])
+        dict_df = hf.sample_to_df(obj["payload"])
+
+        # attach project info to metadata data.frame 
+        dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata']) 
+        return dict_df 
     else:
         return obj['payload']
 
@@ -777,7 +785,7 @@ def read_subjects(subject_ids: str = None,
     if obj['payload'] is None:
         raise ValueError("User's query resulted in 0 results")
     if to_df:
-        return hf.subject_to_df(obj["payload"])
+        return hf.attach_project_info_to_df(hf.subject_to_df(obj["payload"]))
     else:
         return obj["payload"]
 
