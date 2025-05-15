@@ -113,9 +113,6 @@ def start_training_run(provider : str,
                         ): 
     '''
     '''
-
-    # validate input params 
-    # TODO: do it 
     
     # create training_job temp directory
     training_job_temp_dir = '{}/{}'.format(CONFIG['STORES']['TEMP_STORE'], CONFIG['TEMP_FOLDERS']['TRAINING_JOB_TMP'])
@@ -132,11 +129,11 @@ def start_training_run(provider : str,
                             worker_count=worker_count,
                             title=title,
                             description=description,
-                            path_to_input_files=file_set_id, # TODO: change this 
                             file_set_id=file_set_id,
                             requirements_file_path=requirements_file_path,
                             training_job_file_path=training_job_file_path,
                             work_dir=tmpdirname)
+    job_obj._validate_params()
 
     # fork on provider
     if provider == 'ray':
@@ -176,8 +173,7 @@ class TrainingJob:
                  worker_count : int = 1,
                  title : str = None,
                  description : str = None,
-                 tags : list = None,
-                 path_to_input_files : list = None,
+                 tags : list = [],
                  file_set_id : str = None, # TODO: training job needs to work with this param after MVP presentation
                  requirements_file_path : str = None,
                  training_job_file_path : str = None,
@@ -196,7 +192,6 @@ class TrainingJob:
         self.title = title
         self.description = description
         self.tags = tags
-        self.path_to_input_files = path_to_input_files
         self.file_set_id = file_set_id
         self.requirements_file_path = requirements_file_path
         self.training_job_file_path = training_job_file_path
@@ -206,6 +201,42 @@ class TrainingJob:
         if job_id is not None:
             self.job_id = job_id
     
+    def _validate_params(self):
+        # check types 
+        if type(self.cpu_count) is not int:
+            raise Exception("cpu_count must be an int")
+        elif type(self.gpu_count) is not int:
+            raise Exception("gpu_count must be an int")
+        elif type(self.memory_size) is not int:
+            raise Exception("memory_size must be an int")
+        elif type(self.worker_count) is not int:
+            raise Exception("worker_count must be an int")
+        elif self.title is not None and type(self.title) is not str:
+            raise Exception("title must be a string")
+        elif self.description is not None and type(self.description) is not str:
+            raise Exception("description must be a string")
+        elif self.tags is not None and type(self.tags) is not list:
+            raise Exception("tags must be a list")
+        elif self.file_set_id is not None and type(self.file_set_id) is not str:
+            raise Exception("file_set_id must be a string")
+
+        # no white spaces in filepaths 
+        if self.requirements_file_path is not None:
+            if cu.string_contains_whitespaces(self.requirements_file_path):
+                raise Exception("requirements_file_path must not contain spaces")
+        if self.training_job_file_path is not None: 
+            if cu.string_contains_whitespaces(self.training_job_file_path):
+                raise Exception("training_job_file_path must not contain spaces")
+        
+        # check that the file exists
+        if self.requirements_file_path is not None:
+            if not os.path.exists(self.requirements_file_path):
+                raise Exception("requirements_file_path does not exist")
+        if self.training_job_file_path is not None:
+            if not os.path.exists(self.training_job_file_path):
+                raise Exception("training_job_file_path does not exist")
+        return 
+
     def get_job(self): 
         return cu.parse_hise_response(requests.get(self.__url,
                                             headers=get_bearer_token_header()))
