@@ -124,6 +124,10 @@ IDE:
   DOWNLOAD_CHUNK_SIZE : 102400
   PAGINATION_SIZE : 100
 
+JOB_ORCHESTRATE: 
+  RAY_WORKFLOW: orchestrate/ray/workflow
+  BEAKER_WORKFLOW: orchestrate/beaker/workflow
+
 IDE_MANAGEMENT:
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
   IDE_PATH: ide-nextgen/instances 
@@ -165,6 +169,7 @@ SCHEDULER:
 
 TEMP_FILES: 
   NBCONVERT_TMP_FILE : nbconverted_file.py 
+  RAY_CONFORMED_FILE : app.py
 
 TEMP_FOLDERS:
   TRAINING_JOB_TMP : training_job
