@@ -69,6 +69,13 @@ AMDS:
   PROJECT_PATH : accountmanager/project
   USER_PATH: accountmanager/userinfo
   
+# ledger file availabilities 
+BIO_SDK_FILE_AVAILABILITIES: 
+  NOT_STARTED : bio_sdk_not_started 
+  IN_PROGRESS : bio_sdk_in_progress
+  UNDER_REVIEW : bio_sdk_under_review
+  REJECTED : bio_sdk_rejected
+
 # ledger endpoints 
 LEDGER: 
   LEDGER_NAME : ledger
@@ -85,6 +92,25 @@ TRACER:
   STUDY_SPACE_PATH: tracer/studyspace
   FILE_SET : tracer/fileset
   IDE_INSTANCE: tracer/ideinstance
+  TRAINING_JOB: tracer/trainingjob
+  TRAINING_JOB_COLS: 
+    - id
+    - accountGuid
+    - projectGuid
+    - status 
+    - studySpaceId
+    - title
+    - description 
+    - tags
+    - trainingImageId
+    - model 
+    - deleted 
+    - availability 
+    - promoted 
+    - promotedVisibility
+    - added
+    - addedUser
+  TRAINING_IMAGE: tracer/trainingimage
   
 # globals specific for IDE 
 IDE: 
@@ -97,6 +123,10 @@ IDE:
   NEXTGEN_IDE_TAG: "nextgen"
   DOWNLOAD_CHUNK_SIZE : 102400
   PAGINATION_SIZE : 100
+
+JOB_ORCHESTRATE: 
+  RAY_WORKFLOW: orchestrate/ray/workflow
+  BEAKER_WORKFLOW: orchestrate/beaker/workflow
 
 IDE_MANAGEMENT:
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
@@ -139,6 +169,7 @@ SCHEDULER:
 
 TEMP_FILES: 
   NBCONVERT_TMP_FILE : nbconverted_file.py 
+  RAY_CONFORMED_FILE : app.py
 
 TEMP_FOLDERS:
   TRAINING_JOB_TMP : training_job
