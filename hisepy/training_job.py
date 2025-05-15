@@ -5,6 +5,7 @@ import tempfile
 import subprocess
 import pandas as pd 
 import shutil
+import tarfile
 import hisepy.common_utils as cu
 import hisepy.formatter as fmt
 import hisepy.ray_transformer as rt
@@ -143,12 +144,26 @@ def start_training_run(provider : str,
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
 
+        # create tar file of artifacts
+        job_obj.create_training_job_image()
+
         # submit ray job
         job_response = job_obj.submit_ray_workflow() 
 
     elif provider == 'beaker':
-        job_response = "STILL NEED TO DO THIS"
-        return
+        
+        # copy training job file to temp directory 
+        shutil.copy(job_obj.training_job_file_path, '{}/{}'.format(job_obj.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
+
+        # write requirements.txt file to temp directory
+        job_obj.create_req_txt()
+
+        # create tar file of artifacts
+        job_obj.create_training_job_image()
+
+        # submit beaker workflow 
+        job_response = job_obj.submit_beaker_workflow()
+
     else: 
         raise Exception("Provider must be either 'ray' or 'beaker'")
     
@@ -262,7 +277,7 @@ class TrainingJob:
         
         # transform script to conform to Ray
         rt.transform_to_ray(python_script_to_convert, 
-                            '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['RAY_CONFORMED_FILE']))
+                            '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
         return 
 
     def create_training_job_image(self): 
@@ -306,9 +321,6 @@ class TrainingJob:
                            check=True)
 
     def submit_ray_workflow(self):
-
-        # tar up everything and pass it along with request 
-        
         ray_args = {'accountGuid': HiseUser().current_account_guid,
                     'projectGuid': IDEInstance().destinationProjectGuid,
                     'fileSetId': self.file_set_id,
@@ -338,12 +350,34 @@ class TrainingJob:
                             headers=get_bearer_token_header()))
 
     def submit_beaker_workflow(self): 
-        return 
+        beaker_args = {'accountGuid': HiseUser().current_account_guid,
+                       'projectGuid': IDEInstance().destinationProjectGuid,
+                       'fileSetId': self.file_set_id,
+                       'instanceId': ide_instance_guid(), 
+                       'title': self.title,
+                       'description': self.description,
+                       'tags': self.tags,
+                       'jobRequest' : {
+                            'headConfig' : { # TODO: what should this headconfig actually be based from user's params
+                                "cpus": 1,
+                                "gpu":0,
+                                "memory" :"1"
+                            },
+                        'workerConfig' : { 
+                            'replicas' : self.worker_count,
+                            'cpus' : self.cpu_count,
+                            'gpu' : self.gpu_count,
+                            'memory': str(self.memory_size),
+                            }
+                        },
+                        "harvestArtifactsRequest": {
+                            "artifactsFileName": self.artifacts_path,
+                            "packageManager": "pip"
+                    }}
+        return cu.parse_hise_response(requests.post(self.__beaker_workflow_url,
+                            json=beaker_args,
+                            headers=get_bearer_token_header()))
 
-    def start_training_run(self, data):
-
-
-        return 
 
     """
             def promote_job(self, data): 
