@@ -9,6 +9,7 @@ import tarfile
 import hisepy.common_utils as cu
 import hisepy.formatter as fmt
 import hisepy.ray_transformer as rt
+from hisepy.upload import create_temp_directory_files
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
 
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -109,8 +110,11 @@ def start_training_run(provider : str,
                         training_job_file_path : str, 
                         title : str,
                         description : str,
-                        file_set_id: str,            
-                        requirements_file_path : str = None
+                        file_set_id: str, 
+                        additional_dirs : list = None, 
+                        additional_files : list = None,           
+                        requirements_file_path : str = None,
+                        image_id : str = None, 
                         ): 
     '''
     '''
@@ -133,6 +137,9 @@ def start_training_run(provider : str,
                             file_set_id=file_set_id,
                             requirements_file_path=requirements_file_path,
                             training_job_file_path=training_job_file_path,
+                            additional_dirs=additional_dirs,
+                            additional_files=additional_files,
+                            image_id = image_id,
                             work_dir=tmpdirname)
     job_obj._validate_params()
 
@@ -143,6 +150,9 @@ def start_training_run(provider : str,
 
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
+
+        # copy any additional scripts or modules the user supplies 
+        job_obj.copy_scripts_and_dirs_to_temp()
 
         # create tar file of artifacts
         job_obj.create_training_job_image()
@@ -157,6 +167,9 @@ def start_training_run(provider : str,
 
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
+
+        # copy any additional scripts or modules the user supplies 
+        job_obj.copy_scripts_and_dirs_to_temp()
 
         # create tar file of artifacts
         job_obj.create_training_job_image()
@@ -192,6 +205,9 @@ class TrainingJob:
                  file_set_id : str = None, # TODO: training job needs to work with this param after MVP presentation
                  requirements_file_path : str = None,
                  training_job_file_path : str = None,
+                 additional_dirs : list = None,
+                 additional_files : list = None, 
+                 image_id : str = None, 
                  work_dir : str = None,
                  job_id = None):
         self.__url = cu.hise_url('tracer', 'training_job')
@@ -210,6 +226,10 @@ class TrainingJob:
         self.file_set_id = file_set_id
         self.requirements_file_path = requirements_file_path
         self.training_job_file_path = training_job_file_path
+        self.additional_dirs = additional_dirs
+        self.additional_files = additional_files
+        self.additional_files = additional_files
+        self.image_id = image_id
         self.work_dir = work_dir
         self.artifacts_path = tarfile_path = '{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
 
@@ -234,6 +254,12 @@ class TrainingJob:
             raise Exception("tags must be a list")
         elif self.file_set_id is not None and type(self.file_set_id) is not str:
             raise Exception("file_set_id must be a string")
+        elif self.additional_dirs is not None and type(self.additional_dirs) is not list: 
+            raise Exception("additional_dirs must be a list")
+        elif self.additional_files is not None and type(self.additional_files) is not list:
+            raise Exception("additional_files must be a list")
+        elif self.image_id is not None and type(self.image_id) is not str:
+            raise Exception("image_id must be a string")
 
         # no white spaces in filepaths 
         if self.requirements_file_path is not None:
@@ -242,6 +268,14 @@ class TrainingJob:
         if self.training_job_file_path is not None: 
             if cu.string_contains_whitespaces(self.training_job_file_path):
                 raise Exception("training_job_file_path must not contain spaces")
+        if self.additional_dirs is not None: 
+            for d in self.additional_dirs:
+                if cu.string_contains_whitespaces(d):
+                    raise Exception("additional_dirs must not contain spaces")
+        if self.additional_files is not None:
+            for f in self.additional_files:
+                if cu.string_contains_whitespaces(f):
+                    raise Exception("additional_files must not contain spaces")
         
         # check that the file exists
         if self.requirements_file_path is not None:
@@ -278,6 +312,13 @@ class TrainingJob:
         # transform script to conform to Ray
         rt.transform_to_ray(python_script_to_convert, 
                             '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
+        return 
+
+    def copy_scripts_and_dirs_to_temp(self): 
+
+        # master list of directories and additional files 
+        app_files = self.additional_files + self.additional_dirs
+        create_temp_directory_files(app_files, self.work_dir)
         return 
 
     def create_training_job_image(self): 
@@ -345,6 +386,8 @@ class TrainingJob:
                         "artifactsFileName": self.artifacts_path,
                         "packageManager": "pip"
                     }}
+        if self.image_id is not None: 
+            ray_args['imageId'] = self.image_id
         return cu.parse_hise_response(requests.post(self.__ray_workflow_url,
                             json=ray_args,
                             headers=get_bearer_token_header()))
@@ -374,6 +417,8 @@ class TrainingJob:
                             "artifactsFileName": self.artifacts_path,
                             "packageManager": "pip"
                     }}
+        if self.image_id is not None:
+            beaker_args['imageId'] = self.image_id
         return cu.parse_hise_response(requests.post(self.__beaker_workflow_url,
                             json=beaker_args,
                             headers=get_bearer_token_header()))
