@@ -792,7 +792,7 @@ def save_dash_app(app_filepath: str,
                       requirements=requirements,
                       input_sample_ids=input_sample_ids,
                       work_dir=tmpdirname,
-                      do_conda_build_check=do_conda_build_check)
+                      do_conda_build_check=False)
 
     # Insert UI widget code here:
 
