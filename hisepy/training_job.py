@@ -24,15 +24,6 @@ def list_all_training_jobs():
         job_df = pd.concat([job_df, fmt.reshape_custom_metadata(j, False)])
     return job_df[cols_to_keep].sort_values(by='added', ascending=False) # NOTE: outputFileIds field is missing for some entries  
 
-def get_training_job(job_id : str):
-    '''
-    '''
-    cols_to_keep = CONFIG['TRACER']['TRAINING_JOB_COLS']
-    try: 
-        return fmt.reshape_custom_metadata(TrainingJob(job_id).get_job()[0], False)[cols_to_keep]
-    except: 
-        print("job has missing column that's expected: {}".format(job_id)) # TODO: fix endpoint 
-        return 
 
 def get_training_image(image_id : str): 
     '''
@@ -99,6 +90,17 @@ def stop_training_job():
 
 def get_training_job_status(job_id):
     return get_training_job(job_id)[['status']]
+
+def get_training_job(job_id : str):
+    '''
+    '''
+    cols_to_keep = CONFIG['TRACER']['TRAINING_JOB_COLS']
+    try: 
+        this_job = TrainingJob(job_id=job_id).get_job()
+        return fmt.reshape_custom_metadata(this_job, False)[cols_to_keep]
+    except: 
+        print("job has missing column that's expected: {}".format(job_id)) # TODO: fix endpoint 
+        return 
 
 def start_training_run(provider : str, 
                         cpu_count : int, 
@@ -238,7 +240,9 @@ class TrainingJob:
         return 
 
     def get_job(self): 
-        return cu.parse_hise_response(requests.get(self.__url,
+        if self.job_id is None: 
+            raise Exception("job_id must be set")
+        return cu.parse_hise_response(requests.get('{}/{}'.format(self.__url, self.job_id),
                                             headers=get_bearer_token_header()))
     
     def list_all_jobs(self):
@@ -378,7 +382,6 @@ class TrainingJob:
                                 data=json.dumps(data),
                                 headers=get_bearer_token_header()})
     """
-
 
 def get_training_image(image_id : str): 
     '''
