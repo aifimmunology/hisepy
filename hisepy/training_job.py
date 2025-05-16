@@ -9,7 +9,6 @@ import tarfile
 import hisepy.common_utils as cu
 import hisepy.formatter as fmt
 import hisepy.ray_transformer as rt
-from hisepy.upload import create_temp_directory_files
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
 
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -318,7 +317,18 @@ class TrainingJob:
 
         # master list of directories and additional files 
         app_files = self.additional_files + self.additional_dirs
-        create_temp_directory_files(app_files, self.work_dir)
+
+        # copy each directory and file to the temp directory, preserving the relative path to training_job_file_path
+        for f in app_files:
+            # check if the file is a directory or a file
+            if os.path.isdir(f):
+                # copy the directory to the temp directory
+                shutil.copytree(f, '{}/{}'.format(self.work_dir, os.path.basename(f)))
+            elif os.path.isfile(f):
+                # copy the file to the temp directory
+                shutil.copy(f, '{}/{}'.format(self.work_dir, os.path.basename(f)))
+            else:
+                raise Exception("additional_files must be a list of files or directories") 
         return 
 
     def create_training_job_image(self): 
