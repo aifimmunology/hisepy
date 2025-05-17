@@ -139,7 +139,7 @@ def start_training_run(provider : str,
                             additional_dirs=additional_dirs,
                             additional_files=additional_files,
                             image_id = image_id,
-                            work_dir=tmpdirname)
+                            work_dir='/home/workspace/artifacts')
     job_obj._validate_params()
 
     # fork on provider
@@ -180,8 +180,8 @@ def start_training_run(provider : str,
         raise Exception("Provider must be either 'ray' or 'beaker'")
     
     # clean up temp directory 
-    if os.path.exists(tmpdirname):
-        shutil.rmtree(tmpdirname)
+    #if os.path.exists(tmpdirname):
+    #    shutil.rmtree(tmpdirname)
     return job_response
     
 class TrainingJob: 
@@ -230,7 +230,7 @@ class TrainingJob:
         self.additional_files = additional_files
         self.image_id = image_id
         self.work_dir = work_dir
-        self.artifacts_path = tarfile_path = '{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
+        self.artifacts_path = tarfile_path = '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
 
         if job_id is not None:
             self.job_id = job_id
@@ -333,7 +333,7 @@ class TrainingJob:
 
     def create_training_job_image(self): 
         with tarfile.open(self.artifacts_path, 'w:gz') as tar: 
-            tar.add(self.work_dir, arcname='')
+            tar.add(self.work_dir, arcname='artifacts')
         return 
         
     def create_req_txt(self):
