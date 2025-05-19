@@ -119,14 +119,17 @@ def start_training_run(provider : str,
     '''
     
     # create training_job temp directory
+    """
     training_job_temp_dir = '{}/{}'.format(CONFIG['STORES']['TEMP_STORE'], CONFIG['TEMP_FOLDERS']['TRAINING_JOB_TMP'])
     if not os.path.exists(training_job_temp_dir):
         os.makedirs(training_job_temp_dir)
     tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(training_job_temp_dir))
 
+
     # set permissions so job-orchestrator can read and copy this file
     os.chmod(tmpdirname, 0o777)
-
+    """
+    
     job_obj = TrainingJob(cpu_count=cpu_count,
                             gpu_count=gpu_count,
                             memory_size=memory_size,
@@ -230,7 +233,7 @@ class TrainingJob:
         self.additional_files = additional_files
         self.image_id = image_id
         self.work_dir = work_dir
-        self.artifacts_path = tarfile_path = '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
+        self.artifacts_path = '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
 
         if job_id is not None:
             self.job_id = job_id
@@ -322,6 +325,9 @@ class TrainingJob:
         for f in app_files:
             # check if the file is a directory or a file
             if os.path.isdir(f):
+                # check if directory already exists, remove if so
+                if os.path.exists('{}/{}'.format(self.work_dir, os.path.basename(f))):
+                    shutil.rmtree('{}/{}'.format(self.work_dir, os.path.basename(f)))
                 # copy the directory to the temp directory
                 shutil.copytree(f, '{}/{}'.format(self.work_dir, os.path.basename(f)))
             elif os.path.isfile(f):
@@ -383,13 +389,13 @@ class TrainingJob:
                         'headConfig' : { # TODO: what should this headconfig actually be based from user's params
                             "cpus": 1,
                             "gpu":0,
-                            "memory" :"1"
+                            "memory" : "{}G".format(str(self.memory_size))
                         },
                         'workerConfig' : { 
                             'replicas' : self.worker_count,
                             'cpus' : self.cpu_count,
                             'gpu' : self.gpu_count,
-                            'memory': str(self.memory_size),
+                            'memory': "{}G".format(str(self.memory_size))
                         }
                     },
                     "harvestArtifactsRequest": {
@@ -398,6 +404,7 @@ class TrainingJob:
                     }}
         if self.image_id is not None: 
             ray_args['imageId'] = self.image_id
+        import pdb; pdb.set_trace()
         return cu.parse_hise_response(requests.post(self.__ray_workflow_url,
                             json=ray_args,
                             headers=get_bearer_token_header()))
@@ -414,13 +421,13 @@ class TrainingJob:
                             'headConfig' : { # TODO: what should this headconfig actually be based from user's params
                                 "cpus": 1,
                                 "gpu":0,
-                                "memory" :"1"
+                                "memory" :"{}G".format(str(self.memory_size))
                             },
                         'workerConfig' : { 
                             'replicas' : self.worker_count,
                             'cpus' : self.cpu_count,
                             'gpu' : self.gpu_count,
-                            'memory': str(self.memory_size),
+                            'memory': "{}G".format(str(self.memory_size)),
                             }
                         },
                         "harvestArtifactsRequest": {
