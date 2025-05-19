@@ -119,17 +119,16 @@ def start_training_run(provider : str,
     '''
     
     # create training_job temp directory
-    """
-    training_job_temp_dir = '{}/{}'.format(CONFIG['STORES']['TEMP_STORE'], CONFIG['TEMP_FOLDERS']['TRAINING_JOB_TMP'])
+    training_job_temp_dir = '/home/workspace/artifacts'
     if not os.path.exists(training_job_temp_dir):
         os.makedirs(training_job_temp_dir)
-    tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(training_job_temp_dir))
+    #tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(training_job_temp_dir))
 
 
     # set permissions so job-orchestrator can read and copy this file
-    os.chmod(tmpdirname, 0o777)
-    """
+    #os.chmod(tmpdirname, 0o777)
     
+
     job_obj = TrainingJob(cpu_count=cpu_count,
                             gpu_count=gpu_count,
                             memory_size=memory_size,
@@ -182,9 +181,6 @@ def start_training_run(provider : str,
     else: 
         raise Exception("Provider must be either 'ray' or 'beaker'")
     
-    # clean up temp directory 
-    #if os.path.exists(tmpdirname):
-    #    shutil.rmtree(tmpdirname)
     return job_response
     
 class TrainingJob: 
@@ -387,8 +383,8 @@ class TrainingJob:
                     'tags': self.tags,
                     'jobRequest' : {
                         'headConfig' : { # TODO: what should this headconfig actually be based from user's params
-                            "cpus": 1,
-                            "gpu":0,
+                            "cpus": self.cpu_count,
+                            "gpu": self.gpu_count,
                             "memory" : "{}G".format(str(self.memory_size))
                         },
                         'workerConfig' : { 
@@ -404,7 +400,6 @@ class TrainingJob:
                     }}
         if self.image_id is not None: 
             ray_args['imageId'] = self.image_id
-        import pdb; pdb.set_trace()
         return cu.parse_hise_response(requests.post(self.__ray_workflow_url,
                             json=ray_args,
                             headers=get_bearer_token_header()))
@@ -419,8 +414,8 @@ class TrainingJob:
                        'tags': self.tags,
                        'jobRequest' : {
                             'headConfig' : { # TODO: what should this headconfig actually be based from user's params
-                                "cpus": 1,
-                                "gpu":0,
+                                "cpus": self.cpu_count,
+                                "gpu":self.gpu_count,
                                 "memory" :"{}G".format(str(self.memory_size))
                             },
                         'workerConfig' : { 
