@@ -5,6 +5,7 @@ import tempfile
 import subprocess
 import pandas as pd 
 import shutil
+import tarfile
 import hisepy.common_utils as cu
 import hisepy.formatter as fmt
 import hisepy.ray_transformer as rt
@@ -108,20 +109,25 @@ def start_training_run(provider : str,
                         training_job_file_path : str, 
                         title : str,
                         description : str,
-                        file_set_id: str,            
-                        requirements_file_path : str = None
+                        file_set_id: str, 
+                        additional_dirs : list = None, 
+                        additional_files : list = None,           
+                        requirements_file_path : str = None,
+                        image_id : str = None, 
                         ): 
     '''
     '''
     
     # create training_job temp directory
-    training_job_temp_dir = '{}/{}'.format(CONFIG['STORES']['TEMP_STORE'], CONFIG['TEMP_FOLDERS']['TRAINING_JOB_TMP'])
+    training_job_temp_dir = '/home/workspace/artifacts'
     if not os.path.exists(training_job_temp_dir):
         os.makedirs(training_job_temp_dir)
-    tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(training_job_temp_dir))
+    #tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(training_job_temp_dir))
+
 
     # set permissions so job-orchestrator can read and copy this file
-    os.chmod(tmpdirname, 0o777)
+    #os.chmod(tmpdirname, 0o777)
+    
 
     job_obj = TrainingJob(cpu_count=cpu_count,
                             gpu_count=gpu_count,
@@ -132,7 +138,10 @@ def start_training_run(provider : str,
                             file_set_id=file_set_id,
                             requirements_file_path=requirements_file_path,
                             training_job_file_path=training_job_file_path,
-                            work_dir=tmpdirname)
+                            additional_dirs=additional_dirs,
+                            additional_files=additional_files,
+                            image_id = image_id,
+                            work_dir='/home/workspace/artifacts')
     job_obj._validate_params()
 
     # fork on provider
@@ -143,18 +152,35 @@ def start_training_run(provider : str,
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
 
+        # copy any additional scripts or modules the user supplies 
+        job_obj.copy_scripts_and_dirs_to_temp()
+
+        # create tar file of artifacts
+        job_obj.create_training_job_image()
+
         # submit ray job
         job_response = job_obj.submit_ray_workflow() 
 
     elif provider == 'beaker':
-        job_response = "STILL NEED TO DO THIS"
-        return
+        
+        # copy training job file to temp directory 
+        shutil.copy(job_obj.training_job_file_path, '{}/{}'.format(job_obj.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
+
+        # write requirements.txt file to temp directory
+        job_obj.create_req_txt()
+
+        # copy any additional scripts or modules the user supplies 
+        job_obj.copy_scripts_and_dirs_to_temp()
+
+        # create tar file of artifacts
+        job_obj.create_training_job_image()
+
+        # submit beaker workflow 
+        job_response = job_obj.submit_beaker_workflow()
+
     else: 
         raise Exception("Provider must be either 'ray' or 'beaker'")
     
-    # clean up temp directory 
-    if os.path.exists(tmpdirname):
-        shutil.rmtree(tmpdirname)
     return job_response
     
 class TrainingJob: 
@@ -177,6 +203,9 @@ class TrainingJob:
                  file_set_id : str = None, # TODO: training job needs to work with this param after MVP presentation
                  requirements_file_path : str = None,
                  training_job_file_path : str = None,
+                 additional_dirs : list = None,
+                 additional_files : list = None, 
+                 image_id : str = None, 
                  work_dir : str = None,
                  job_id = None):
         self.__url = cu.hise_url('tracer', 'training_job')
@@ -195,8 +224,12 @@ class TrainingJob:
         self.file_set_id = file_set_id
         self.requirements_file_path = requirements_file_path
         self.training_job_file_path = training_job_file_path
+        self.additional_dirs = additional_dirs
+        self.additional_files = additional_files
+        self.additional_files = additional_files
+        self.image_id = image_id
         self.work_dir = work_dir
-        self.artifacts_path = tarfile_path = '{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
+        self.artifacts_path = '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
 
         if job_id is not None:
             self.job_id = job_id
@@ -219,6 +252,12 @@ class TrainingJob:
             raise Exception("tags must be a list")
         elif self.file_set_id is not None and type(self.file_set_id) is not str:
             raise Exception("file_set_id must be a string")
+        elif self.additional_dirs is not None and type(self.additional_dirs) is not list: 
+            raise Exception("additional_dirs must be a list")
+        elif self.additional_files is not None and type(self.additional_files) is not list:
+            raise Exception("additional_files must be a list")
+        elif self.image_id is not None and type(self.image_id) is not str:
+            raise Exception("image_id must be a string")
 
         # no white spaces in filepaths 
         if self.requirements_file_path is not None:
@@ -227,6 +266,14 @@ class TrainingJob:
         if self.training_job_file_path is not None: 
             if cu.string_contains_whitespaces(self.training_job_file_path):
                 raise Exception("training_job_file_path must not contain spaces")
+        if self.additional_dirs is not None: 
+            for d in self.additional_dirs:
+                if cu.string_contains_whitespaces(d):
+                    raise Exception("additional_dirs must not contain spaces")
+        if self.additional_files is not None:
+            for f in self.additional_files:
+                if cu.string_contains_whitespaces(f):
+                    raise Exception("additional_files must not contain spaces")
         
         # check that the file exists
         if self.requirements_file_path is not None:
@@ -262,12 +309,33 @@ class TrainingJob:
         
         # transform script to conform to Ray
         rt.transform_to_ray(python_script_to_convert, 
-                            '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['RAY_CONFORMED_FILE']))
+                            '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
+        return 
+
+    def copy_scripts_and_dirs_to_temp(self): 
+
+        # master list of directories and additional files 
+        app_files = self.additional_files + self.additional_dirs
+
+        # copy each directory and file to the temp directory, preserving the relative path to training_job_file_path
+        for f in app_files:
+            # check if the file is a directory or a file
+            if os.path.isdir(f):
+                # check if directory already exists, remove if so
+                if os.path.exists('{}/{}'.format(self.work_dir, os.path.basename(f))):
+                    shutil.rmtree('{}/{}'.format(self.work_dir, os.path.basename(f)))
+                # copy the directory to the temp directory
+                shutil.copytree(f, '{}/{}'.format(self.work_dir, os.path.basename(f)))
+            elif os.path.isfile(f):
+                # copy the file to the temp directory
+                shutil.copy(f, '{}/{}'.format(self.work_dir, os.path.basename(f)))
+            else:
+                raise Exception("additional_files must be a list of files or directories") 
         return 
 
     def create_training_job_image(self): 
         with tarfile.open(self.artifacts_path, 'w:gz') as tar: 
-            tar.add(self.work_dir, arcname='')
+            tar.add(self.work_dir, arcname='artifacts')
         return 
         
     def create_req_txt(self):
@@ -306,9 +374,6 @@ class TrainingJob:
                            check=True)
 
     def submit_ray_workflow(self):
-
-        # tar up everything and pass it along with request 
-        
         ray_args = {'accountGuid': HiseUser().current_account_guid,
                     'projectGuid': IDEInstance().destinationProjectGuid,
                     'fileSetId': self.file_set_id,
@@ -318,32 +383,58 @@ class TrainingJob:
                     'tags': self.tags,
                     'jobRequest' : {
                         'headConfig' : { # TODO: what should this headconfig actually be based from user's params
-                            "cpus": 1,
-                            "gpu":0,
-                            "memory" :"1"
+                            "cpus": self.cpu_count,
+                            "gpu": self.gpu_count,
+                            "memory" : "{}G".format(str(self.memory_size))
                         },
                         'workerConfig' : { 
                             'replicas' : self.worker_count,
                             'cpus' : self.cpu_count,
                             'gpu' : self.gpu_count,
-                            'memory': str(self.memory_size),
+                            'memory': "{}G".format(str(self.memory_size))
                         }
                     },
                     "harvestArtifactsRequest": {
                         "artifactsFileName": self.artifacts_path,
                         "packageManager": "pip"
                     }}
+        if self.image_id is not None: 
+            ray_args['imageId'] = self.image_id
         return cu.parse_hise_response(requests.post(self.__ray_workflow_url,
                             json=ray_args,
                             headers=get_bearer_token_header()))
 
     def submit_beaker_workflow(self): 
-        return 
+        beaker_args = {'accountGuid': HiseUser().current_account_guid,
+                       'projectGuid': IDEInstance().destinationProjectGuid,
+                       'fileSetId': self.file_set_id,
+                       'instanceId': ide_instance_guid(), 
+                       'title': self.title,
+                       'description': self.description,
+                       'tags': self.tags,
+                       'jobRequest' : {
+                            'headConfig' : { # TODO: what should this headconfig actually be based from user's params
+                                "cpus": self.cpu_count,
+                                "gpu":self.gpu_count,
+                                "memory" :"{}G".format(str(self.memory_size))
+                            },
+                        'workerConfig' : { 
+                            'replicas' : self.worker_count,
+                            'cpus' : self.cpu_count,
+                            'gpu' : self.gpu_count,
+                            'memory': "{}G".format(str(self.memory_size)),
+                            }
+                        },
+                        "harvestArtifactsRequest": {
+                            "artifactsFileName": self.artifacts_path,
+                            "packageManager": "pip"
+                    }}
+        if self.image_id is not None:
+            beaker_args['imageId'] = self.image_id
+        return cu.parse_hise_response(requests.post(self.__beaker_workflow_url,
+                            json=beaker_args,
+                            headers=get_bearer_token_header()))
 
-    def start_training_run(self, data):
-
-
-        return 
 
     """
             def promote_job(self, data): 
