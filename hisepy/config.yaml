@@ -127,6 +127,8 @@ IDE:
 JOB_ORCHESTRATE: 
   RAY_WORKFLOW: orchestrate/ray/workflow
   BEAKER_WORKFLOW: orchestrate/beaker/workflow
+  ARTIFACTS_PATH: /home/workspace/artifacts
+  ARTIFACTS_TEMP_FILEPATH: /home/workspace/temp/artifacts.tar.gz
 
 IDE_MANAGEMENT:
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
