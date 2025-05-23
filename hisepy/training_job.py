@@ -119,7 +119,7 @@ def start_training_run(provider : str,
     '''
     
     # create training_job temp directory
-    training_job_temp_dir = '/home/workspace/artifacts'
+    training_job_temp_dir = CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_PATH'] # '/home/workspace/artifacts'
     if not os.path.exists(training_job_temp_dir):
         os.makedirs(training_job_temp_dir)
     #tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(training_job_temp_dir))
@@ -141,7 +141,7 @@ def start_training_run(provider : str,
                             additional_dirs=additional_dirs,
                             additional_files=additional_files,
                             image_id = image_id,
-                            work_dir='/home/workspace/artifacts')
+                            work_dir=CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_PATH']) #'/home/workspace/artifacts')
     job_obj._validate_params()
 
     # fork on provider
@@ -229,7 +229,7 @@ class TrainingJob:
         self.additional_files = additional_files
         self.image_id = image_id
         self.work_dir = work_dir
-        self.artifacts_path = '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
+        self.artifacts_path = CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_TEMP_FILEPATH'] # '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
 
         if job_id is not None:
             self.job_id = job_id
@@ -367,9 +367,8 @@ class TrainingJob:
             subprocess.run([
                 'pip-compile', '--no-annotate', '--no-header', '--quiet',
                 '--strip-extras',
-                '--output-file={wd}/{app}/requirements.txt'.format(
-                    wd=self.work_dir, app=os.path.dirname(
-                        self.app_filepath)), self.requirements
+                '--output-file={wd}/requirements.txt'.format(
+                    wd=self.work_dir), self.requirements_file_path
             ],
                            check=True)
 
@@ -384,13 +383,13 @@ class TrainingJob:
                     'jobRequest' : {
                         'headConfig' : { # TODO: what should this headconfig actually be based from user's params
                             "cpus": self.cpu_count,
-                            "gpu": self.gpu_count,
+                            "gpus": self.gpu_count,
                             "memory" : "{}G".format(str(self.memory_size))
                         },
                         'workerConfig' : { 
                             'replicas' : self.worker_count,
                             'cpus' : self.cpu_count,
-                            'gpu' : self.gpu_count,
+                            'gpus' : self.gpu_count,
                             'memory': "{}G".format(str(self.memory_size))
                         }
                     },
