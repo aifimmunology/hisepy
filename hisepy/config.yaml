@@ -61,6 +61,7 @@ HYDRATION:
   DOWNLOAD_PATH : hydration/source/server
   UPLOAD_PATH: hydration/source/studyspace/file
   QUERY_SEARCH_PATH : hydration/analysis/query
+  FILE_SET_DOWNLOAD: hydration/analysis/fileSet
   WEBSOCKET_PATH: hydration/source/stream/open
   HISE_WIDE_STATIC_IMG_PATH: hydration/source/abstraction/save
 
