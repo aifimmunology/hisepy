@@ -8,6 +8,7 @@ import shutil
 import tarfile
 import hisepy.common_utils as cu
 import hisepy.formatter as fmt
+import hisepy.reader as hpr
 import hisepy.ray_transformer as rt
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
 
@@ -134,6 +135,8 @@ def start_training_run(provider : str,
         image_id (str): (Optional) image ID to use for the training job
     '''
     
+
+
     # create training_job temp directory
     training_job_temp_dir = CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_PATH'] # '/home/workspace/artifacts'
     if not os.path.exists(training_job_temp_dir):
@@ -154,6 +157,9 @@ def start_training_run(provider : str,
                             work_dir=CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_PATH']) #'/home/workspace/artifacts')
     job_obj._validate_params()
 
+    # cache files in fileset
+    hpr.cache_fileset(file_set_id)
+    
     # fork on provider
     if provider == 'ray':
         # conform to ray and save to temp directory
