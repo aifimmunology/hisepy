@@ -116,18 +116,28 @@ def start_training_run(provider : str,
                         image_id : str = None, 
                         ): 
     '''
+    Starts a remote job for a python script
+
+    Parameters: 
+        provider (str): 'ray' or 'beaker'
+        cpu_count (int): number of CPUs to use
+        gpu_count (int): number of GPUs to use
+        memory_size (int): memory size in GB
+        worker_count (int): number of workers to use
+        training_job_file_path (str): path to the training job script
+        title (str): title of the training job
+        description (str): description of the training job
+        file_set_id (str): file set ID your training job uses as input(s)
+        additional_dirs (list): (Optional) list of directories your script requires
+        additional_files (list): (Optional) list of files your script requires
+        requirements_file_path (str): (Optional) path to the requirements.in file
+        image_id (str): (Optional) image ID to use for the training job
     '''
     
     # create training_job temp directory
     training_job_temp_dir = CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_PATH'] # '/home/workspace/artifacts'
     if not os.path.exists(training_job_temp_dir):
-        os.makedirs(training_job_temp_dir)
-    #tmpdirname = tempfile.mkdtemp(prefix='{}/'.format(training_job_temp_dir))
-
-
-    # set permissions so job-orchestrator can read and copy this file
-    #os.chmod(tmpdirname, 0o777)
-    
+        os.makedirs(training_job_temp_dir)  
 
     job_obj = TrainingJob(cpu_count=cpu_count,
                             gpu_count=gpu_count,
