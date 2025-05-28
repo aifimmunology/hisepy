@@ -13,7 +13,7 @@ import hisepy.common_utils as cu
 import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
-from hisepy.auth import get_bearer_token_header, hise_server, debug
+from hisepy.auth import get_bearer_token_header, hise_server, debug, HiseUser
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -843,4 +843,13 @@ def cache_fileset(fileset_id):
     obj = cu.parse_hise_response(
         requests.get(endpoint,
                      headers=get_bearer_token_header()))
-    return obj
+
+    # return the user all the files that were downloaded
+    # TODO: backend should just return me this list 
+    output_file_paths= cu.list_all_filepaths('{input}/{crc}/fileset/{fsid}'.format(
+        input=CONFIG['STORES']['INPUT_STORE'],
+        crc=cu.crc32_from_string(HiseUser().email),
+        fsid=fileset_id
+    ))
+
+    return output_file_paths
