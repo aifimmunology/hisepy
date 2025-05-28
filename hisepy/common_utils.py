@@ -22,6 +22,7 @@ import pathlib
 import copy
 import time
 import subprocess
+import zlib
 from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server
 
 # directory of hisepy package
@@ -65,6 +66,9 @@ def convert_notebook_to_python(notebook_path, output_path=None):
         i=notebook_path, out=output_path), shell=True, check=True)
     print("converted notebook to python script: {}".format(output_path))
     return 
+
+def crc32_from_string(s):
+    return zlib.crc32(s.encode('utf-8')) & 0xFFFFFFFF
 
 def current_notebook():
     """
@@ -270,6 +274,15 @@ def files_within_private(files):
         if f.startswith(CONFIG['STORES']['PRIVATE_STORE']):
             bad_files.append(f)
     return bad_files 
+
+
+def list_all_filepaths(directory): 
+    filepaths = [] 
+    for root, _, files in os.walk(directory):
+        for filename in files:
+            filepath = os.path.join(root, filename)
+            filepaths.append(filepath)
+    return filepaths 
 
 def parse_file_id_from_hise_file(hise_file):
     """
