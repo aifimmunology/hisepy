@@ -130,6 +130,7 @@ JOB_ORCHESTRATE:
   BEAKER_WORKFLOW: orchestrate/beaker/workflow
   ARTIFACTS_PATH: /home/workspace/artifacts
   ARTIFACTS_TEMP_FILEPATH: /home/workspace/temp/artifacts.tar.gz
+  REVIEW_JOB: orchestrate/job/review
 
 IDE_MANAGEMENT:
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3

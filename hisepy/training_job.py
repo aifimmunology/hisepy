@@ -198,7 +198,37 @@ def start_training_run(provider : str,
         raise Exception("Provider must be either 'ray' or 'beaker'")
     
     return job_response
+
+def review_training_job_run(job_id,
+                            study_space_id : str,
+                            approve : bool = False, 
+                            review_notes : str = None):
+    ''' 
+    Approve or Reject a training job run
+
+    Parameters: 
+        job_id (str): ID of the training job to review
+        study_space_id (str): ID of the study space to review the job in
+        approve (bool): whether to approve or reject the job
+        review_notes (str): notes for the review
+    '''
     
+    # validate params 
+    if job_id is not None and type(job_id) is not str:
+        raise Exception("job_id must be a string")
+    if study_space_id is not None and type(study_space_id) is not str:
+        raise Exception("study_space_id must be a string")
+    if approve is not None and type(approve) is not bool:
+        raise Exception("approve must be a boolean")
+    if review_notes is not None and type(review_notes) is not str:
+        raise Exception("review_notes must be a string")
+
+    jobj = TrainingJob(job_id=job_id, 
+                        review_notes=review_notes,
+                        approve=approve)
+    return jobj.review_training_job_run()
+
+
 class TrainingJob: 
     """
     Class representing a Training Job
@@ -223,10 +253,13 @@ class TrainingJob:
                  additional_files : list = None, 
                  image_id : str = None, 
                  work_dir : str = None,
-                 job_id = None):
+                 job_id : str = None,
+                 review_notes: str = None,
+                 approve : bool = None):
         self.__url = cu.hise_url('tracer', 'training_job')
         self.__ray_workflow_url = cu.hise_url('job_orchestrate', 'ray_workflow')
         self.__beaker_workflow_url = cu.hise_url('job_orchestrate', 'beaker_workflow')
+        self.__review_job_url = cu.hise_url("job_orchestrate", "review_job")
 
         # initialize attributes
         self.provider = provider
@@ -245,6 +278,8 @@ class TrainingJob:
         self.additional_files = additional_files
         self.image_id = image_id
         self.work_dir = work_dir
+        self.review_notes = review_notes
+        self.approve = approve
         self.artifacts_path = CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_TEMP_FILEPATH'] # '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
 
         if job_id is not None:
@@ -450,6 +485,15 @@ class TrainingJob:
                             json=beaker_args,
                             headers=get_bearer_token_header()))
 
+    def review_training_job(self):
+        review_args = {'notes' : self.review_notes,
+                        'accountGuid': HiseUser().current_account_guid,
+                        'approve': self.approve,
+                        'jobId': self.id,
+                        'studySpaceId': HiseUser().current_study_space_id}
+        return cu.parse_hise_response(requests.post(self.__review_job_url,
+                                json=review_args,
+                                headers=get_bearer_token_header()))
 
     """
             def promote_job(self, data): 
