@@ -84,20 +84,21 @@ def upload_files(files: list,
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
 
-    if (cu.is_legacy_ide()): 
+    if (cu.is_legacy_ide()):
         raise SystemError(CONFIG['PROMPTS']['UPLOAD_FROM_LEGACY'])
-    if ((ide_is_from_guest_account()) or (ide_is_from_certificate_account())) and (cu.is_legacy_ide()):
+    if ((ide_is_from_guest_account()) or
+        (ide_is_from_certificate_account())) and (cu.is_legacy_ide()):
         if not cu.prompt_yn(CONFIG['PROMPTS']['UPLOAD_AS_GUEST']):
             return
-        
-    # check that the upload is from an acceptable kernel 
+
+    # check that the upload is from an acceptable kernel
     if not cu.is_valid_upload_kernel():
         raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
-    
+
     # check that the users' default conda environment builds
     # if ran subsequently, and conda env builds successfully, skip this check
     global upload_files_conda_env_checked
-    if not upload_files_conda_env_checked: 
+    if not upload_files_conda_env_checked:
         if (not do_conda_build_check) or (debug()):
             pass
         elif do_conda_build_check and (not conda_env_builds()):
@@ -155,9 +156,9 @@ def upload_files(files: list,
         cu.validate_upload_input_ids(input_file_ids, input_sample_ids,
                                      file_log_dir)
 
-    # if invoked from a guest account, swap the fileId(s) with the replicaID 
+    # if invoked from a guest account, swap the fileId(s) with the replicaID
     if ide_is_from_guest_account():
-        input_file_ids= cu.replica_files_used(input_file_ids, file_log_dir)
+        input_file_ids = cu.replica_files_used(input_file_ids, file_log_dir)
     validate_upload_data(files, study_space_id, project, title, input_file_ids)
     qargs = {
         "title": title,
@@ -173,7 +174,7 @@ def upload_files(files: list,
         "notebook": cu.current_notebook(),
         "homedir": home_dir
     }
-    
+
     # export conda env to file
     # TODO: test without exporting anything
     if not cu.is_legacy_ide():
@@ -182,10 +183,11 @@ def upload_files(files: list,
     if study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
 
-    if ide_is_from_guest_account(): 
-        url = guest_hise_server(cu.hise_url("ide_management", "upload_file_v3_path", args=qargs))
+    if ide_is_from_guest_account():
+        url = guest_hise_server(
+            cu.hise_url("ide_management", "upload_file_v3_path", args=qargs))
         #url += "?%s" % (urllib.parse.urlencode(qargs, doseq=True))
-    else: 
+    else:
         url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
     return cu.parse_hise_response(
         requests.post(url,
@@ -196,19 +198,18 @@ def upload_files(files: list,
 def retry_ide_commit(id: str):
     if cu.is_legacy_ide():
         raise Exception("Cannot retry commit on a legacy IDE")
-    if ide_is_from_guest_account(): 
-        url = guest_hise_server(cu.hise_url("ide_management",
+    if ide_is_from_guest_account():
+        url = guest_hise_server(
+            cu.hise_url("ide_management",
                         "upload_file_v3_path",
                         id,
                         args={"condaEnvironmentFile": do_conda_export()}))
-    else: 
+    else:
         url = cu.hise_url("ide_management",
-                        "upload_file_v3_path",
-                        id,
-                        args={"condaEnvironmentFile": do_conda_export()})
-    return cu.parse_hise_response(
-        requests.put(
-            url))
+                          "upload_file_v3_path",
+                          id,
+                          args={"condaEnvironmentFile": do_conda_export()})
+    return cu.parse_hise_response(requests.put(url))
 
 
 def gen_upload_body(files, filetypes):
@@ -246,26 +247,34 @@ def get_conda_env_name():
     return inst.environment['condaEnvName']
 
 
-def do_conda_export():
+def do_conda_export(to_directory: str = ""):
     """
     Exports the current conda environment to a file
     """
+    if to_directory == "":
+        to_directory = "{}".format(CONFIG["STORES"]["TEMP_STORE"])
+
+    if not os.path.isdir(to_directory):
+        raise ValueError("directory {dir} is not a valid directory",
+                         dir=to_directory)
+
+    conda_export_dest = os.path.join(to_directory, "environment.yml")
+
     # export to scratch and move to to staging store
     env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
                              get_conda_env_name())
-    subprocess.run("conda env export -p {env} > {dir}/environment.yml".format(
-        env=env_dir, dir=CONFIG["STORES"]["TEMP_STORE"]),
+    subprocess.run("conda env export -p {env} > {conda_export_dest}".format(
+        env=env_dir, conda_export_dest=conda_export_dest),
                    shell=True)
 
     # check that the environment file isn't empty
-    if (get_size_in_megabytes(
-        ["{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"])],
-            False) == 0) and not debug():
+    if (get_size_in_megabytes([conda_export_dest], False)
+            == 0) and not debug():
         raise ValueError(
             "Environment file is empty, please ensure that the conda environment is active and not empty."
         )
 
-    return "{dir}/environment.yml".format(dir=CONFIG["STORES"]["TEMP_STORE"])
+    return conda_export_dest
 
 
 def select_study_space(proj):
@@ -392,6 +401,7 @@ def default_study_space(must=True):
         )
     return sspaces[0]
 
+
 # Save a plotly figure
 # network call process:
 # save_static_image (POST hydration/source/studyspace/file) of figure written to png
@@ -404,8 +414,8 @@ def save_visualization(
         title=None,  # not actually optional
         destination=None,  #optional 
         input_file_ids=None,  # not optional
-        input_sample_ids=None, # optional
-        do_conda_build_check = True):  # optional
+        input_sample_ids=None,  # optional
+        do_conda_build_check=True):  # optional
     """
     Save a plotly figure to a user's specified study. 
 
@@ -426,10 +436,10 @@ def save_visualization(
     if destination is None:
         destination = ""
 
-    # check that the upload is from an acceptable kernel 
+    # check that the upload is from an acceptable kernel
     if not cu.is_valid_upload_kernel():
         raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
-    
+
     tmp_data_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
                                    CONFIG['VISUALIZATION']['PLOTLY_DATA_FILE'])
     tmp_plotly_file = "{}/{}".format(CONFIG['STORES']['TEMP_STORE'],
@@ -442,10 +452,10 @@ def save_visualization(
     if auth.debug():
         pass
     else:
-        # check that the users' default conda environment builds 
+        # check that the users' default conda environment builds
         # if ran subsequently, and conda env builds successfully, skip this check
         global save_visualization_conda_env_checked
-        if not save_visualization_conda_env_checked: 
+        if not save_visualization_conda_env_checked:
             if (not do_conda_build_check) or (debug()):
                 pass
             elif do_conda_build_check and (not conda_env_builds()):
@@ -513,20 +523,21 @@ class DashAppImg:
     """ Class representing a Dash App Object """
     dash_app_name = 'app.py'
 
-    def __init__(self,
-                 app_filepath: str,
-                 additional_files: list,
-                 additional_dirs: list,
-                 hero_image: str,
-                 study_space_id: str,
-                 input_file_ids: list,
-                 work_dir: str,
-                 title: str,
-                 do_conda_build_check: bool,
-                 requirements: str = None,
-                 description: str = None,
-                 input_sample_ids=None,
-):
+    def __init__(
+        self,
+        app_filepath: str,
+        additional_files: list,
+        additional_dirs: list,
+        hero_image: str,
+        study_space_id: str,
+        input_file_ids: list,
+        work_dir: str,
+        title: str,
+        do_conda_build_check: bool,
+        requirements: str = None,
+        description: str = None,
+        input_sample_ids=None,
+    ):
 
         if input_sample_ids is None:
             input_sample_ids = []
@@ -660,7 +671,8 @@ def validate_app_path(app_path):
 
 def validate_files(filenames):
     """ Verifies that all submitted input files exist and are in /home/jupyter """
-    ide_dir = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide() else IDE_HOME_DIR
+    ide_dir = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
+    ) else IDE_HOME_DIR
     for this_f in filenames:
         abs_path = os.path.abspath(this_f)
         if cu.string_contains_whitespaces(abs_path):
@@ -748,14 +760,14 @@ def save_dash_app(app_filepath: str,
     if input_sample_ids is None:
         input_sample_ids = []
 
-    # check that the upload is from an acceptable kernel 
+    # check that the upload is from an acceptable kernel
     if not cu.is_valid_upload_kernel():
         raise Exception(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
-    
+
     # check that the users' default conda environment builds
     # if ran subsequently, and conda env builds successfully, skip this check
     global save_dash_conda_env_checked
-    if not save_dash_conda_env_checked: 
+    if not save_dash_conda_env_checked:
         if (not do_conda_build_check) or (debug()):
             pass
         elif do_conda_build_check and (not conda_env_builds()):
@@ -875,8 +887,7 @@ def validate_upload_data(files, study_space_id, project, title,
     if len(files_in_private) > 0:
         raise ValueError(
             "The following files are in your private folder: {}. These files cannot be uploaded from their current location. Please move to another directory and try again"
-            .format(files_in_private)
-        )
+            .format(files_in_private))
     if len(input_file_ids) == 0:
         raise ValueError("You must specify at least one input file UUID")
 
