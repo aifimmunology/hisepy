@@ -62,38 +62,6 @@ def validate_review_run_params(study_space_id : str,
         raise Exception("review_notes must be a str")
     return 
 
-'''
-def review_run(study_space_id, job_id, image_id, approve, review_notes):
-
-    # validate params
-    validate_review_run_params(study_space_id, job_id, image_id, approve, review_notes) 
-
-    # get job or image 
-    if job_id is not None: 
-        job = get_training_job(job_id)
-        job_availability = job['availability'] 
-
-        # ensure availability flag is "bio_sdk_under_review"
-        if job_availability != CONFIG['BIO_SDK_FILE_AVAILABILITIES']['UNDER_REVIEW']: 
-            raise Exception("Can not review job: {}. job availability flag is not 'bio_sdk_under_review'".format(job['id']]))
-
-    # TODO: implement
-    if image_id is not None: 
-        image = get_training_image(image_id) 
-        image_availability = image['availability']
-
-        # ensure availability flag is "bio_sdk_under_review"
-        if image_availability != CONFIG['BIO_SDK_FILE_AVAILABILITIES']['UNDER_REVIEW']: 
-            raise Exception("Can not review image: {}. image availability flag is not 'bio_sdk_under_review'".format(image['id']))
-
-    if approve is True: 
-
-        # update the Process.availability and the Files' availability fields to "available" and update their availability_notes field with the reviewNotes stuff
-        
-        return 
-    elif approve is False: 
-        return 
-'''
 
 # not needed for milestone 1
 def stop_training_job():
@@ -199,6 +167,7 @@ def start_training_run(provider : str,
     
     return job_response
 
+
 def review_training_job_run(job_id,
                             study_space_id : str,
                             approve : bool = False, 
@@ -223,9 +192,25 @@ def review_training_job_run(job_id,
     if review_notes is not None and type(review_notes) is not str:
         raise Exception("review_notes must be a string")
 
+    # download outputs for review 
+    review_args = {
+        'jobID': job_id,
+        'accountGuid': HiseUser().current_account_guid,
+        'instanceGuid': ide_instance_guid(),
+    }
+    dl_resp = cu.parse_hise_response(requests.get(cu.hise_url('hydration', 'review_job_output_path'),
+                                json=review_args,
+                                headers=get_bearer_token_header()))
+    import pdb; pdb.set_trace() 
+
+    print("Training job output files downloaded to: {}".format(dl_resp))
+
+    # prompt user 
+    user_response = cu.prompt_user(CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'])
+    
     jobj = TrainingJob(job_id=job_id, 
                         review_notes=review_notes,
-                        approve=approve)
+                        approve=user_response)
     return jobj.review_training_job_run()
 
 
