@@ -136,9 +136,6 @@ def start_training_run(
                           work_dir=training_job_temp_dir)
     job_obj._validate_params()
 
-    # cache files in fileset
-    hpr.cache_fileset(file_set_id)
-
     # fork on provider
     if provider == 'ray':
         # conform to ray and save to temp directory
