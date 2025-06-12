@@ -627,6 +627,7 @@ class DashAppImg:
             "sampleIds": self.input_sample_ids,
             "notebook": current_notebook(),
             "homedir": homedir,
+            'description': self.description,
             "images": img_resp['id'],
             "traceId": upload_resp['TraceId']
         }
