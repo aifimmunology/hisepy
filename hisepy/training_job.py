@@ -68,38 +68,6 @@ def validate_review_run_params(study_space_id: str, job_id: str, image_id: str,
     return
 
 
-'''
-def review_run(study_space_id, job_id, image_id, approve, review_notes):
-
-    # validate params
-    validate_review_run_params(study_space_id, job_id, image_id, approve, review_notes) 
-
-    # get job or image 
-    if job_id is not None: 
-        job = get_training_job(job_id)
-        job_availability = job['availability'] 
-
-        # ensure availability flag is "bio_sdk_under_review"
-        if job_availability != CONFIG['BIO_SDK_FILE_AVAILABILITIES']['UNDER_REVIEW']: 
-            raise Exception("Can not review job: {}. job availability flag is not 'bio_sdk_under_review'".format(job['id']]))
-
-    # TODO: implement
-    if image_id is not None: 
-        image = get_training_image(image_id) 
-        image_availability = image['availability']
-
-        # ensure availability flag is "bio_sdk_under_review"
-        if image_availability != CONFIG['BIO_SDK_FILE_AVAILABILITIES']['UNDER_REVIEW']: 
-            raise Exception("Can not review image: {}. image availability flag is not 'bio_sdk_under_review'".format(image['id']))
-
-    if approve is True: 
-
-        # update the Process.availability and the Files' availability fields to "available" and update their availability_notes field with the reviewNotes stuff
-        
-        return 
-    elif approve is False: 
-        return 
-'''
 
 
 # not needed for milestone 1
@@ -204,14 +172,59 @@ def start_training_run(
     return job_response
 
 
-class TrainingJob:
+def review_training_job_run(job_id,
+                            study_space_id : str,
+                            approve : bool = False, 
+                            review_notes : str = None):
+    ''' 
+    Approve or Reject a training job run
+
+    Parameters: 
+        job_id (str): ID of the training job to review
+        study_space_id (str): ID of the study space to review the job in
+        approve (bool): whether to approve or reject the job
+        review_notes (str): notes for the review
+    '''
+    
+    # validate params 
+    if job_id is not None and type(job_id) is not str:
+        raise Exception("job_id must be a string")
+    if study_space_id is not None and type(study_space_id) is not str:
+        raise Exception("study_space_id must be a string")
+    if approve is not None and type(approve) is not bool:
+        raise Exception("approve must be a boolean")
+    if review_notes is not None and type(review_notes) is not str:
+        raise Exception("review_notes must be a string")
+
+    # download outputs for review 
+    review_args = {
+        'jobID': job_id,
+        'accountGuid': HiseUser().current_account_guid,
+        'instanceGuid': ide_instance_guid(),
+    }
+    dl_resp = cu.parse_hise_response(requests.post(cu.hise_url('hydration', 'review_job_output_path'),
+                                json=review_args,
+                                headers=get_bearer_token_header()))
+
+    print("Training job output files downloaded to: {}".format(dl_resp['Path']))
+
+    # prompt user 
+    user_response = cu.prompt_user(CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'], job_id)
+    
+    jobj = TrainingJob(job_id=job_id, 
+                        review_notes=review_notes,
+                        approve=user_response,
+                        study_space_id=study_space_id)
+    return jobj.review_training_job()
+
+
+class TrainingJob: 
     """
     Class representing a Training Job
     
     Attributes: 
         id (str)
     """
-
     def __init__(
             self,
             provider: str = 'ray',
@@ -223,15 +236,17 @@ class TrainingJob:
             title: str = "",
             description: str = "",
             tags: list = [],
-            file_set_id:
-        str = "",  # TODO: training job needs to work with this param after MVP presentation
+            file_set_id: str = "",  # TODO: training job needs to work with this param after MVP presentation
             requirements_file_path: str = "",
             training_job_file_path: str = "",
             additional_dirs: list = "",
             additional_files: list = "",
             image_id: str = "",
             work_dir: str = "",
-            job_id: str = ""):
+            job_id: str = "",
+            review_notes: str = "",
+            approve : bool = None,
+            study_space_id : str = ""):
         self.__url = cu.hise_url('tracer', 'training_job')
         self.__ray_workflow_url = cu.hise_url('job_orchestrate',
                                               'ray_workflow')
@@ -256,8 +271,10 @@ class TrainingJob:
         self.additional_files = additional_files
         self.image_id = image_id
         self.work_dir = work_dir
-        self.artifacts_path = CONFIG['JOB_ORCHESTRATE'][
-            'ARTIFACTS_TEMP_FILEPATH']  # '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
+        self.review_notes = review_notes
+        self.approve = approve
+        self.study_space_id = study_space_id
+        self.artifacts_path = CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_TEMP_FILEPATH'] # '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
 
         if job_id is not None:
             self.job_id = job_id
@@ -499,10 +516,20 @@ class TrainingJob:
         }
         if self.image_id is not None:
             beaker_args['imageId'] = self.image_id
-        return cu.parse_hise_response(
-            requests.post(self.__beaker_workflow_url,
-                          json=beaker_args,
-                          headers=get_bearer_token_header()))
+        return cu.parse_hise_response(requests.post(self.__beaker_workflow_url,
+                            json=beaker_args,
+                            headers=get_bearer_token_header()))
+
+    def review_training_job(self):
+        review_args = {'notes' : self.review_notes,
+                        'accountGuid': HiseUser().current_account_guid,
+                        'projectGuid': IDEInstance().destinationProjectGuid,
+                        'approve': self.approve,
+                        'jobID': self.job_id,
+                        'studySpaceGuid': self.study_space_id}
+        return cu.parse_hise_response(requests.post(self.__review_job_url,
+                                json=review_args,
+                                headers=get_bearer_token_header()))
 
     """
             def promote_job(self, data): 
