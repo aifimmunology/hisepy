@@ -260,6 +260,8 @@ def get_file_descriptors(query_dict: dict = None):
             [new_dict_desc['labResults'], dict_df['labResults']], axis=0)
         dict_df['specimens'] = pd.concat(
             [new_dict_desc['specimens'], dict_df['specimens']], axis=0)
+        dict_df['survey'] = pd.concat(
+            [new_dict_desc['survey'], dict_df['survey']], axis=0)
         return dict_df
 
     assert 'fileType' in query_dict.keys(
@@ -270,18 +272,17 @@ def get_file_descriptors(query_dict: dict = None):
     dict_df = {
         'descriptors': pd.DataFrame(),
         'labResults': pd.DataFrame(),
-        'specimens': pd.DataFrame()
+        'specimens': pd.DataFrame(),
+        'survey': pd.DataFrame()
     }
     for this_desc in obj:
         try:
             dict_df = _append_descriptors(dict_df,
                                           hf.reshape_descriptors(this_desc))
-
         except:
             raise Exception(
                 "appending descriptor failed. descriptor: {}".format(
                     this_desc))
-    
     # attach project info to descriptors
     dict_df['descriptors'] = hf.attach_project_info_to_df(dict_df['descriptors'])
     return dict_df
