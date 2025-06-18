@@ -144,7 +144,7 @@ def _dict_to_df(input_df, col_name):
                 [fin_df, pd.DataFrame.from_dict(this_dict)], ignore_index=True)
     return fin_df
 
-def reshape_specimens_to_df(spec_obj):
+def reshape_list_metadata_to_df(spec_obj):
     """
     Given a list of specimens, returns a data.frame object
 
@@ -200,7 +200,7 @@ def sample_to_df(list_of_sample_obj):
     if len(list_of_sample_obj) == 0:
         return pd.DataFrame()
     if 'specimens' in list_of_sample_obj[0].keys():
-        spec_df = reshape_specimens_to_df(list_of_sample_obj[0]['specimens'])
+        spec_df = reshape_list_metadata_to_df(list_of_sample_obj[0]['specimens'])
         list_of_sample_obj[0].pop('specimens') # remove so we don't reshape it again 
     
     surv_df = pd.DataFrame()
@@ -224,7 +224,7 @@ def sample_to_df(list_of_sample_obj):
         for i in range(1, len(list_of_sample_obj)):
             # reshape specimens, survey, and labResults first, if they exist 
             if 'specimens' in list_of_sample_obj[i].keys():
-                this_spec_df = reshape_specimens_to_df(list_of_sample_obj[i]['specimens'])
+                this_spec_df = reshape_list_metadata_to_df(list_of_sample_obj[i]['specimens'])
                 list_of_sample_obj[i].pop('specimens') # remove so we don't reshape it again 
                 spec_df = pd.concat([spec_df.reset_index(drop=True), this_spec_df.reset_index(drop=True)], ignore_index=True)
             if 'survey' in list_of_sample_obj[i].keys():                
@@ -256,7 +256,8 @@ def reshape_descriptors(this_desc):
     dict_df = {
         'descriptors': pd.DataFrame(),
         'labResults': pd.DataFrame(),
-        'specimens': pd.DataFrame()
+        'specimens': pd.DataFrame(),
+        'survey': pd.DataFrame()
     }
     # check if lab results exist - reformat and remove from dictionary if it does
     lab_df = pd.DataFrame()
@@ -267,10 +268,15 @@ def reshape_descriptors(this_desc):
     # check if specimens exist - reformat and remove from dictionary if it does 
     spec_df = pd.DataFrame() 
     if 'specimens' in this_desc.keys():
-        spec_df = reshape_specimens_to_df(this_desc['specimens'])
-        this_desc.pop('specimens') # remove so we don't reshape it again 
+        spec_df = reshape_list_metadata_to_df(this_desc['specimens'])
+        this_desc.pop('specimens') # remove so we don't reshape it again
+    surv_df = pd.DataFrame()
+    if 'survey' in this_desc.keys():
+        surv_df = reshape_list_metadata_to_df(this_desc['survey'])
+        this_desc.pop('survey')
     dict_df['descriptors'] = reshape_custom_metadata(this_desc)
     dict_df['labResults'] = lab_df
+    dict_df['survey'] = surv_df
     dict_df['specimens'] = spec_df
     return dict_df
     
