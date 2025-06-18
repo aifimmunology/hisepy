@@ -8,53 +8,44 @@ class RayTransformer(ast.NodeTransformer):
         super().__init__()
         self.remoteable_funcs = set()
         self.actor_classes = set()
+        self.actor_instances = set()
+        self.current_function = None
 
     def visit_Module(self, node):
-        # Annotate parent references for context tracking
         for item in node.body:
             if isinstance(item, ast.ClassDef):
                 for subitem in item.body:
-                    # if there's a function definition, set its parent to the class
                     if isinstance(subitem, ast.FunctionDef):
                         subitem.parent = item
 
-        # walk the rest of the tree
         self.generic_visit(node)
 
-        # for situations where a main() function is present.
-        # essential to convert entry point of a script to a Ray actor
         for i, item in enumerate(node.body):
             if isinstance(item, ast.FunctionDef) and item.name == "main":
                 node.body[i] = self.visit_FunctionDef_main_wrapper(item)
         return node
 
     def visit_FunctionDef(self, node):
-        '''
-        add ray.remote decorator to all top-level functions. skipping functions in main, or methods within a class.
-        '''
+        self.current_function = node.name
         is_method = hasattr(node, 'parent') and isinstance(node.parent, ast.ClassDef)
 
-        # add the remove decorator to only top-level functions
         if not is_method and node.name != "main":
             self.remoteable_funcs.add(node.name)
             decorator = ast.Name(id="ray.remote", ctx=ast.Load())
             node.decorator_list.insert(0, decorator)
 
-        # continue down the tree 
         self.generic_visit(node)
+        self.current_function = None
         return node
 
     def visit_ClassDef(self, node):
         should_decorate = False
-
-        # loop through class body and find functions 
         for item in node.body:
             if isinstance(item, ast.FunctionDef):
                 item.parent = node
                 self.visit_FunctionDef(item)
                 should_decorate = True
 
-        # decorate it 
         if should_decorate:
             decorator = ast.Name(id="ray.remote", ctx=ast.Load())
             node.decorator_list.insert(0, decorator)
@@ -62,54 +53,86 @@ class RayTransformer(ast.NodeTransformer):
 
         return node
 
-    def visit_ListComp(self, node):
-        '''
-        transforms list comprehensions that invoke functions or actor methods into their Ray remote equivalents
-        '''
-        if isinstance(node.elt, ast.Call):
-            call = node.elt
-            # make sure we're only transforming list comprehensions that are calling a function or method that we marked as remoteable
-            if isinstance(call.func, ast.Name) and call.func.id in self.remoteable_funcs:
-                # convert remote.func(x)
-                call.func = ast.Attribute(
-                    value=ast.Name(id=call.func.id, ctx=ast.Load()),
-                    attr="remote",
-                    ctx=ast.Load(),
-                )
+    def visit_Assign(self, node):
+        self.generic_visit(node)
 
-                # wrap the list comprehension in a call to ray.get
+        if isinstance(node.value, ast.Call):
+            call = node.value
+            # If assigning actor instance
+            if isinstance(call.func, ast.Name) and call.func.id in self.actor_classes:
+                call.func = ast.Attribute(value=ast.Name(id=call.func.id, ctx=ast.Load()), attr="remote", ctx=ast.Load())
+                call = ast.Call(func=call.func, args=call.args, keywords=call.keywords)
+                node.value = call
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        self.actor_instances.add(target.id)
+            elif self._is_direct_local_call(call):
+                node.value = self._wrap_local_function_call(call)
+        return node
+
+    def visit_Expr(self, node):
+        self.generic_visit(node)
+        if isinstance(node.value, ast.Call):
+            call = node.value
+            if self._is_direct_local_call(call):
+                node.value = self._wrap_local_function_call(call)
+        return node
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+
+        if isinstance(node.func, ast.Name):
+            if node.func.id in self.remoteable_funcs:
+                return self._wrap_local_function_call(node)
+            elif node.func.id in self.actor_classes:
+                # Calling actor constructor
                 return ast.Call(
                     func=ast.Attribute(
-                        value=ast.Name(id="ray", ctx=ast.Load()),
-                        attr="get",
-                        ctx=ast.Load()
-                    ),
-                    args=[node],
-                    keywords=[]
-                )
-            # check if we're working with something like: MyWorker().compute(x)
-            elif (
-                isinstance(call.func, ast.Attribute) and 
-                isinstance(call.func.value, ast.Call) and # 
-                isinstance(call.func.value.func, ast.Name) and
-                call.func.value.func.id in self.actor_classes
-            ):
-                # Example: MyWorker().compute(x)
-                call.func.value = ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Name(id=call.func.value.func.id, ctx=ast.Load()),
+                        value=ast.Name(id=node.func.id, ctx=ast.Load()),
                         attr="remote",
                         ctx=ast.Load()
                     ),
-                    args=[],
-                    keywords=[]
+                    args=node.args,
+                    keywords=node.keywords
                 )
-                return ast.Call(
+
+        # Match: actor_instance.method(args)
+        if (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id in self.actor_instances
+        ):
+            return ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id="ray", ctx=ast.Load()),
+                    attr="get",
+                    ctx=ast.Load()
+                ),
+                args=[ast.Call(
                     func=ast.Attribute(
-                        value=ast.Name(id="ray", ctx=ast.Load()),
-                        attr="get",
+                        value=node.func.value,
+                        attr=f"{node.func.attr}.remote",
                         ctx=ast.Load()
                     ),
+                    args=node.args,
+                    keywords=node.keywords
+                )],
+                keywords=[]
+            )
+
+        return node
+
+    def visit_ListComp(self, node):
+        if isinstance(node.elt, ast.Call):
+            call = node.elt
+            if self._is_direct_local_call(call):
+                call.func = ast.Attribute(
+                    value=ast.Name(id=call.func.id, ctx=ast.Load()),
+                    attr="remote",
+                    ctx=ast.Load()
+                )
+                return ast.Call(
+                    func=ast.Attribute(value=ast.Name(id="ray", ctx=ast.Load()), attr="get", ctx=ast.Load()),
                     args=[node],
                     keywords=[]
                 )
@@ -122,7 +145,7 @@ class RayTransformer(ast.NodeTransformer):
         for stmt in node.body:
             if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
                 call = stmt.value
-                if isinstance(call.func, ast.Name) and call.func.id in self.remoteable_funcs:
+                if self._is_direct_local_call(call):
                     remote_call = ast.Call(
                         func=ast.Attribute(
                             value=ast.Name(id=call.func.id, ctx=ast.Load()),
@@ -137,31 +160,11 @@ class RayTransformer(ast.NodeTransformer):
             elif (
                 isinstance(stmt, ast.Assign)
                 and isinstance(stmt.value, ast.Call)
-                and isinstance(stmt.value.func, ast.Name)
-                and stmt.value.func.id in self.remoteable_funcs
+                and self._is_direct_local_call(stmt.value)
             ):
-                func_name = stmt.value.func.id
-                new_call = ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Name(id="ray", ctx=ast.Load()), attr="get", ctx=ast.Load()
-                    ),
-                    args=[
-                        ast.Call(
-                            func=ast.Attribute(
-                                value=ast.Name(id=func_name, ctx=ast.Load()),
-                                attr="remote",
-                                ctx=ast.Load(),
-                            ),
-                            args=stmt.value.args,
-                            keywords=stmt.value.keywords,
-                        )
-                    ],
-                    keywords=[],
-                )
-                stmt.value = new_call
+                stmt.value = self._wrap_local_function_call(stmt.value)
                 new_body.append(stmt)
                 continue
-
             new_body.append(stmt)
 
         if remote_exprs:
@@ -177,16 +180,32 @@ class RayTransformer(ast.NodeTransformer):
         node.body = new_body
         return node
 
-def rayify_code(source_code: str) -> str:
-    '''
-    Takes in a string of Python source code.
+    # --- Helper methods ---
+    def _is_direct_local_call(self, call):
+        return (
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Name)
+            and call.func.id in self.remoteable_funcs
+        )
 
-    Returns a transformed string of code that includes Ray-based parallelism.
-    '''
+    def _wrap_local_function_call(self, call):
+        return ast.Call(
+            func=ast.Attribute(value=ast.Name(id="ray", ctx=ast.Load()), attr="get", ctx=ast.Load()),
+            args=[
+                ast.Call(
+                    func=ast.Attribute(value=ast.Name(id=call.func.id, ctx=ast.Load()), attr="remote", ctx=ast.Load()),
+                    args=call.args,
+                    keywords=call.keywords
+                )
+            ],
+            keywords=[]
+        )
+
+def rayify_code(source_code: str) -> str:
     tree = ast.parse(source_code)
     transformer = RayTransformer()
     tree = transformer.visit(tree)
-    ast.fix_missing_locations(tree) # Ensure that the modified AST has correct line numbers and locations
+    ast.fix_missing_locations(tree)
 
     boilerplate = "import ray\nray.init()\n"
     code_body = astor.to_source(tree)
@@ -204,19 +223,3 @@ def transform_to_ray(input_path: str, output_path: str = None):
     output_file.write_text(rayified_code)
     print(f"Ray-conformant code written to: {output_file}")
 
-def has_remoteable_functions(tree: ast.AST) -> bool:
-    return any(isinstance(node, ast.FunctionDef) and node.name != "main" for node in ast.walk(tree))
-
-def validate_for_ray_transformation(source_code: str) -> bool:
-    try:
-        tree = ast.parse(source_code)
-    except SyntaxError:
-        print("❌ Invalid Python syntax.")
-        return False
-
-    if not has_remoteable_functions(tree):
-        print("❌ No remoteable functions detected.")
-        return False
-
-    print("✅ Script is valid for Ray transformation.")
-    return True
