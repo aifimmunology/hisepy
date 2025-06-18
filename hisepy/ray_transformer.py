@@ -34,53 +34,64 @@ class RayTransformer(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node):
         '''
-        add ray.remote decorator to all top-level functions. skipping functions in main, or methods within a class.
+        Add @ray.remote to top-level functions, skipping methods and main().
+        If num_cpus or num_gpus are provided, include them in the decorator.
         '''
         is_method = hasattr(node, 'parent') and isinstance(node.parent, ast.ClassDef)
-        # add the remove decorator to only top-level functions
+    
         if not is_method and node.name != "main":
+            keywords = [
+                ast.keyword(arg=k, value=ast.Constant(value=v))
+                for k, v in self.decorator_kwargs.items()
+                if v is not None
+            ]
+    
             decorator = ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id="ray", ctx=ast.Load()),
                     attr="remote",
                     ctx=ast.Load()
                 ),
-                args=[],  # No positional arguments
-                keywords=[
-                    ast.keyword(arg=k, value=ast.Constant(value=v)) for k,v in self.decorator_kwargs.items()]
-            )
+                args=[],
+                keywords=keywords
+            ) if keywords else ast.Name(id="ray.remote", ctx=ast.Load())
+    
             self.remoteable_funcs.add(node.name)
             node.decorator_list.insert(0, decorator)
-
-        # continue down the tree 
+    
         self.generic_visit(node)
         return node
 
     def visit_ClassDef(self, node):
         should_decorate = False
-
-        # loop through class body and find functions 
+    
         for item in node.body:
             if isinstance(item, ast.FunctionDef):
                 item.parent = node
                 self.visit_FunctionDef(item)
                 should_decorate = True
-
-        # decorate it 
+    
         if should_decorate:
+            keywords = [
+                ast.keyword(arg=k, value=ast.Constant(value=v))
+                for k, v in self.decorator_kwargs.items()
+                if v is not None
+            ]
+    
             decorator = ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id="ray", ctx=ast.Load()),
                     attr="remote",
                     ctx=ast.Load()
                 ),
-                args=[],  # No positional arguments
-                keywords=[
-                    ast.keyword(arg=k, value=ast.Constant(value=v)) for k,v in self.decorator_kwargs.items()]
-            )
+                args=[],
+                keywords=keywords
+            ) if keywords else ast.Name(id="ray.remote", ctx=ast.Load())
+    
             node.decorator_list.insert(0, decorator)
             self.actor_classes.add(node.name)
-            return node
+    
+        return node
 
     def visit_ListComp(self, node):
         '''
@@ -195,7 +206,7 @@ class RayTransformer(ast.NodeTransformer):
         node.body = new_body
         return node
 
-def rayify_code(source_code: str, num_gpus : int =0, num_cpus: int =1) -> str:
+def rayify_code(source_code: str, num_gpus : int =None, num_cpus: int =None) -> str:
     '''
     Takes in a string of Python source code.
 
@@ -213,7 +224,7 @@ def rayify_code(source_code: str, num_gpus : int =0, num_cpus: int =1) -> str:
 
     return code_body
 
-def transform_to_ray(input_path: str, output_path: str = None, num_gpus: int = 0, num_cpus: int = 1):
+def transform_to_ray(input_path: str, output_path: str = None, num_gpus: int = None, num_cpus: int = None):
     input_file = Path(input_path)
     output_file = Path(output_path) if output_path else input_file.with_name(input_file.stem + "_ray.py")
 
@@ -238,4 +249,3 @@ def validate_for_ray_transformation(source_code: str) -> bool:
 
     print("✅ Script is valid for Ray transformation.")
     return True
-
