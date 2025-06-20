@@ -268,11 +268,17 @@ def reshape_descriptors(this_desc):
     # check if specimens exist - reformat and remove from dictionary if it does 
     spec_df = pd.DataFrame() 
     if 'specimens' in this_desc.keys():
-        spec_df = reshape_list_metadata_to_df(this_desc['specimens'])
+        if this_desc['specimens'] is not None: 
+            spec_df = reshape_list_metadata_to_df(this_desc['specimens'])
+        else:
+            pass
         this_desc.pop('specimens') # remove so we don't reshape it again
     surv_df = pd.DataFrame()
     if 'survey' in this_desc.keys():
-        surv_df = reshape_list_metadata_to_df(this_desc['survey'])
+        if this_desc['survey'] is not None: 
+            surv_df = reshape_list_metadata_to_df(this_desc['survey'])
+        else: 
+            pass
         this_desc.pop('survey')
     dict_df['descriptors'] = reshape_custom_metadata(this_desc)
     dict_df['labResults'] = lab_df
