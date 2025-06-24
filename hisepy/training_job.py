@@ -357,11 +357,9 @@ class TrainingJob:
                 "training_job_file_path must be a .ipynb or .py file")
 
         # transform script to conform to Ray
-        rt.transform_to_ray(
-            python_script_to_convert,
-            '{}/{}'.format(self.work_dir,
-                           CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
-        return
+        rt.transform_to_ray(python_script_to_convert, 
+                            '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']), num_gpus=self.gpu_count, num_cpus=self.cpu_count)
+        return 
 
     def copy_scripts_and_dirs_to_temp(self):
 
