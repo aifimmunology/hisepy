@@ -99,19 +99,44 @@ def start_training_run(
     Starts a remote job for a python script
 
     Parameters: 
-        provider (str): 'ray' or 'beaker'
-        cpu_count (int): number of CPUs to use
-        gpu_count (int): number of GPUs to use
-        memory_size (int): memory size in GB
-        worker_count (int): number of workers to use
         training_job_file_path (str): path to the training job script
         title (str): title of the training job
         description (str): description of the training job
         file_set_id (str): file set ID your training job uses as input(s)
+        provider (str) (Optional): 'ray' or 'beaker'. default is ray
+        cpu_count (int (Optional): number of CPUs to use. default is 1
+        gpu_count (int) (Optional): number of GPUs to use. default is 0 
+        memory_size (int) (Optional): memory size in GB. default is 1 
+        worker_count (int) (Optional): number of workers to use. default is 1
         additional_dirs (list): (Optional) list of directories your script requires
         additional_files (list): (Optional) list of files your script requires
         requirements_file_path (str): (Optional) path to the requirements.in file
         image_id (str): (Optional) image ID to use for the training job
+
+    Returns: 
+        dictionary with keys: [workflowName, executionId, status, message, providerDashboard, executionDetails]
+
+    Examples: 
+        # start a training job with ray, with default settings (1 CPU, 0 GPUs, 1GB memory, 1 worker)
+        hp.start_training_run(
+            training_job_file_path='/home/workspace/my_training_jobs/app.py',
+            title='My Training Job',
+            description='This is my training job',
+            file_set_id='12345')
+
+        # start a training run, specifying resources, and with additional helper scripts
+        hp.start_training_run(
+            cpu_count=2,
+            gpu_count=1,
+            memory_size=4,
+            worker_count=2,
+            training_job_file_path='/home/workspace/my_training_jobs/app.py',
+            title='My Training Job',
+            description='This is my training job',
+            file_set_id='12345',
+            additional_dirs=['/home/workspace/my_training_jobs/helpers'],
+            additional_files=['/home/workspace/configs/config.json'])
+
     '''
 
     # create training_job temp directory
@@ -181,6 +206,14 @@ def review_training_job_run(job_id,
         study_space_id (str): ID of the study space to review the job in
         approve (bool): whether to approve or reject the job
         review_notes (str): notes for the review
+    Returns: 
+        dictionary with keys: [Job, approved, message]
+    Examples: 
+        # approve a training job run
+        hp.review_training_job_run(job_id='12345', study_space_id='67890', approve=True, review_notes='Looks good!')
+
+        # reject a training job run
+        hp.review_training_job_run(job_id='12345', study_space_id='67890', approve=False, review_notes='Needs more work')
     '''
     
     # validate params 
