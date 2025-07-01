@@ -59,13 +59,22 @@ def save_custom_conda_environment(
     """
     Save a custom conda environment with additional metadata.
 
-    Args:
+    Parameters:
         env_name (str): Name of the conda environment. This is the name that will show in the HISE UI.
-        yaml_file_path (str): Path to the YAML file defining the environment.
         description (str): Description of the environment.
         hero_image_path (str): Path to the hero image for the environment.
         languages (list[str]): List of programming languages supported by the environment.
         tags (list[str]): List of tags associated with the environment.
+    Returns: 
+        dict: Response from the HISE API after saving the environment.
+    Example: 
+        >>> save_custom_conda_environment(
+                env_name="my_custom_env",
+                description="A custom conda environment for data science.",
+                hero_image_path="/path/to/hero_image.png",
+                languages=["python", "r"],
+                tags=["data science", "custom"]
+            )
     """
 
     # Validate parameters
