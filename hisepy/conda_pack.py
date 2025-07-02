@@ -105,7 +105,7 @@ def save_custom_conda_environment(
 
     params = {
         "name": env_name,
-]       "description": description,
+        "description": description,
         "heroImagePath": hero_image_path,
         "language": languages,
         "ownerEmail" : HiseUser().email
