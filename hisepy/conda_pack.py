@@ -14,7 +14,7 @@ def validate_conda_env_params(
     description: str,
     hero_image_path : str,
     languages: list[str],
-    tags : list[str]
+    tags : dict
 ):
     """
     Validate parameters for saving a custom conda environment.
@@ -45,16 +45,16 @@ def validate_conda_env_params(
     if not all(lang.capitalize() in valid_languages for lang in languages):
         raise ValueError(f"languages must be one of {valid_languages}.")
 
-    if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
-        raise ValueError("tags must be a list of strings.")
-
+    if not isinstance(tags, dict) and tags is not None:
+        raise ValueError("tags must be a dictionary or None if not provided.")
+    return 
 
 def save_custom_conda_environment(
     env_name : str,
     description: str,
     hero_image_path : str, 
     languages: list[str], 
-    tags : list[str] = None
+    tags : dict = None
 ):
     """
     Save a custom conda environment with additional metadata.
@@ -103,19 +103,20 @@ def save_custom_conda_environment(
     if process.returncode != 0:
         raise SystemError('Unable to remove hisepy from exported conda env: {}'.format(conda_export_dest))
 
-    # create dict params 
     params = {
         "name": env_name,
-        "yamlFile": yaml_path,
-        "instanceGuid": ide_instance_guid(),
-        "desc": description,
+]       "description": description,
         "heroImagePath": hero_image_path,
         "language": languages,
         "ownerEmail" : HiseUser().email
     }
-    url = cu.hise_url("ide_management", "save_custom_conda_env", args=params)
-    resp = cu.parse_hise_response(
-        requests.post(url, headers=cu.get_bearer_token_header()))
+    with open(yaml_path, 'rb') as f:
+        files = {
+            'file': (os.path.basename(yaml_path), f, 'application/octet-stream')
+        }
+        url = cu.hise_url("ide_management", "save_custom_conda_env")
+        resp = cu.parse_hise_response(
+            requests.post(url, headers=cu.get_bearer_token_header(), data=params, files=files))
 
     return resp
 

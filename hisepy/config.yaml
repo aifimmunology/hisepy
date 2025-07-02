@@ -139,7 +139,7 @@ IDE_MANAGEMENT:
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
   IDE_PATH: ide-nextgen/instances 
   TAG_IDE: ide-nextgen/instances/tag/ide
-  SAVE_CUSTOM_CONDA_ENV: ide-nextgen/build/conda/save/ide
+  SAVE_CUSTOM_CONDA_ENV: ide-nextgen/build/conda/save/hise
   
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
