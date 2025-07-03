@@ -93,7 +93,7 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
 
     return True 
 
-def install_sdk_version(version_tag: str= 'development'):
+def install_sdk_version(version_tag: str= None):
     """
     This will download the selected version of the SDK to /home/workspace/sdk, 
     where you can then install and update your environment.
@@ -104,6 +104,9 @@ def install_sdk_version(version_tag: str= 'development'):
     Raises:
         ValueError: If the version tag is not a valid string.
     """
+    if version_tag is None:
+        raise ValueError("version_tag cannot be None. Please provide a valid version tag.")
+        return
     if not isinstance(version_tag, str) or not version_tag.strip():
         raise ValueError("version_tag must be a non-empty string.")
 
