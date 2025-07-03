@@ -99,14 +99,14 @@ def install_sdk_version(version_tag: str= None):
     where you can then install and update your environment.
 
     Parameters:
-        version_tag (str): The new version tag to set for the HISE SDK. Default is 'development'.
+        version_tag (str): The new version tag to set for the HISE SDK
 
     Raises:
         ValueError: If the version tag is not a valid string.
     """
     if version_tag is None:
-        raise ValueError("version_tag cannot be None. Please provide a valid version tag.")
-        return
+        url = cu.hise_url("ide_management", "sdk_version", 'python')
+        version_tag = cu.hise_get(url)
     if not isinstance(version_tag, str) or not version_tag.strip():
         raise ValueError("version_tag must be a non-empty string.")
     # check that tag is prefixed with 'v' (i.e v1.5.4)
