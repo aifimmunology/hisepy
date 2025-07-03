@@ -138,6 +138,7 @@ IDE_MANAGEMENT:
   IDE_PATH: ide-nextgen/instances 
   TAG_IDE: ide-nextgen/instances/tag/ide
   INSTALL_SDK: ide-nextgen/sdk/install
+  SDK_VERSION: ide-nextgen/instances/sdk
   
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
