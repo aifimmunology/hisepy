@@ -109,6 +109,9 @@ def install_sdk_version(version_tag: str= None):
         return
     if not isinstance(version_tag, str) or not version_tag.strip():
         raise ValueError("version_tag must be a non-empty string.")
+    # check that tag is prefixed with 'v' (i.e v1.5.4)
+    if not version_tag.startswith('v'):
+        raise ValueError("version_tag must start with 'v'. For example: 'v1.5.4.")
 
     # download sdk version to /home/workspace/sdk
     url = cu.hise_url("ide_management", "install_sdk", ide_instance_guid())   
