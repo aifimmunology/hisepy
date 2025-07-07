@@ -1,5 +1,6 @@
 import requests
 import os 
+import sys 
 import subprocess
 import hisepy.common_utils as cu 
 from hisepy.utils import conda_env_builds
@@ -68,7 +69,7 @@ def save_custom_conda_environment(
     cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_CONDA_ENV"])
 
     # get path to current active conda environment 
-    path_to_conda_env = os.environ.get('CONDA_PREFIX')
+    path_to_conda_env = sys.prefix
 
     # validate the environment can build 
     if conda_env_builds(path_to_conda_env) is not True:
