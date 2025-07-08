@@ -94,6 +94,7 @@ def start_training_run(
     requirements_file_path: str = None,
     image_id: str = None,
     use_conda: bool = False,
+    output_file_size: int = 5,
 ):
     '''
     Starts a remote job for a python script
@@ -112,6 +113,8 @@ def start_training_run(
         additional_files (list): (Optional) list of files your script requires
         requirements_file_path (str): (Optional) path to the requirements.in file
         image_id (str): (Optional) image ID to use for the training job
+        use_conda (bool): (Optional) whether to use conda for the training job. default is pip
+        output_file_size (int): (Optional) estimated output file size in GB. default is 5 GB
 
     Returns: 
         dictionary with keys: [workflowName, executionId, status, message, providerDashboard, executionDetails]
@@ -158,7 +161,8 @@ def start_training_run(
                           additional_dirs=additional_dirs,
                           additional_files=additional_files,
                           image_id=image_id,
-                          work_dir=training_job_temp_dir)
+                          work_dir=training_job_temp_dir,
+                          output_file_size=output_file_size)
     job_obj._validate_params()
 
     # fork on provider
@@ -276,7 +280,8 @@ class TrainingJob:
             job_id: str = "",
             review_notes: str = "",
             approve : bool = None,
-            study_space_id : str = ""):
+            study_space_id : str = "",
+            output_file_size: int = 5):
         self.__url = cu.hise_url('tracer', 'training_job')
         self.__ray_workflow_url = cu.hise_url('job_orchestrate',
                                               'ray_workflow')
@@ -305,6 +310,7 @@ class TrainingJob:
         self.approve = approve
         self.study_space_id = study_space_id
         self.artifacts_path = CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_TEMP_FILEPATH'] # '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
+        self.output_file_size = output_file_size
 
         if job_id is not None:
             self.job_id = job_id
@@ -478,6 +484,7 @@ class TrainingJob:
             'title': self.title,
             'description': self.description,
             'tags': self.tags,
+            'outputPvcSize': self.output_file_size,
             'jobRequest': {
                 'headConfig':
                 {  # TODO: what should this headconfig actually be based from user's params
@@ -518,6 +525,7 @@ class TrainingJob:
             'title': self.title,
             'description': self.description,
             'tags': self.tags,
+            'outputPvcSize': self.output_file_size,
             'jobRequest': {
                 'headConfig':
                 {  # TODO: what should this headconfig actually be based from user's params
