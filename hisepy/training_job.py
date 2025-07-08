@@ -94,7 +94,7 @@ def start_training_run(
     requirements_file_path: str = None,
     image_id: str = None,
     use_conda: bool = False,
-    output_file_size: int = 1,
+    output_file_size: int = 5,
 ):
     '''
     Starts a remote job for a python script
@@ -114,7 +114,7 @@ def start_training_run(
         requirements_file_path (str): (Optional) path to the requirements.in file
         image_id (str): (Optional) image ID to use for the training job
         use_conda (bool): (Optional) whether to use conda for the training job. default is pip
-        output_file_size (int): (Optional) estimated output file size in GB. default is 1
+        output_file_size (int): (Optional) estimated output file size in GB. default is 5 GB
 
     Returns: 
         dictionary with keys: [workflowName, executionId, status, message, providerDashboard, executionDetails]
@@ -281,7 +281,7 @@ class TrainingJob:
             review_notes: str = "",
             approve : bool = None,
             study_space_id : str = "",
-            output_file_size: int = 1):
+            output_file_size: int = 5):
         self.__url = cu.hise_url('tracer', 'training_job')
         self.__ray_workflow_url = cu.hise_url('job_orchestrate',
                                               'ray_workflow')
