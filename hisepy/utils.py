@@ -4,9 +4,12 @@ useful utility methods for HISE IDE users
 
 import os 
 import time 
+import json
+import requests
 from resource import  RLIMIT_AS, getrlimit, setrlimit 
 import hisepy.common_utils as cu
 from hisepy.instances import IDEInstance
+from hisepy.auth import ide_instance_guid, get_bearer_token_header
 import shutil
 import subprocess
 import psutil
@@ -91,3 +94,52 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
     shutil.rmtree(tmp_env_path)
 
     return True 
+
+def install_sdk_version(version_tag: str= None):
+    """
+    This will download the selected version of the SDK to /home/workspace/sdk, 
+    where you can then install and update your environment.
+
+    Parameters:
+        version_tag (str): The new version tag to set for the HISE SDK
+
+    Raises:
+        ValueError: If the version tag is not a valid string.
+    """
+    if version_tag is None:
+        url = cu.hise_url("ide_management", "sdk_version", 'python')
+        version_tag = cu.hise_get(url)
+    if not isinstance(version_tag, str) or not version_tag.strip():
+        raise ValueError("version_tag must be a non-empty string.")
+    # check that tag is prefixed with 'v' (i.e v1.5.4)
+    if not version_tag.startswith('v'):
+        raise ValueError("version_tag must start with 'v'. For example: 'v1.5.4.")
+
+    # download sdk version to /home/workspace/sdk
+    url = cu.hise_url("ide_management", "install_sdk", ide_instance_guid())   
+
+    payload = {
+        "hisePyTag":version_tag,
+    } 
+    response = requests.request("POST",
+                                url,
+                                data=json.dumps(payload),
+                                headers=get_bearer_token_header())
+    if response.status_code != 200:
+        raise SystemError('Unable to download SDK version {}: {}'.format(version_tag, response.text))
+        return
+    else: 
+        # wait for SDK to show up in /home/workspace/sdk, then execute terminal commands to build and install
+        while not os.path.exists('/home/workspace/sdk/hisepy_{}'.format(version_tag)):
+            print("Waiting for SDK version {} to be available...".format(version_tag))
+            time.sleep(5)
+        
+        print("SDK version {} installed successfully. Executing terminal commands to update activated conda environment".format(version_tag))
+        
+        # install the SDK for the user 
+        process = subprocess.run("cd /home/workspace/sdk/hisepy_{sdk} && python setup.py build && pip install .".format(sdk=version_tag),
+                    shell=True, capture_output=True)
+        if process.returncode != 0:
+            raise SystemError('Unable to install SDK version {}: {}'.format(version_tag, process.stderr.decode()))
+        print("SDK version {} installed successfully".format(version_tag))
+        return 

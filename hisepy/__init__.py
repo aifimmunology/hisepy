@@ -20,7 +20,7 @@ from .upload import (save_static_image, save_visualization, load_visualization,
                      save_dash_app, set_default_store, set_default_project,
                      get_default_store, get_default_project, upload_files,
                      retry_ide_commit)
-from .utils import (set_memory_limit, get_memory_usage, conda_env_builds)
+from .utils import (set_memory_limit, get_memory_usage, conda_env_builds, install_sdk_version)
 from .abstraction import (save_abstraction, result_filetype_to_guid,
                           get_result_files)
 from .private_folders import (
