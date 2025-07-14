@@ -95,26 +95,16 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
 
     return True 
 
-def install_sdk_version(version_tag: str= None):
+def update_sdk_version(version_tag: str= None):
     """
-    This will download the selected version of the SDK to /home/workspace/sdk, 
+    This will download the latest version of the SDK to /home/workspace/sdk, 
     where you can then install and update your environment.
 
-    Parameters:
-        version_tag (str): The new version tag to set for the HISE SDK
-
-    Raises:
-        ValueError: If the version tag is not a valid string.
     """
-    if version_tag is None:
-        url = cu.hise_url("ide_management", "sdk_version", 'python')
-        version_tag = cu.hise_get(url)
-    if not isinstance(version_tag, str) or not version_tag.strip():
-        raise ValueError("version_tag must be a non-empty string.")
-    # check that tag is prefixed with 'v' (i.e v1.5.4)
-    if not version_tag.startswith('v'):
-        raise ValueError("version_tag must start with 'v'. For example: 'v1.5.4.")
-
+    # get latest sdk version 
+    url = cu.hise_url("ide_management", "sdk_version", 'python')
+    version_tag = cu.hise_get(url)
+   
     # download sdk version to /home/workspace/sdk
     url = cu.hise_url("ide_management", "install_sdk", ide_instance_guid())   
 
