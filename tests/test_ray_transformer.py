@@ -86,3 +86,49 @@ class MyWorker:
 
         transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
         self.assertEqual(self.normalize(transformed_code), self.normalize(expected_transformed))
+
+
+    def test_class_actor_main_transformation(self):
+        source_code = '''
+class Worker:
+    def __init__(self, worker_id):
+        self.worker_id = worker_id
+
+    def do_work(self, x):
+        time.sleep(random.uniform(0.5, 1.5))
+        result = x * x
+        return result
+
+def main():
+    num_inputs= 10
+    workers = [Worker(worker_id=i) for i in range(num_inputs)]
+    results = [workers[i].do_work(x) for i,x in enumerate(list(range(num_inputs)))]
+    print('Final results:', results)
+'''
+        expected_transformed = '''import ray
+ray.init()
+
+@ray.remote
+class Worker:
+    def __init__(self, worker_id):
+        self.worker_id = worker_id
+
+    def do_work(self, x):
+        time.sleep(random.uniform(0.5, 1.5))
+        result = x * x
+        return result
+
+def main():
+    num_inputs = 10
+    workers = [Worker.remote(worker_id=i) for i in range(num_inputs)]
+    results = [ray.get(workers[i].do_work.remote(x)) for i, x in enumerate(
+        list(range(num_inputs)))]
+    print('Final results:', results)
+'''
+        tree = ast.parse(source_code)
+        transformer = RayTransformer()
+        new_tree = transformer.visit(tree)
+        ast.fix_missing_locations(new_tree)
+
+        transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
+        self.assertEqual(self.normalize(transformed_code), self.normalize(expected_transformed))
