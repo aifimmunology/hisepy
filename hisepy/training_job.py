@@ -38,7 +38,7 @@ def get_training_job(job_id: str):
         return fmt.reshape_custom_metadata(
             TrainingJob(job_id).get_job()[0], False)[cols_to_keep]
     except:
-        print("job has missing column that's expected: {}".format(
+        print("Job is missing an expected column: {}".format(
             job_id))  # TODO: fix endpoint
         return
 
@@ -100,34 +100,34 @@ def start_training_run(
     Starts a remote job for a python script
 
     Parameters: 
-        training_job_file_path (str): path to the training job script
-        title (str): title of the training job
-        description (str): description of the training job
-        file_set_id (str): file set ID your training job uses as input(s)
+        training_job_file_path (str): path to training job script
+        title (str): training job title
+        description (str): training job description
+        file_set_id (str): file set ID used as the training job input
         provider (str) (Optional): 'ray' or 'beaker'. default is ray
-        cpu_count (int (Optional): number of CPUs to use. default is 1
+        cpu_count (int) (Optional): number of CPUs to use. default is 1
         gpu_count (int) (Optional): number of GPUs to use. default is 0 
-        memory_size (int) (Optional): memory size in GB. default is 1 
+        memory_size (int) (Optional): memory size (GB). default is 1 
         worker_count (int) (Optional): number of workers to use. default is 1
         additional_dirs (list): (Optional) list of directories your script requires
         additional_files (list): (Optional) list of files your script requires
-        requirements_file_path (str): (Optional) path to the requirements.in file
-        image_id (str): (Optional) image ID to use for the training job
-        use_conda (bool): (Optional) whether to use conda for the training job. default is pip
-        output_file_size (int): (Optional) estimated output file size in GB. default is 5 GB
+        requirements_file_path (str): (Optional) path to requirements.in file
+        image_id (str): (Optional) image ID for the training job
+        use_conda (bool): (Optional) whether to use conda or pip. default is pip
+        output_file_size (int): (Optional) estimated output file size (GB). default is 5 GB
 
     Returns: 
-        dictionary with keys: [workflowName, executionId, status, message, providerDashboard, executionDetails]
+        dict with keys: [workflowName, executionId, status, message, providerDashboard, executionDetails]
 
     Examples: 
-        # start a training job with ray, with default settings (1 CPU, 0 GPUs, 1GB memory, 1 worker)
+        # start a ray training job using the default settings (1 CPU, 0 GPUs, 1 GB memory, 1 worker)
         hp.start_training_run(
             training_job_file_path='/home/workspace/my_training_jobs/app.py',
             title='My Training Job',
             description='This is my training job',
             file_set_id='12345')
 
-        # start a training run, specifying resources, and with additional helper scripts
+        # start a training run with the specified resources and helper scripts
         hp.start_training_run(
             cpu_count=2,
             gpu_count=1,
@@ -142,7 +142,7 @@ def start_training_run(
 
     '''
 
-    # create training_job temp directory
+    # create a training_job temp directory
     training_job_temp_dir = CONFIG['JOB_ORCHESTRATE'][
         'ARTIFACTS_PATH']  # '/home/workspace/.artifacts'
     if not os.path.exists(training_job_temp_dir):
@@ -165,7 +165,7 @@ def start_training_run(
                           output_file_size=output_file_size)
     job_obj._validate_params()
 
-    # fork on provider
+    # Branch based on provider
     if provider == 'ray':
         # conform to ray and save to temp directory
         job_obj.convert_training_job_file_to_ray()
@@ -185,7 +185,7 @@ def start_training_run(
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
 
-    # copy any additional scripts or modules the user supplies
+    # copy any user-supplied scripts or modules
     job_obj.copy_scripts_and_dirs_to_temp()
 
     # create tar file of artifacts
@@ -203,15 +203,15 @@ def review_training_job_run(job_id,
                             approve : bool = False, 
                             review_notes : str = None):
     ''' 
-    Approve or Reject a training job run
+    Approve or reject a training job run:
 
     Parameters: 
         job_id (str): ID of the training job to review
-        study_space_id (str): ID of the study space to review the job in
-        approve (bool): whether to approve or reject the job
+        study_space_id (str): ID of the study space that contains the job to be reviewed
+        approve (bool): whether to approve or reject the job. default is approve
         review_notes (str): notes for the review
     Returns: 
-        dictionary with keys: [Job, approved, message]
+        dict with keys: [job, approved, message]
     Examples: 
         # approve a training job run
         hp.review_training_job_run(job_id='12345', study_space_id='67890', approve=True, review_notes='Looks good!')
@@ -242,7 +242,7 @@ def review_training_job_run(job_id,
 
     print("Training job output files downloaded to: {}".format(dl_resp['Path']))
 
-    # prompt user 
+    # prompt user to review the training job output
     user_response = cu.prompt_user(CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'], job_id)
     
     jobj = TrainingJob(job_id=job_id, 
@@ -254,7 +254,7 @@ def review_training_job_run(job_id,
 
 class TrainingJob: 
     """
-    Class representing a Training Job
+    Class representing a training job
     
     Attributes: 
         id (str)
@@ -344,23 +344,23 @@ class TrainingJob:
         elif self.image_id is not None and type(self.image_id) is not str:
             raise Exception("image_id must be a string")
 
-        # no white spaces in filepaths
+        # check for spaces in file paths
         if self.requirements_file_path is not None:
             if cu.string_contains_whitespaces(self.requirements_file_path):
                 raise Exception(
-                    "requirements_file_path must not contain spaces")
+                    "requirements_file_path cannot contain spaces")
         if self.training_job_file_path is not None:
             if cu.string_contains_whitespaces(self.training_job_file_path):
                 raise Exception(
-                    "training_job_file_path must not contain spaces")
+                    "training_job_file_path cannot contain spaces")
         if self.additional_dirs is not None:
             for d in self.additional_dirs:
                 if cu.string_contains_whitespaces(d):
-                    raise Exception("additional_dirs must not contain spaces")
+                    raise Exception("additional_dirs cannot contain spaces")
         if self.additional_files is not None:
             for f in self.additional_files:
                 if cu.string_contains_whitespaces(f):
-                    raise Exception("additional_files must not contain spaces")
+                    raise Exception("additional_files cannot contain spaces")
 
         # check that the file exists
         if self.requirements_file_path is not None:
@@ -383,7 +383,7 @@ class TrainingJob:
 
         # first check if the file is a notebook or a script
         if self.training_job_file_path.endswith('.ipynb'):
-            # convert notebook to script
+            # if it's a notebook, convert it to script
             python_script_to_convert = '{}/{}'.format(
                 self.work_dir, CONFIG['TEMP_FILES']['NBCONVERT_TMP_FILE'])
             cu.convert_notebook_to_script(self.training_job_file_path,
@@ -402,14 +402,14 @@ class TrainingJob:
 
     def copy_scripts_and_dirs_to_temp(self):
 
-        # master list of directories and additional files
+        # define master list of directories and additional files
         app_files = self.additional_files + self.additional_dirs
 
-        # copy each directory and file to the temp directory, preserving the relative path to training_job_file_path
+        # copy each path (file or directory) to the temp directory, preserving the relative path to training_job_file_path
         for f in app_files:
-            # check if the file is a directory or a file
+            # check if the path is a directory or a file
             if os.path.isdir(f):
-                # check if directory already exists, remove if so
+                # check if the directory already exists, and remove it if so
                 if os.path.exists('{}/{}'.format(self.work_dir,
                                                  os.path.basename(f))):
                     shutil.rmtree('{}/{}'.format(self.work_dir,
@@ -487,7 +487,7 @@ class TrainingJob:
             'outputPvcSize': self.output_file_size,
             'jobRequest': {
                 'headConfig':
-                {  # TODO: what should this headconfig actually be based from user's params
+                {  # TODO: what should this headconfig actually be based on from user's params
                     "cpus": self.cpu_count,
                     "gpus": self.gpu_count,
                     "memory": "{}G".format(str(self.memory_size))
@@ -528,7 +528,7 @@ class TrainingJob:
             'outputPvcSize': self.output_file_size,
             'jobRequest': {
                 'headConfig':
-                {  # TODO: what should this headconfig actually be based from user's params
+                {  # TODO: what should this headconfig actually be based on from user's params
                     "cpus": self.cpu_count,
                     "gpu": self.gpu_count,
                     "memory": "{}G".format(str(self.memory_size))
@@ -610,7 +610,7 @@ def get_training_image(image_id: str):
 
 class TrainingImage:
     """
-    Class representing a Training Image
+    Class representing a training image
     
     Attributes: 
         id (str)
