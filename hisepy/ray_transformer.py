@@ -84,6 +84,11 @@ class RayTransformer(ast.NodeTransformer):
         # Actor class instantiation
         if isinstance(node.value, ast.Call):
             call = node.value
+            # Detect actor instantiation via .remote() too
+            if isinstance(call.func, ast.Attribute):
+                base = call.func.value
+                if isinstance(base, ast.Name) and base.id in self.actor_classes:
+                    self._record_actor_instance(node)
             if isinstance(call.func, ast.Name) and call.func.id in self.actor_classes:
                 node.value = self._replace_with_actor_remote(call)
                 self._record_actor_instance(node)
@@ -157,7 +162,7 @@ class RayTransformer(ast.NodeTransformer):
                 ctx=ast.Load()
             )
             return node
-
+            
         # Direct call to a remoteable function
         if isinstance(func, ast.Name) and func.id in self.remoteable_funcs:
             return self._wrap_local_function_call(node)
