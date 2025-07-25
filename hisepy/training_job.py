@@ -89,8 +89,8 @@ def start_training_run(
     title: str,
     description: str,
     file_set_id: str,
-    additional_dirs: list = None,
-    additional_files: list = None,
+    additional_dirs: list = [],
+    additional_files: list = [],
     requirements_file_path: str = None,
     image_id: str = None,
     use_conda: bool = False,
@@ -273,8 +273,8 @@ class TrainingJob:
             file_set_id: str = "",  # TODO: training job needs to work with this param after MVP presentation
             requirements_file_path: str = "",
             training_job_file_path: str = "",
-            additional_dirs: list = "",
-            additional_files: list = "",
+            additional_dirs: list = [],
+            additional_files: list = [],
             image_id: str = "",
             work_dir: str = "",
             job_id: str = "",
@@ -386,7 +386,7 @@ class TrainingJob:
             # if it's a notebook, convert it to script
             python_script_to_convert = '{}/{}'.format(
                 self.work_dir, CONFIG['TEMP_FILES']['NBCONVERT_TMP_FILE'])
-            cu.convert_notebook_to_script(self.training_job_file_path,
+            cu.convert_notebook_to_python(self.training_job_file_path,
                                           python_script_to_convert)
         elif self.training_job_file_path.endswith('.py'):
             # get the script file name
