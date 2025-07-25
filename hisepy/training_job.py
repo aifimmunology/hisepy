@@ -386,7 +386,7 @@ class TrainingJob:
             # if it's a notebook, convert it to script
             python_script_to_convert = '{}/{}'.format(
                 self.work_dir, CONFIG['TEMP_FILES']['NBCONVERT_TMP_FILE'])
-            cu.convert_notebook_to_script(self.training_job_file_path,
+            cu.convert_notebook_to_python(self.training_job_file_path,
                                           python_script_to_convert)
         elif self.training_job_file_path.endswith('.py'):
             # get the script file name
