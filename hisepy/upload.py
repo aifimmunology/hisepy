@@ -68,16 +68,16 @@ def upload_files(files: list,
         files (list): absolute filepath of file to be uploaded
         study_space_id (str): ID that pertains to a study in the collaboration space (optional)
         project (str): project short name (required if study space is not specified, defaults to the ide's default setting
-        title (str): 10+ character title for upload result 
+        title (str): 10+ character title for upload result
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
-        file_types (str): filetype of uploaded files 
+        file_types (str): filetype of uploaded files
         store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
-        destination (str): Destination folder for the files 
+        destination (str): Destination folder for the files
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
-    Returns: 
+    Returns:
         dictionary with keys ["trace_id", "files"]
-    Example: 
+    Example:
         hp.upload_files(files=['/home/jupyter/upload_file.csv'],
                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
                         title='a upload title',
@@ -129,8 +129,13 @@ def upload_files(files: list,
     else:
         store = get_default_store()
 
+    # Check if the user provided a study space id
     if study_space_id is None:
         study_space_id = select_study_space(project)
+
+    # Check if sample ids were provided by the user
+    if len(input_sample_ids) == 0:
+        input_sample_ids = select_input_samples()
 
     if project is not None:
         if do_prompt:
@@ -288,6 +293,14 @@ def select_study_space(proj):
                                  [d["name"] for d in options], True)
     return options[idx]["id"]
 
+def select_input_samples():
+    provided_samples = cu.prompt_for_input("Please provide input of comma separated sample ids for the files being uploaded")
+    if provided_samples == None:
+        raise ValueError("the sample ids must be provided")
+    if '"' in provided_samples:
+        provided_samples = provided_samples.replace('"', '')
+    sampleIds = [s.strip() for s in provided_samples.split(",")]
+    return sampleIds
 
 def get_study_space(id):
     """ Returns list of studies a user has access to """
@@ -295,7 +308,6 @@ def get_study_space(id):
         requests.request("GET",
                          cu.hise_url("tracer", "study_space_path", id),
                          headers=get_bearer_token_header()))
-
 
 def move_file_to_output_staging(file: str,
                                 project: str,
@@ -411,21 +423,21 @@ def save_visualization(
         study_space_id=None,  # optional
         project=None,  # optional unless study_space_id is not specified
         title=None,  # not actually optional
-        destination=None,  #optional 
+        destination=None,  #optional
         input_file_ids=None,  # not optional
         input_sample_ids=None,  # optional
         do_conda_build_check=True):  # optional
     """
-    Save a plotly figure to a user's specified study. 
+    Save a plotly figure to a user's specified study.
 
-    Parameters: 
+    Parameters:
         pl_obj (plotly.Figure): (see LINK HERE)
         study_space_id (str): UUID of study to save visualization to
         project (str) : projectShortName to save visuzliation to
         title (str): 10+ character for visualization being uploaded
-        destination (str):  Destination folder for the files 
+        destination (str):  Destination folder for the files
         input_file_ids (list): list of file_ids from HISE that were utilized to generate visualization.
-    Returns: 
+    Returns:
         dictionary with keys ["trace_id", "files"]
     """
     if input_file_ids is None:
@@ -699,8 +711,8 @@ def validate_hero_image(hero_image):
 
 
 def create_temp_directory_files(list_paths: list, tmpdirname: str):
-    """ Takes a list of filepaths, and creates a temporary directory that contains all files. 
-        paths are preserved when copying files to the temporary directory. 
+    """ Takes a list of filepaths, and creates a temporary directory that contains all files.
+        paths are preserved when copying files to the temporary directory.
     """
     for f in list_paths:
         rel_path = os.path.relpath(f, '/')
@@ -742,7 +754,7 @@ def save_dash_app(app_filepath: str,
         input_file_ids (list): list of HISE file UUIDs that this app visualizes
         study_space_id (str): UUID of study space to save app to
         title (str): a 10+ character title for the app
-        description (str): description of app being uploaded 
+        description (str): description of app being uploaded
         image (str): png thumbnail image for app in study space
         input_sample_ids (list): list of samples UUIDs that this app visualizes
     Returns:
@@ -829,15 +841,15 @@ def save_dash_app(app_filepath: str,
 def save_static_image(image, title, study_space_id=None):
     """
     Saves a PNG image to a study
-    
-    Parameters: 
-        image (str): absolute path to image 
-        title (str): title of image being uploaded 
+
+    Parameters:
+        image (str): absolute path to image
+        title (str): title of image being uploaded
         study_space_id (str): UUID of study
-    Returns: 
+    Returns:
         Response from server
-    Example: 
-        hp.save_static_image(image='/home/jupyter/imgs/viz_image.png', 
+    Example:
+        hp.save_static_image(image='/home/jupyter/imgs/viz_image.png',
                              title='visualization title',
                              study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba')
     """
@@ -893,12 +905,12 @@ def validate_upload_data(files, study_space_id, project, title,
 
 
 def load_visualization(id):
-    """ 
+    """
     Loads a plotly visualization to user
-    
-    Parameters: 
-        id (str): trace id or visualization id 
-    Returns: 
+
+    Parameters:
+        id (str): trace id or visualization id
+    Returns:
         plotly figure
     """
     return go.Figure(parse_hise_response(
