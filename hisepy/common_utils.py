@@ -39,7 +39,7 @@ num_printed_notebooks = 3  # number of options user gets when a save call is inv
 the_current_notebook = None
 
 
-def convert_notebook_to_python(notebook_path, output_path=None): 
+def convert_notebook_to_python(notebook_path, output_path=None):
     ''' Convert notebook to a python script
     '''
     def _validate_convert_notebook_params(notebook_path, output_path):
@@ -51,21 +51,21 @@ def convert_notebook_to_python(notebook_path, output_path=None):
         # check if the output path is a valid directory and ends in .py
         elif output_path is not None and not output_path.endswith('.py'):
             raise ValueError("output path must end in .py: {}".format(output_path))
-        return 
+        return
 
     # TODO: ensure /temp/training_job exists
-    if output_path is None: 
-        output_path = '{}/{}/{}'.format(CONFIG['STORES']['TEMP_STORE'], 
+    if output_path is None:
+        output_path = '{}/{}/{}'.format(CONFIG['STORES']['TEMP_STORE'],
                                         CONFIG['TEMP_FOLDERS']['TRAINING_JOB_TMP'],
                                         CONFIG['TEMP_FILES']['NBCONVERT_TMP_FILE'])
-    
-    # validate input params 
+
+    # validate input params
     _validate_convert_notebook_params(notebook_path, output_path)
 
     subprocess.run("jupyter nbconvert --to python {i} --output {out}".format(
         i=notebook_path, out=output_path), shell=True, check=True)
     print("converted notebook to python script: {}".format(output_path))
-    return 
+    return
 
 def crc32_from_string(s):
     return zlib.crc32(s.encode('utf-8')) & 0xFFFFFFFF
@@ -180,20 +180,20 @@ def get_from_config(heading: str, key: str):
     raise ValueError("config value %s:%s not found" % (heading, key))
 
 
-def get_ide(ide_instance_guid): 
+def get_ide(ide_instance_guid):
     endpoint = "https://{s}/{de}/{ig}".format(
-        s=hise_server(), 
-        de=CONFIG['TRACER']['IDE_PATH'], 
+        s=hise_server(),
+        de=CONFIG['TRACER']['IDE_PATH'],
         ig=ide_instance_guid)
     resp = parse_hise_response(requests.request("GET", endpoint, headers=get_bearer_token_header()))
-    return resp 
+    return resp
 
 
 def get_projects(to_df: bool = True):
     """
     Returns information on all projects in the current account
 
-    Parameters: 
+    Parameters:
         to_df (bool): reshape to tabular, if True
     """
     keep_cols = ['guid', 'short_name', 'name']
@@ -214,13 +214,13 @@ def get_projects(to_df: bool = True):
 def is_legacy_ide():
     """
     """
-    # grab IDE instance GUID from env var 
+    # grab IDE instance GUID from env var
     ide_instance_guid = os.getenv("IDE_INSTANCE_GUID")
     if ide_instance_guid is None:
         raise Exception(
             "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
         )
-    
+
     # try tracer/ide endpoint first
     # TODO: it might be the case that we just need to GET tracer/ideinstances endpoint
     try:
@@ -228,21 +228,21 @@ def is_legacy_ide():
     except:   # if that fails, try tracer/ideinstances endpoint
         resp = IDEInstance()
 
-    # if this fails, send a system error to user  
-    if resp is None: 
+    # if this fails, send a system error to user
+    if resp is None:
         raise SystemError("Failed to get IDE instance information in order to determine if IDE is legacy vs nextgen")
-    
+
     if resp.type == CONFIG['IDE']['NEXTGEN_IDE_TAG']:
         return False
-    elif resp.type == CONFIG['IDE']['LEGACY_IDE_TAG']: 
+    elif resp.type == CONFIG['IDE']['LEGACY_IDE_TAG']:
         return True
-    else: 
+    else:
         raise SystemError("ide instance type is not recognized. Please contact support")
 
-def is_valid_upload_kernel(): 
-    ''' Validates if the current kernel is a valid one for uploading results 
+def is_valid_upload_kernel():
+    ''' Validates if the current kernel is a valid one for uploading results
     '''
-    # get instance obj from tracer 
+    # get instance obj from tracer
     inst = IDEInstance()
     ide_guid = inst.id
 
@@ -253,13 +253,13 @@ def is_valid_upload_kernel():
     # determine what conda env was used for the kernel
     kernel_source = sys.prefix
 
-    # compare conda env from instance obj to conda env from current kernel 
-    if conda_env_path != kernel_source: 
+    # compare conda env from instance obj to conda env from current kernel
+    if conda_env_path != kernel_source:
         return False
     return True
 
 def files_within_private(files):
-    ''' 
+    '''
     Returns a list of files within the private directory
     '''
     assert type(files) is list, "files must be a list"
@@ -268,29 +268,29 @@ def files_within_private(files):
     # check if the files are within the private directory
     for f in files:
 
-        # absolute path if passed in a relative one 
+        # absolute path if passed in a relative one
         if not os.path.isabs(f):
             f = os.path.abspath(f)
         if f.startswith(CONFIG['STORES']['PRIVATE_STORE']):
             bad_files.append(f)
-    return bad_files 
+    return bad_files
 
 
-def list_all_filepaths(directory): 
-    filepaths = [] 
+def list_all_filepaths(directory):
+    filepaths = []
     for root, _, files in os.walk(directory):
         for filename in files:
             filepath = os.path.join(root, filename)
             filepaths.append(filepath)
-    return filepaths 
+    return filepaths
 
 def parse_file_id_from_hise_file(hise_file):
     """
     Takes a hise_file object and returns the file_id
 
     Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object 
-    Returns: 
+        hise_file (hise_file): hisepy.reader.hise_file object
+    Returns:
         a string file_id
     """
     # descriptors can have > 1 entry if filetype == Olink
@@ -306,8 +306,8 @@ def parse_sample_id_from_hise_file(hise_file):
     Takes a hise_file object and returns the sample_id
 
     Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object 
-    Returns: 
+        hise_file (hise_file): hisepy.reader.hise_file object
+    Returns:
         a string sample_id
     """
     # descriptors can have > 1 entry if filetype == Olink
@@ -323,7 +323,7 @@ def project_guid_to_shortname(proj_guid):
     Takes a string, looks up if there's a Project guid with the passed in value. If there is, return the corresponding short name.
     Otherwise, let the user know the Project doesn't exist.
 
-    Parameters: 
+    Parameters:
         proj_guid (str) : the guid of a HISE Project
     """
     proj_df = get_projects()
@@ -340,10 +340,10 @@ def project_guid_to_shortname(proj_guid):
 
 def project_shortname_to_guid(proj_name):
     """
-    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding 
+    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding
     guid. Otherwise, let the user know the Project doesn't exist.
 
-    Parameters: 
+    Parameters:
         proj_name (str) : the short-name of a HISE Project
     """
     proj_df = get_projects()
@@ -424,19 +424,19 @@ def list_files_and_dirs(directory):
 
 def log_downloaded_files(file_id: str, sample_id: str = None, ide_dir: str= None, replica_file_id: str = None, replica_sample_id: str = None):
     """
-    Attaches fileId for the project folder file that was downloaded 
-    
-    Parameters: 
-        file_id (str) : file_id of file in project folder 
+    Attaches fileId for the project folder file that was downloaded
+
+    Parameters:
+        file_id (str) : file_id of file in project folder
     """
-    # fileID must not be null at least 
+    # fileID must not be null at least
     if file_id is None:
         raise ValueError("must pass in a file_id to log_download_files()")
-    
+
     # if null, assume ide directory is (/home/jupyter)
     if ide_dir is None:
         ide_dir = CONFIG['IDE']['HOME_DIR']
-    
+
     cache_file_path = '{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
     cache_df = pd.DataFrame(columns=[
@@ -472,11 +472,11 @@ def log_downloaded_files(file_id: str, sample_id: str = None, ide_dir: str= None
 
 def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
     """
-    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged 
+    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged
 
-    Parameters: 
-        hise_file (hise_file): hisepy.reader.hise_file object 
-        file_id (str): original file_id that's passed in to read_files() or cache_files() 
+    Parameters:
+        hise_file (hise_file): hisepy.reader.hise_file object
+        file_id (str): original file_id that's passed in to read_files() or cache_files()
     """
     this_file_id, this_file_name, _ = parse_file_descriptor_from_hise_file(
         hise_file)
@@ -491,8 +491,8 @@ def parse_file_descriptor_from_hise_file(hise_file):
     Takes a hise_file object and returns its file_id, file_name and the descriptor object
 
     Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object 
-    Returns: 
+        hise_file (hise_file): hisepy.reader.hise_file object
+    Returns:
         a tuple (file_id, file_name, descriptor object)
     """
     if type(hise_file['descriptors']) is list:
@@ -562,6 +562,17 @@ def prompt_user(msg: str = None, additional_fields=None):
         return False
 
 
+def prompt_for_input(msg: str = None):
+    """ Prompts user for input """
+    if msg is None:
+        raise ValueError("Must provide a contextual message")
+    try:
+        user_input = input(msg)
+    except (KeyboardInterrupt, EOFError):
+        print("\nInput interrupted.")
+        user_input = None
+    return user_input
+
 def prompt_yn(prompt: str):
     print(prompt)
     user_input = None
@@ -580,30 +591,30 @@ def remove_dir(directory):
     return True
 
 
-def replica_files_used(input_file_ids : list, ide_dir: str = None): 
+def replica_files_used(input_file_ids : list, ide_dir: str = None):
     '''
     '''
     replica_file_ids = []
     if ide_dir is None:
         ide_dir = CONFIG['IDE']['HOME_DIR']
-        
-    # read log file 
+
+    # read log file
     cache_file = pyreadr.read_r('{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME']))
 
     # extract out the data.frame
     cache_df = cache_file[None]
 
-    # subset to entries where input_file_ids have non-null replicaFileIds 
+    # subset to entries where input_file_ids have non-null replicaFileIds
     replica_subset = cache_df.loc[(cache_df['fileId'].isin(input_file_ids)) & (~cache_df['replicaFileId'].isnull()),]
     replica_ids = replica_subset['replicaFileId'].unique().tolist()
-    # assert that the length of replicas and input_file_ids are still the same 
-    if len(input_file_ids) != len(replica_ids): 
+    # assert that the length of replicas and input_file_ids are still the same
+    if len(input_file_ids) != len(replica_ids):
         raise SystemError("The number of replica Ids does not match the number of input fileIds. Please contact the support team to resolve")
         return
-    if len(replica_ids) == 0: 
-        return None 
-    else: 
+    if len(replica_ids) == 0:
+        return None
+    else:
         return replica_ids
 
 def string_contains_whitespaces(file_str):
@@ -660,7 +671,7 @@ def validate_download_params(file_list: list, query_id: list,
 
 def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
                               ide_dir):
-    """ Checks that files associated with a result have 
+    """ Checks that files associated with a result have
         been seen in a user's IDE
     """
     if input_file_ids is not None:
