@@ -22,7 +22,7 @@ PROMPTS:
   INVALID_UPLOAD_KERNEL: "You are uploading a result from a kernel that was created from a custom conda environment. This is not supported. Please change to the default kernel and try again."
   CONDA_ENV_BUILD: "Your current conda environment failed to build successfully. Please resolve potential conflicts in your conda environment and try again."
   REVIEW_JOB_OUTPUT: "Training job outputs have been downloaded to your IDE. Please review the outputs, and specify if you want to accept or reject the training job"
-  SAVE_CUSTOM_CONDA_ENV: "You are about to save a custom conda environment. This will save your current activate environment"
+  SAVE_CUSTOM_CONDA_ENV: "You are about to save a custom conda environment. This will save your current activate environment: {c}"
 
 # Authorization config
 AUTHORIZE: 

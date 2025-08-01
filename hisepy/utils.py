@@ -97,8 +97,8 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
 
 def update_sdk_version(version_tag: str= None):
     """
-    This will download the latest version of the SDK to /home/workspace/sdk, 
-    where you can then install and update your environment.
+    This will download the latest version of the SDK to /home/workspace/sdk, and 
+    if successful, will install the SDK in the current activated conda environment.
 
     """
     # get latest sdk version 
