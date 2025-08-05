@@ -569,7 +569,6 @@ def prompt_for_input(msg: str = None):
     try:
         user_input = input(msg)
     except (KeyboardInterrupt, EOFError):
-        print("\nInput interrupted.")
         user_input = None
     return user_input
 
