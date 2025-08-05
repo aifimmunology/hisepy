@@ -294,9 +294,14 @@ def select_study_space(proj):
     return options[idx]["id"]
 
 def select_input_samples():
-    provided_samples = cu.prompt_for_input("Please provide input of comma separated sample ids for the files being uploaded")
+    provided_samples = cu.prompt_for_input("Please provide input of comma separated sample ids for the files being uploaded: ")
+    # Check for error in user input
     if provided_samples == None:
-        raise ValueError("the sample ids must be provided")
+        raise ValueError("input interrupted by user")
+    # Check for empty input
+    if provided_samples == "":
+        return []
+    # replace qutoes and split by commas
     if '"' in provided_samples:
         provided_samples = provided_samples.replace('"', '')
     sampleIds = [s.strip() for s in provided_samples.split(",")]
