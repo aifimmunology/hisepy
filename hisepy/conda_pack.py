@@ -66,41 +66,43 @@ def save_custom_conda_environment(
     validate_conda_env_params(env_name, description, languages)
 
     # prompt user that active environment will be saved
-    cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_CONDA_ENV"])
+    if cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_CONDA_ENV"].format(c=sys.prefix)):
 
-    # get path to current active conda environment 
-    path_to_conda_env = sys.prefix
+        # get path to current active conda environment 
+        path_to_conda_env = sys.prefix
 
-    # validate the environment can build 
-    if conda_env_builds(path_to_conda_env) is not True:
-        raise RuntimeError("Conda environment cannot be built successfully. Please check the YAML file and dependencies.")
-    
-    # export conda env to temp directory
-    yaml_path = os.path.join(CONFIG['STORES']['TEMP_STORE'], 'environment.yml') 
-    process = subprocess.run("conda env export -p {src} > {dst}".format(src=path_to_conda_env, dst=yaml_path),
-                                 shell=True, capture_output=True)
-    if process.returncode != 0:
-        raise SystemError('Unable to export conda env: {}'.format(path_to_conda_env))
-    
-    # remove hisepy from exported yaml file, if it exists 
-    process = subprocess.run("sed -i '/hisepy==*/d' {}".format(yaml_path),
-                                 shell=True, capture_output=True)
-    if process.returncode != 0:
-        raise SystemError('Unable to remove hisepy from exported conda env: {}'.format(conda_export_dest))
+        # validate the environment can build 
+        if conda_env_builds(path_to_conda_env) is not True:
+            raise RuntimeError("Conda environment cannot be built successfully. Please check the YAML file and dependencies.")
+        
+        # export conda env to temp directory
+        yaml_path = os.path.join(CONFIG['STORES']['TEMP_STORE'], 'environment.yml') 
+        process = subprocess.run("conda env export -p {src} > {dst}".format(src=path_to_conda_env, dst=yaml_path),
+                                    shell=True, capture_output=True)
+        if process.returncode != 0:
+            raise SystemError('Unable to export conda env: {}'.format(path_to_conda_env))
+        
+        # remove hisepy from exported yaml file, if it exists 
+        process = subprocess.run("sed -i '/hisepy==*/d' {}".format(yaml_path),
+                                    shell=True, capture_output=True)
+        if process.returncode != 0:
+            raise SystemError('Unable to remove hisepy from exported conda env: {}'.format(conda_export_dest))
 
-    params = {
-        "name": env_name,
-        "description": description,
-        "language": languages,
-        "ownerEmail" : HiseUser().email,
-    }
-    with open(yaml_path, 'rb') as f:
-        files = {
-            'file': (os.path.basename(yaml_path), f, 'application/octet-stream')
+        params = {
+            "name": env_name,
+            "description": description,
+            "language": languages,
+            "ownerEmail" : HiseUser().email,
         }
-        url = cu.hise_url("ide_management", "save_custom_conda_env")
-        resp = cu.parse_hise_response(
-            requests.post(url, headers=cu.get_bearer_token_header(), data=params, files=files))
+        with open(yaml_path, 'rb') as f:
+            files = {
+                'file': (os.path.basename(yaml_path), f, 'application/octet-stream')
+            }
+            url = cu.hise_url("ide_management", "save_custom_conda_env")
+            resp = cu.parse_hise_response(
+                requests.post(url, headers=cu.get_bearer_token_header(), data=params, files=files))
 
-    return resp
+        return resp
+    else:
+        raise RuntimeError("User cancelled saving the custom conda environment.")
 
