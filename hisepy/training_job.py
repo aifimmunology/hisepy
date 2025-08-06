@@ -167,8 +167,17 @@ def start_training_run(
 
     # Branch based on provider
     if provider == 'ray':
-        # conform to ray and save to temp directory
-        job_obj.convert_training_job_file_to_ray()
+        # prompt user if ray.init() or ray decorators exists
+        # assuming if the user's script contains these, then they know what they're doing
+        if rt.has_ray_init(job_obj.training_job_file_path):
+            user_response = cu.prompt_user(
+                CONFIG['PROMPTS']['RAY_INIT_EXISTS'])
+            if not user_response:
+                raise Exception(
+                    "Training job submission cancelled by user")
+        else: 
+            # conform to ray and save to temp directory
+            job_obj.convert_training_job_file_to_ray()
     elif provider == 'beaker':
         # copy training job file to temp directory
         shutil.copy(
