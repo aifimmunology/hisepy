@@ -82,11 +82,20 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
     pack_out_path = '{}/{}'.format(
         CONFIG['STORES']['TEMP_STORE'], 
         CONFIG['TEMP_FILES']['CONDA_PACK_TMP_FILE'])
-    process = subprocess.run('conda env create -f {dst} -p {env_dst} && conda pack -p {env_dst} -o {po}'.format(po=pack_out_path, dst=conda_export_dest, env_dst=tmp_env_path),
-                                 shell=True, capture_output=True)
+    print ("creating temp conda environment...")
+
+    process = subprocess.run('conda env create -f {dst} -p {env_dst}'.format(dst=conda_export_dest, env_dst=tmp_env_path), 
+                shell=True, capture_output=True)
     if process.returncode != 0:
+        print("Error while creating conda environment: {}".format(process.stderr.decode()))
+        return False
+    
+    print("temp conda environment created successfully, now packing...")
+    pack_process = subprocess.run('conda pack -p {env_dst} -o {po}'.format(po=pack_out_path, env_dst=tmp_env_path), 
+                shell=True, capture_output=True)
+    if pack_process.returncode != 0:
         # print error message
-        print("Error while building conda environment: {}".format(process.stderr.decode()))
+        print("Error while building conda environment: {}".format(pack_process.stderr.decode()))
         return False
         
     # clean up everything that was done 
@@ -101,9 +110,9 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
 
 def update_sdk_version(version_tag: str= None):
     """
-    This will download the latest version of the SDK to /home/workspace/sdk, 
-    where you can then install and update your environment.
-
+    This will download the latest version of the SDK to /home/workspace/sdk, and if successful, 
+    will update that version into the current activated conda environment. A restart of the kernel or terminal 
+    is required for the changes to take effect.
     """
     # get latest sdk version 
     url = cu.hise_url("ide_management", "sdk_version", 'python')
