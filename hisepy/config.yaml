@@ -180,6 +180,7 @@ SCHEDULER:
 TEMP_FILES: 
   NBCONVERT_TMP_FILE : nbconverted_file.py 
   JOB_ENTRYPOINT_FILE : app.py
+  CONDA_PACK_TMP_FILE: conda_pack.tar.gz
 
 TEMP_FOLDERS:
   TRAINING_JOB_TMP : training_job
