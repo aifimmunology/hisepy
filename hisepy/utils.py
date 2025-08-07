@@ -77,18 +77,31 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
     if process.returncode != 0:
         raise SystemError('Unable to remove hisepy from exported conda env: {}'.format(conda_export_dest))
     
-    # attempt to build the env
+    # attempt to create the env
     tmp_env_path = os.path.join(CONFIG['STORES']['TEMP_STORE'], 'tmp_env')
-    process = subprocess.run('conda env create -f {dst} -p {env_dst}'.format(dst=conda_export_dest, env_dst=tmp_env_path),
-                                 shell=True, capture_output=True)
-    if process.returncode != 0:
-        # print error message
-        print("Error while building conda environment: {}".format(process.stderr.decode()))
-        return False
+    pack_out_path = '{}/{}'.format(
+        CONFIG['STORES']['TEMP_STORE'], 
+        CONFIG['TEMP_FILES']['CONDA_PACK_TMP_FILE'])
+    print ("creating temp conda environment...")
 
+    process = subprocess.run('conda env create -f {dst} -p {env_dst}'.format(dst=conda_export_dest, env_dst=tmp_env_path), 
+                shell=True, capture_output=True)
+    if process.returncode != 0:
+        print("Error while creating conda environment: {}".format(process.stderr.decode()))
+        return False
+    
+    print("temp conda environment created successfully, now packing...")
+    pack_process = subprocess.run('conda pack -p {env_dst} -o {po}'.format(po=pack_out_path, env_dst=tmp_env_path), 
+                shell=True, capture_output=True)
+    if pack_process.returncode != 0:
+        # print error message
+        print("Error while building conda environment: {}".format(pack_process.stderr.decode()))
+        return False
+        
     # clean up everything that was done 
     # delete exported yaml file 
     os.remove(conda_export_dest)
+    os.remove(pack_out_path)
 
     # delete tmp env directory
     shutil.rmtree(tmp_env_path)
