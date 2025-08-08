@@ -186,7 +186,6 @@ def upload_files(files: list,
     if ide_is_from_guest_account():
         url = guest_hise_server(
             cu.hise_url("ide_management", "upload_file_v3_path", args=qargs))
-        #url += "?%s" % (urllib.parse.urlencode(qargs, doseq=True))
     else:
         url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
     return cu.parse_hise_response(
