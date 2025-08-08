@@ -11,7 +11,7 @@ import hisepy.formatter as fmt
 import hisepy.reader as hpr
 import hisepy.ray_transformer as rt
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
-from hisepy.upload import do_conda_export, get_conda_env_name
+from hisepy.upload import do_conda_export, get_conda_env_name, check_default_project, get_default_project
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -91,6 +91,7 @@ def start_training_run(
     file_set_id: str,
     additional_dirs: list = [],
     additional_files: list = [],
+    project: str = None,
     requirements_file_path: str = None,
     image_id: str = None,
     use_conda: bool = False,
@@ -147,6 +148,12 @@ def start_training_run(
         'ARTIFACTS_PATH']  # '/home/workspace/.artifacts'
     if not os.path.exists(training_job_temp_dir):
         os.makedirs(training_job_temp_dir)
+
+    # set destination project if not already set
+    if project is None: 
+        project = get_default_project()
+        print("Using default project: {}".format(project))
+    check_default_project(project)
 
     job_obj = TrainingJob(cpu_count=cpu_count,
                           use_conda=use_conda,
