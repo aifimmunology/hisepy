@@ -83,10 +83,12 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
         CONFIG['STORES']['TEMP_STORE'], 
         CONFIG['TEMP_FILES']['CONDA_PACK_TMP_FILE'])
     print ("creating temp conda environment...")
-
+    if os.path.exists(tmp_env_path):
+        shutil.rmtree(tmp_env_path)
     process = subprocess.run('conda env create -f {dst} -p {env_dst}'.format(dst=conda_export_dest, env_dst=tmp_env_path), 
                 shell=True, capture_output=True)
     if process.returncode != 0:
+        os.remove(conda_export_dest)
         print("Error while creating conda environment: {}".format(process.stderr.decode()))
         return False
     
@@ -94,6 +96,7 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
     pack_process = subprocess.run('conda pack -p {env_dst} -o {po}'.format(po=pack_out_path, env_dst=tmp_env_path), 
                 shell=True, capture_output=True)
     if pack_process.returncode != 0:
+        os.remove(conda_export_dest)
         # print error message
         print("Error while building conda environment: {}".format(pack_process.stderr.decode()))
         return False
