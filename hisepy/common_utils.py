@@ -550,9 +550,9 @@ def prompt_user(msg: str = None, additional_fields=None):
         raise ValueError("Must provide a contextual message")
     if additional_fields is None:
         additional_fields = ""
-    print("{m}: {af}. Do you want to Proceed? [Y/N]".format(
+    print("{m}: {af}".format(
         m=msg, af=additional_fields))
-    user_input = input('(y/n')
+    user_input = input('Do you want to proceed? (y/n)')
     while user_input.lower() not in ['y', 'n']:
         print('please enter either "n" for no, or "y" for yes.')
         user_input = input('(y/n)')
