@@ -66,7 +66,7 @@ def save_custom_conda_environment(
     validate_conda_env_params(env_name, description, languages)
 
     # prompt user that active environment will be saved
-    if cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_CONDA_ENV"].format(c=sys.prefix)):
+    if cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_CONDA_ENV"], sys.prefix):
 
         # get path to current active conda environment 
         path_to_conda_env = sys.prefix
