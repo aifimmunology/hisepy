@@ -182,6 +182,9 @@ def start_training_run(
             if not user_response:
                 raise Exception(
                     "Training job submission cancelled by user")
+            else: 
+                cu.copy_files(job_obj.training_job_file_path, '{}/{}'.format(job_obj.work_dir, 
+                                                                           CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
         else: 
             # conform to ray and save to temp directory
             job_obj.convert_training_job_file_to_ray()

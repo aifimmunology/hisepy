@@ -67,6 +67,15 @@ def convert_notebook_to_python(notebook_path, output_path=None):
     print("converted notebook to python script: {}".format(output_path))
     return 
 
+def copy_files(src, dst): 
+    """ Copies file src to dst """
+    if not os.path.exists(src):
+        raise FileNotFoundError("Source file does not exist: {}".format(src))
+    
+    # copy the file
+    shutil.copy(src, dst)
+    return
+
 def crc32_from_string(s):
     return zlib.crc32(s.encode('utf-8')) & 0xFFFFFFFF
 
