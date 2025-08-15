@@ -4,7 +4,6 @@
 #
 #    pip-compile
 #
-astor==0.8.1
 beautifulsoup4==4.12.3
     # via google
 blinker==1.8.2
@@ -107,6 +106,7 @@ protobuf==5.28.3
     #   googleapis-common-protos
     #   proto-plus
 psutil==7.0.0
+    # via -r requirements.in
 pyasn1==0.6.1
     # via
     #   pyasn1-modules
@@ -115,7 +115,7 @@ pyasn1-modules==0.4.1
     # via google-auth
 pyproject-hooks==1.2.0
     # via build
-pyreadr==0.5.3
+pyreadr==0.5.0
     # via -r requirements.in
 python-dateutil==2.9.0.post0
     # via pandas
@@ -123,8 +123,7 @@ pytz==2024.2
     # via pandas
 pyyaml==6.0.2
     # via -r requirements.in
-ray==2.46.0
-requests==2.32.3
+requests==2.32.4
     # via
     #   -r requirements.in
     #   dash
