@@ -93,8 +93,17 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
         return False
     
     print("temp conda environment created successfully, now packing...")
-    pack_process = subprocess.run('conda pack -p {env_dst} -o {po}'.format(po=pack_out_path, env_dst=tmp_env_path), 
-                shell=True, capture_output=True)
+
+    # check that conda-pack exists in path_to_conda_env 
+    conda_pack_bin = os.path.join(path_to_conda_env, 'bin', 'conda-pack')
+    if not os.path.exists(conda_pack_bin):
+        print("conda-pack not found in conda environment. Please install conda-pack in the conda environment: {}".format(path_to_conda_env))
+        os.remove(conda_export_dest)
+        return False
+    
+    pack_process = subprocess.run(
+    ["conda", "run", "-p", path_to_conda_env, "conda-pack", "-p", tmp_env_path, "-o", pack_out_path],
+    check=True)
     if pack_process.returncode != 0:
         os.remove(conda_export_dest)
         # print error message
