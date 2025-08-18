@@ -591,6 +591,16 @@ def has_ray_init(file_path: str) -> bool:
 
     return False
 
+def prompt_decorator_changes(msg: str = None): 
+    """ Prompts end users and asks for custom input """
+    if msg is None:
+        raise ValueError("Must provide a contextual message")
+    print(msg)
+    user_input = input('Please submit parameter and value you want edited as {"key":val}: ')
+    while user_input == '':
+        print('Input cannot be empty. Please try again.')
+        user_input = input('Please enter your response: ')
+    return user_input
 
 # === Optional CLI Entry Point ===
 """

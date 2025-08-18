@@ -377,9 +377,47 @@ class TrainingJob:
         rt.transform_to_ray(python_script_to_convert, 
                             converted_script, num_gpus=self.gpu_count, num_cpus=self.cpu_count)
         
-        # prompt user on transformation, asking if they want to remove or edit ray decorators 
-        cu.prompt_user("The following methods now have ray decorators: {}. Would you like to remove or edit any of the decorators?".format(rt.get_ray_remote_targets(converted_script)))
-        import pdb; pdb.set_trace()
+        # get list of ray remote targets
+        ray_remote_targets = rt.get_ray_remote_targets(converted_script)
+        target_names = [f[0] for f in ray_remote_targets]
+        
+        while True:
+            # Prompt user for methods to remove decorators from
+            rm_target = cu.prompt_from_options(
+                "The following methods now have ray decorators: {}. "
+                "Please select the methods you want decorators to be removed from".format(target_names),
+                target_names + ["None"]
+            )
+
+            if not rm_target or rm_target == "None":
+                # Exit loop if user chose no method
+                break
+
+            # Remove ray decorators from the selected targets
+            rt.remove_ray_remote_decorator(converted_script, rm_target, converted_script)
+
+        # prompt user on transformation, asking if they want to edit ray decorators
+        # if the user selected targets, edit the ray decorators of those targets
+        ray_remote_targets = rt.get_ray_remote_targets(converted_script)
+        target_names = [f[0] for f in ray_remote_targets]
+        while True:
+            edit_target = cu.prompt_from_options(
+                "The following methods now have ray decorators: {}. "
+                "Please select the methods you want to edit ray decorators for".format(target_names),
+                target_names + ["None"]
+            )
+
+            if not edit_target or edit_target == "None":
+                # Exit loop if user chose no method
+                break
+
+            # Prompt param values for the ray decorators
+            edit_resp = rt.prompt_decorator_changes("")
+
+            if edit_resp and len(edit_resp) > 0:
+                rt.modify_ray_remote_decorator(
+                    converted_script, edit_target, edit_resp, converted_script
+                )
         return 
 
     def copy_scripts_and_dirs_to_temp(self):
