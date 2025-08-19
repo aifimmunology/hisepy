@@ -12,7 +12,8 @@ class RayTransformer(ast.NodeTransformer):
         self.actor_instances = set()     # Tracks instance variable names of Ray actors
         self.current_function = None     # Tracks the currently visited function (unused but could be extended)
         self.decorator_kwargs = kwargs   # Additional decorator arguments (e.g., num_cpus, num_gpus)
-
+        # NEW: track which actor variables already got cleanup injected
+        self.cleanup_injected = set()
         # Make decorator kwargs available as attributes
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -48,7 +49,6 @@ class RayTransformer(ast.NodeTransformer):
         return node
 
     def visit_ClassDef(self, node):
-        # Decorate class if it has at least one method
         should_decorate = any(isinstance(item, ast.FunctionDef) for item in node.body)
 
         for item in node.body:
@@ -59,6 +59,28 @@ class RayTransformer(ast.NodeTransformer):
         if should_decorate:
             self._add_remote_decorator(node)
             self.actor_classes.add(node.name)
+
+            # FIXED: proper AST for ray.actor.exit_actor()
+            cleanup_method = ast.FunctionDef(
+                name='cleanup',
+                args=ast.arguments(
+                    args=[ast.arg(arg='self', annotation=None)],
+                    vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]
+                ),
+                body=[ast.Expr(value=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Attribute(
+                            value=ast.Name(id='ray', ctx=ast.Load()),
+                            attr='actor',
+                            ctx=ast.Load()
+                        ),
+                        attr='exit_actor',
+                        ctx=ast.Load()
+                    ),
+                    args=[], keywords=[]))],
+                decorator_list=[]
+            )
+            node.body.append(cleanup_method)
 
         return node
 
@@ -231,24 +253,62 @@ class RayTransformer(ast.NodeTransformer):
             return self._wrap_with_ray_get(node)
         return self.generic_visit(node)
 
-    # transform methods within main()
+    def _build_cleanup_stmts(self, actor_var: str): 
+        """
+        Build:
+            ray.get(actor_var.cleanup.remote())
+            del actor_var
+        """
+        cleanup_remote = ast.Call(
+            func=ast.Attribute(
+                value=ast.Attribute(
+                    value=ast.Name(id=actor_var, ctx=ast.Load()),
+                    attr='cleanup',
+                    ctx=ast.Load()
+                ),
+                attr='remote',
+                ctx=ast.Load()
+            ),
+            args=[], keywords=[]
+        )
+        cleanup_get = ast.Expr(value=ast.Call(
+            func=ast.Attribute(value=ast.Name(id='ray', ctx=ast.Load()),
+                               attr='get', ctx=ast.Load()),
+            args=[cleanup_remote], keywords=[]
+        ))
+        del_stmt = ast.Delete(targets=[ast.Name(id=actor_var, ctx=ast.Del())])
+        return [cleanup_get, del_stmt]
+        
     def _wrap_main_function(self, node):
         new_body = []
         remote_exprs = []
 
         for stmt in node.body:
-            # Handle function call expressions
+            # existing behavior
             if self._is_direct_local_expr_call(stmt):
                 remote_exprs.append(self._convert_to_remote_call(stmt.value))
-            # Handle assigned function calls
+                # note: we do NOT append stmt itself here by design
             elif self._is_assign_remoteable_func(stmt):
                 stmt.value = self._wrap_local_function_call(stmt.value)
                 new_body.append(stmt)
             else:
                 new_body.append(stmt)
 
+            # --- NEW: after adding the statement, see if it is a get on actor.method.remote()
+            # Only check the last appended statement (if any appended in this loop turn).
+            if new_body:
+                actor_var = self._find_actor_name_in_remote_get(new_body[-1])
+                if actor_var and actor_var not in self.cleanup_injected:
+                    new_body.extend(self._build_cleanup_stmts(actor_var))
+                    self.cleanup_injected.add(actor_var)
+
         if remote_exprs:
-            # Wrap batched expression calls with ray.get([...])
+            new_body.append(self._wrap_with_ray_get(ast.List(elts=remote_exprs, ctx=ast.Load())))
+
+        node.body = new_body
+        return node
+
+        if remote_exprs:
             new_body.append(self._wrap_with_ray_get(ast.List(elts=remote_exprs, ctx=ast.Load())))
 
         node.body = new_body
@@ -308,6 +368,45 @@ class RayTransformer(ast.NodeTransformer):
         )
         return self._wrap_with_ray_get(remote_call)
 
+    def _find_actor_name_in_remote_get(self, stmt):
+        """
+        If stmt is like:
+            this = ray.get(actor.method.remote(...))
+        or:
+            ray.get(actor.method.remote(...))
+        return "actor" (only if 'actor' is a known actor instance), else None.
+        """
+        value = None
+        if isinstance(stmt, ast.Assign):
+            value = stmt.value
+        elif isinstance(stmt, ast.Expr):
+            value = stmt.value
+        else:
+            return None
+
+        # must be ray.get(...)
+        if not (isinstance(value, ast.Call) and
+                isinstance(value.func, ast.Attribute) and
+                isinstance(value.func.value, ast.Name) and
+                value.func.value.id == 'ray' and
+                value.func.attr == 'get' and
+                len(value.args) >= 1):
+            return None
+
+        inner = value.args[0]
+        # must be <something>.remote(...)
+        if not (isinstance(inner, ast.Call) and
+                isinstance(inner.func, ast.Attribute) and
+                inner.func.attr == 'remote'):
+            return None
+
+        # inner.func.value is like: actor.method
+        method_attr = inner.func.value
+        if isinstance(method_attr, ast.Attribute) and isinstance(method_attr.value, ast.Name):
+            actor_var = method_attr.value.id
+            if actor_var in self.actor_instances:
+                return actor_var
+        return None
 
 def rayify_code(source_code: str, num_gpus: int = None, num_cpus: int = None) -> str:
     tree = ast.parse(source_code)
