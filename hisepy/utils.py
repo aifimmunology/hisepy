@@ -103,13 +103,15 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
     
     pack_process = subprocess.run(
     ["conda", "run", "-p", path_to_conda_env, "conda-pack", "-p", tmp_env_path, "-o", pack_out_path],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,  # hide progress bar
     check=True)
     if pack_process.returncode != 0:
         os.remove(conda_export_dest)
         # print error message
         print("Error while building conda environment: {}".format(pack_process.stderr.decode()))
         return False
-        
+
     # clean up everything that was done 
     # delete exported yaml file 
     os.remove(conda_export_dest)
