@@ -77,34 +77,59 @@ def conda_env_builds(path_to_conda_env: str = None) -> bool:
     if process.returncode != 0:
         raise SystemError('Unable to remove hisepy from exported conda env: {}'.format(conda_export_dest))
     
-    # attempt to build the env
+    # attempt to create the env
     tmp_env_path = os.path.join(CONFIG['STORES']['TEMP_STORE'], 'tmp_env')
-    process = subprocess.run('conda env create -f {dst} -p {env_dst}'.format(dst=conda_export_dest, env_dst=tmp_env_path),
-                                 shell=True, capture_output=True)
+    pack_out_path = '{}/{}'.format(
+        CONFIG['STORES']['TEMP_STORE'], 
+        CONFIG['TEMP_FILES']['CONDA_PACK_TMP_FILE'])
+    print ("creating temp conda environment...")
+    if os.path.exists(tmp_env_path):
+        shutil.rmtree(tmp_env_path)
+    process = subprocess.run('conda env create -f {dst} -p {env_dst}'.format(dst=conda_export_dest, env_dst=tmp_env_path), 
+                shell=True, capture_output=True)
     if process.returncode != 0:
-        # print error message
-        print("Error while building conda environment: {}".format(process.stderr.decode()))
+        os.remove(conda_export_dest)
+        print("Error while creating conda environment: {}".format(process.stderr.decode()))
         return False
+    
+    print("temp conda environment created successfully, now packing...")
 
+    # check that conda-pack exists in path_to_conda_env 
+    conda_pack_bin = os.path.join(path_to_conda_env, 'bin', 'conda-pack')
+    if not os.path.exists(conda_pack_bin):
+        print("conda-pack not found in conda environment. Please install conda-pack in the conda environment: {}".format(path_to_conda_env))
+        os.remove(conda_export_dest)
+        return False
+    
+    pack_process = subprocess.run(
+    ["conda", "run", "-p", path_to_conda_env, "conda-pack", "-p", tmp_env_path, "-o", pack_out_path],
+    check=True)
+    if pack_process.returncode != 0:
+        os.remove(conda_export_dest)
+        # print error message
+        print("Error while building conda environment: {}".format(pack_process.stderr.decode()))
+        return False
+        
     # clean up everything that was done 
     # delete exported yaml file 
     os.remove(conda_export_dest)
+    os.remove(pack_out_path)
 
     # delete tmp env directory
     shutil.rmtree(tmp_env_path)
 
     return True 
 
-def update_sdk_version(version_tag: str= None):
+def update_sdk_version():
     """
-    This will download the latest version of the SDK to /home/workspace/sdk, 
-    where you can then install and update your environment.
-
+    This will download the latest version of the SDK to /home/workspace/sdk, and if successful, 
+    will update that version into the current activated conda environment. A restart of the kernel or terminal 
+    is required for the changes to take effect.
     """
     # get latest sdk version 
     url = cu.hise_url("ide_management", "sdk_version", 'python')
     version_tag = cu.hise_get(url)
-   
+
     # download sdk version to /home/workspace/sdk
     url = cu.hise_url("ide_management", "install_sdk", ide_instance_guid())   
 

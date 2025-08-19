@@ -67,6 +67,15 @@ def convert_notebook_to_python(notebook_path, output_path=None):
     print("converted notebook to python script: {}".format(output_path))
     return
 
+def copy_files(src, dst): 
+    """ Copies file src to dst """
+    if not os.path.exists(src):
+        raise FileNotFoundError("Source file does not exist: {}".format(src))
+    
+    # copy the file
+    shutil.copy(src, dst)
+    return
+
 def crc32_from_string(s):
     return zlib.crc32(s.encode('utf-8')) & 0xFFFFFFFF
 
@@ -550,9 +559,9 @@ def prompt_user(msg: str = None, additional_fields=None):
         raise ValueError("Must provide a contextual message")
     if additional_fields is None:
         additional_fields = ""
-    print("{m}: {af}. Do you want to Proceed? [Y/N]".format(
+    print("{m}: {af}".format(
         m=msg, af=additional_fields))
-    user_input = input('(y/n')
+    user_input = input('Do you want to proceed? (y/n)')
     while user_input.lower() not in ['y', 'n']:
         print('please enter either "n" for no, or "y" for yes.')
         user_input = input('(y/n)')

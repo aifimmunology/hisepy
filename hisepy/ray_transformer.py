@@ -333,6 +333,41 @@ def transform_to_ray(input_path: str, output_path: str = None, num_gpus: int = N
     print(f"Ray-conformant code written to: {output_file}")
 
 
+def has_ray_init(file_path: str) -> bool:
+    """
+    Detects whether ray.init() is called anywhere in the given Python file.
+
+    Args:
+        file_path (str): Path to the Python file (e.g., "app.py").
+
+    Returns:
+        bool: True if ray.init() is called, False otherwise.
+    """
+    with open(file_path, "r", encoding="utf-8") as f:
+        source = f.read()
+
+    try:
+        tree = ast.parse(source, filename=file_path)
+    except SyntaxError as e:
+        print(f"Syntax error parsing {file_path}: {e}")
+        return False
+
+    for node in ast.walk(tree):
+        # Look for function calls
+        if isinstance(node, ast.Call):
+            func = node.func
+            # Check if it's ray.init() or ray.init(...) with args
+            if isinstance(func, ast.Attribute):
+                if (
+                    isinstance(func.value, ast.Name)
+                    and func.value.id == "ray"
+                    and func.attr == "init"
+                ):
+                    return True
+
+    return False
+
+
 # === Optional CLI Entry Point ===
 """
 if __name__ == "__main__":
