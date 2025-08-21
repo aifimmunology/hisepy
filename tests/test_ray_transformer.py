@@ -170,7 +170,7 @@ def test_get_ray_remote_targets_function(tmp_path: Path):
     """)
     file_path = tmp_path / "test1.py"
     file_path.write_text(code)
-    assert get_ray_remote_targets(str(file_path)) == [("foo", "function")]
+    assert get_ray_remote_targets(str(file_path)) == [("foo", "function", {})]
 
 def test_get_ray_remote_targets_class(tmp_path: Path):
     code = textwrap.dedent("""
@@ -182,7 +182,7 @@ def test_get_ray_remote_targets_class(tmp_path: Path):
     """)
     file_path = tmp_path / "test2.py"
     file_path.write_text(code)
-    assert get_ray_remote_targets(str(file_path)) == [("Worker", "class")]
+    assert get_ray_remote_targets(str(file_path)) == [("Worker", "class", {})]
 
 def test_get_ray_remote_targets_with_arguments(tmp_path: Path):
     code = textwrap.dedent("""
@@ -194,7 +194,7 @@ def test_get_ray_remote_targets_with_arguments(tmp_path: Path):
     """)
     file_path = tmp_path / "test3.py"
     file_path.write_text(code)
-    assert get_ray_remote_targets(str(file_path)) == [("bar", "function")]
+    assert get_ray_remote_targets(str(file_path)) == [("bar", "function", {"num_cpus": 2})]
 
 def test_get_ray_remote_targets_multiple(tmp_path: Path):
     code = textwrap.dedent("""
@@ -209,8 +209,8 @@ def test_get_ray_remote_targets_multiple(tmp_path: Path):
     file_path = tmp_path / "test4.py"
     file_path.write_text(code)
     result = get_ray_remote_targets(str(file_path))
-    assert ("foo", "function") in result
-    assert ("Worker", "class") in result
+    assert ("foo", "function", {}) in result
+    assert ("Worker", "class", {"num_gpus": 1}) in result
 
 def test_get_ray_remote_targets_invalid_syntax(tmp_path: Path):
     file_path = tmp_path / "broken.py"
