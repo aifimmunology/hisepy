@@ -389,7 +389,6 @@ def main():
         ast.fix_missing_locations(new_tree)
 
         transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
-        import pdb; pdb.set_trace()
         # Normalize whitespace for comparison
         self.assertEqual(
             self.normalize(transformed_code),
