@@ -47,6 +47,24 @@ class RayTransformer(ast.NodeTransformer):
 
         self.generic_visit(node)
         self.current_function = None
+
+        # Inject cleanup calls at the end of main()
+        cleanup_calls = [
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Attribute(value=ast.Name(id='ray', ctx=ast.Load()), attr='get', ctx=ast.Load()),
+                    args=[
+                        ast.Call(
+                            func=ast.Attribute(value=ast.Name(id=var, ctx=ast.Load()), attr='cleanup.remote', ctx=ast.Load()),
+                            args=[], keywords=[]
+                        )
+                    ],
+                    keywords=[]
+                )
+            )
+            for var in self.actor_instances
+        ]
+        node.body.extend(cleanup_calls)
         return node
 
     def visit_ClassDef(self, node):
@@ -62,6 +80,31 @@ class RayTransformer(ast.NodeTransformer):
             self._add_remote_decorator(node)
             self.actor_classes.add(node.name)
 
+        # Check if cleanup method exists
+        if not any(isinstance(n, ast.FunctionDef) and n.name == "cleanup" for n in node.body):
+            cleanup_func = ast.FunctionDef(
+                name="cleanup",
+                args=ast.arguments(posonlyargs=[], args=[ast.arg(arg='self')], vararg=None,
+                                   kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),
+                body=[
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Attribute(
+                                    value=ast.Name(id='ray', ctx=ast.Load()),
+                                    attr='actor',
+                                    ctx=ast.Load()
+                                ),
+                                attr='exit_actor',
+                                ctx=ast.Load()
+                            ),
+                            args=[], keywords=[]
+                        )
+                    )
+                ],
+                decorator_list=[]
+            )
+            node.body.append(cleanup_func)
         return node
 
     def _add_remote_decorator(self, node):
