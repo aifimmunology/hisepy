@@ -303,3 +303,95 @@ class Trainer:
             bar_node = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "bar"][0]
             assert any(is_ray_remote_decorator(d) and d.keywords[0].arg == 'num_cpus' and d.keywords[0].value.n == 4 for d in bar_node.decorator_list)
             
+
+class TestRayTransformer(unittest.TestCase):
+    def setUp(self):
+        # Original script to be transformed
+        self.original_code = '''
+class DataModule:
+    def __init__(self, filepath, train_donors):
+        self.filepath = filepath
+        self.train_donors = train_donors
+
+    def _load_train_data(self):
+        adata = sc.read_h5ad(self.filepath)
+        return adata[adata.obs.DonorID.isin(self.train_donors)]
+
+    def get_X_train(self):
+        train_data = self._load_train_data()
+        X_train = train_data.X.astype('float32')
+        return X_train
+
+    def get_Y_train(self):
+        train_data = self._load_train_data()
+        y_train = train_data.obs['Treatment']
+        return y_train
+FILEPATH = "/some/path/file.h5ad"
+TRAIN_DONORS = ['D1', 'D2']
+def main():
+    data = DataModule(filepath=FILEPATH, train_donors=TRAIN_DONORS)
+    print("Data loaded")
+
+    X = data.get_X_train()
+    Y = data.get_Y_train()
+'''
+
+        # Expected transformed script
+        self.expected_code = '''import ray
+ray.init()
+@ray.remote
+class DataModule:
+
+    def __init__(self, filepath, train_donors):
+        self.filepath = filepath
+        self.train_donors = train_donors
+
+    def _load_train_data(self):
+        adata = sc.read_h5ad(self.filepath)
+        return adata[adata.obs.DonorID.isin(self.train_donors)]
+
+    def get_X_train(self):
+        train_data = self._load_train_data()
+        X_train = train_data.X.astype('float32')
+        return X_train
+
+    def get_Y_train(self):
+        train_data = self._load_train_data()
+        y_train = train_data.obs['Treatment']
+        return y_train
+
+    def cleanup(self):
+        ray.actor.exit_actor()
+
+
+FILEPATH = "/some/path/file.h5ad"
+TRAIN_DONORS = ['D1', 'D2']
+
+
+def main():
+    data = DataModule.remote(filepath=FILEPATH, train_donors=TRAIN_DONORS)
+    print("Data loaded")
+    X = ray.get(data.get_X_train.remote())
+    Y = ray.get(data.get_Y_train.remote())
+    ray.get(data.cleanup.remote())
+'''
+
+    def normalize(self, code: str) -> str:
+        code = code.replace("'", '"')  # unify single and double quotes
+        return "\n".join(line.strip() for line in code.strip().splitlines() if line.strip())
+
+
+    def test_transformation(self):
+        transformer = RayTransformer()
+        tree = ast.parse(self.original_code)
+        transformer = RayTransformer()
+        new_tree = transformer.visit(tree)
+        ast.fix_missing_locations(new_tree)
+
+        transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
+        import pdb; pdb.set_trace()
+        # Normalize whitespace for comparison
+        self.assertEqual(
+            self.normalize(transformed_code),
+            self.normalize(self.expected_code)
+        )
