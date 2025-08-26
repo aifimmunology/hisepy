@@ -17,38 +17,6 @@ _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
-def list_all_training_jobs():
-    '''
-    '''
-    cols_to_keep = CONFIG['TRACER']['TRAINING_JOB_COLS']
-    jobs = TrainingJob().list_all_jobs()
-    job_df = pd.DataFrame()
-    for j in jobs:
-        job_df = pd.concat([job_df, fmt.reshape_custom_metadata(j, False)])
-    return job_df[cols_to_keep].sort_values(
-        by='added', ascending=False
-    )  # NOTE: outputFileIds field is missing for some entries
-
-
-def get_training_job(job_id: str):
-    '''
-    '''
-    cols_to_keep = CONFIG['TRACER']['TRAINING_JOB_COLS']
-    try:
-        return fmt.reshape_custom_metadata(
-            TrainingJob(job_id).get_job()[0], False)[cols_to_keep]
-    except:
-        print("Job is missing an expected column: {}".format(
-            job_id))  # TODO: fix endpoint
-        return
-
-
-def get_training_image(image_id: str):
-    '''
-    '''
-    return
-
-
 def validate_review_run_params(study_space_id: str, job_id: str, image_id: str,
                                approve: bool, review_notes: str):
     '''
@@ -66,17 +34,6 @@ def validate_review_run_params(study_space_id: str, job_id: str, image_id: str,
     elif type(review_notes) is not str:
         raise Exception("review_notes must be a str")
     return
-
-
-
-
-# not needed for milestone 1
-def stop_training_job():
-    return
-
-
-def get_training_job_status(job_id):
-    return get_training_job(job_id)[['status']]
 
 
 def start_training_run(
@@ -182,7 +139,8 @@ def start_training_run(
             if not user_response:
                 raise Exception(
                     "Training job submission cancelled by user")
-            else: 
+            else:
+                # prompt use 
                 cu.copy_files(job_obj.training_job_file_path, '{}/{}'.format(job_obj.work_dir, 
                                                                            CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
         else: 
@@ -415,8 +373,51 @@ class TrainingJob:
                 "training_job_file_path must be a .ipynb or .py file")
 
         # transform script to conform to Ray
+        converted_script = '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE'])
         rt.transform_to_ray(python_script_to_convert, 
-                            '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']), num_gpus=self.gpu_count, num_cpus=self.cpu_count)
+                            converted_script, num_gpus=self.gpu_count, num_cpus=self.cpu_count)
+        
+        # get list of ray remote targets
+        ray_remote_targets = rt.get_ray_remote_targets(converted_script)
+        target_names = [f[0] for f in ray_remote_targets]
+        
+        while True:
+            # Prompt user for methods to remove decorators from
+            rm_target = cu.prompt_from_options(
+                "The following methods now have ray decorators: {}. "
+                "Please select the methods you want decorators to be removed from".format(target_names),
+                target_names + ["None"]
+            )
+
+            if not rm_target or rm_target == "None":
+                # Exit loop if user chose no method
+                break
+
+            # Remove ray decorators from the selected targets
+            rt.remove_ray_remote_decorator(converted_script, rm_target, converted_script)
+
+        # prompt user on transformation, asking if they want to edit ray decorators
+        # if the user selected targets, edit the ray decorators of those targets
+        ray_remote_targets = rt.get_ray_remote_targets(converted_script)
+        target_names = [f[0] for f in ray_remote_targets]
+        while True:
+            edit_target = cu.prompt_from_options(
+                "The following methods now have ray decorators: {}. "
+                "Please select the methods you want to edit ray decorators for".format(target_names),
+                target_names + ["None"]
+            )
+
+            if not edit_target or edit_target == "None":
+                # Exit loop if user chose no method
+                break
+
+            # Prompt param values for the ray decorators
+            edit_resp = rt.prompt_decorator_changes("")
+
+            if edit_resp and len(edit_resp) > 0:
+                rt.modify_ray_remote_decorator(
+                    converted_script, edit_target, edit_resp, converted_script
+                )
         return 
 
     def copy_scripts_and_dirs_to_temp(self):
@@ -586,63 +587,3 @@ class TrainingJob:
                                 json=review_args,
                                 headers=get_bearer_token_header()))
 
-    """
-            def promote_job(self, data): 
-        data['id'] = self.id 
-        return requests.request({"PUT",
-                                self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()})
-    
-    def approve_job(self, data): 
-        return requests.request({"PUT",
-                                self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()}
-
-    def reject_job(self, data): 
-        data['id'] = self.id
-        return requests.request({"PUT",
-                                self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()})
-    def stop_job(self, data):
-        data['id'] = self.id 
-        return requests.request({"POST",
-                                self.__url, # URL to ray/beaker 
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()})
-   
-        data['id'] = self.id
-        return requests.request({"POST",
-                                self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()})
-    """
-
-
-def get_training_image(image_id: str):
-    '''
-    '''
-    return
-
-
-class TrainingImage:
-    """
-    Class representing a training image
-    
-    Attributes: 
-        id (str)
-    """
-
-    def __init__(self, image_id=None):
-        self.__url = cu.hise_url('tracer', 'training_image')
-        if image_id is not None:
-            self.image_id = image_id
-
-        def get_image(self):
-            return cu.parse_hise_response(
-                requests.get(self.__url, headers=get_bearer_token_header()))
-
-        def get_all_images(self):
-            return
