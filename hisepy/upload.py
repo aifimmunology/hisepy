@@ -185,12 +185,12 @@ def upload_files(files: list,
 
     if ide_is_from_guest_account():
         url = guest_hise_server(
-            cu.hise_url("ide_management", "upload_file_v3_path", args=qargs))
+            cu.hise_url("ide_management", "upload_file_v3_path"))
     else:
-        url = cu.hise_url("ide_management", "upload_file_v3_path", args=qargs)
+        url = cu.hise_url("ide_management", "upload_file_v3_path")
     return cu.parse_hise_response(
         requests.post(url,
-                      json=gen_upload_body(files, file_types),
+                      json=qargs.update(gen_upload_body(files, file_types)),
                       headers=get_bearer_token_header()))
 
 
