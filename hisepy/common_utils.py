@@ -570,6 +570,17 @@ def prompt_user(msg: str = None, additional_fields=None):
     elif user_input.lower() == 'n':
         return False
 
+def prompt_user_custom(msg: str = None): 
+    """ Prompts end users and asks for custom input """
+    if msg is None:
+        raise ValueError("Must provide a contextual message")
+    print(msg)
+    user_input = input('Please enter your response \{key:val\}: ')
+    while user_input == '':
+        print('Input cannot be empty. Please try again.')
+        user_input = input('Please enter your response: ')
+    return user_input
+
 
 def prompt_yn(prompt: str):
     print(prompt)
