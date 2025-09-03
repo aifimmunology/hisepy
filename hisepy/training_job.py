@@ -177,7 +177,6 @@ def start_training_run(
 
 def review_training_job_run(job_id,
                             study_space_id : str,
-                            approve : bool = False, 
                             review_notes : str = None):
     ''' 
     Approve or reject a training job run:
@@ -185,16 +184,15 @@ def review_training_job_run(job_id,
     Parameters: 
         job_id (str): ID of the training job to review
         study_space_id (str): ID of the study space that contains the job to be reviewed
-        approve (bool): whether to approve or reject the job. default is approve
         review_notes (str): notes for the review
     Returns: 
         dict with keys: [job, approved, message]
     Examples: 
         # approve a training job run
-        hp.review_training_job_run(job_id='12345', study_space_id='67890', approve=True, review_notes='Looks good!')
+        hp.review_training_job_run(job_id='12345', study_space_id='67890', review_notes='Looks good!')
 
         # reject a training job run
-        hp.review_training_job_run(job_id='12345', study_space_id='67890', approve=False, review_notes='Needs more work')
+        hp.review_training_job_run(job_id='12345', study_space_id='67890', review_notes='Needs more work')
     '''
     
     # validate params 
@@ -202,8 +200,6 @@ def review_training_job_run(job_id,
         raise Exception("job_id must be a string")
     if study_space_id is not None and type(study_space_id) is not str:
         raise Exception("study_space_id must be a string")
-    if approve is not None and type(approve) is not bool:
-        raise Exception("approve must be a boolean")
     if review_notes is not None and type(review_notes) is not str:
         raise Exception("review_notes must be a string")
 
@@ -220,7 +216,8 @@ def review_training_job_run(job_id,
     print("Training job output files downloaded to: {}".format(dl_resp['Path']))
 
     # prompt user to review the training job output
-    user_response = cu.prompt_user(CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'], job_id)
+    user_response = cu.prompt_yn(CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'].format(job_id) + 
+                                 "\nWould you like to approve this job?")
     
     jobj = TrainingJob(job_id=job_id, 
                         review_notes=review_notes,
@@ -264,7 +261,8 @@ class TrainingJob:
                                               'ray_workflow')
         self.__beaker_workflow_url = cu.hise_url('job_orchestrate',
                                                  'beaker_workflow')
-
+        self.__review_job_url = cu.hise_url('job_orchestrate',
+                                            'review_job')
         # initialize attributes
         self.provider = provider
         self.package_manager = "conda" if use_conda else "pip"
