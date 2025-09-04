@@ -71,7 +71,7 @@ def start_training_run(
         additional_files (list): (Optional) list of files your script requires
         requirements_file_path (str): (Optional) path to requirements.in file
         image_id (str): (Optional) image ID for the training job
-        use_conda (bool): (Optional) whether to use conda or pip. default is pip
+        use_conda (bool): (Optional) indicator of whether to use conda environment for training; default is False (pip)
         output_file_size (int): (Optional) estimated output file size (GB). default is 5 GB
 
     Returns: 
@@ -175,7 +175,7 @@ def start_training_run(
     return job_response
 
 
-def review_training_job_run(job_id,
+def review_training_job_run(job_id : str, 
                             study_space_id : str,
                             review_notes : str = None):
     ''' 
