@@ -37,15 +37,15 @@ def validate_review_run_params(study_space_id: str, job_id: str, image_id: str,
 
 
 def start_training_run(
-    provider: str,
-    cpu_count: int,
-    gpu_count: int,
-    memory_size: int,
-    worker_count: int,
     training_job_file_path: str,
     title: str,
     description: str,
     file_set_id: str,
+    provider: str = 'ray',
+    cpu_count: int = 1,
+    gpu_count: int = 0,
+    memory_size: int = 10,
+    worker_count: int = 0,
     additional_dirs: list = [],
     additional_files: list = [],
     project: str = None,
@@ -65,8 +65,8 @@ def start_training_run(
         provider (str) (Optional): 'ray' or 'beaker'. default is ray
         cpu_count (int) (Optional): number of CPUs to use. default is 1
         gpu_count (int) (Optional): number of GPUs to use. default is 0 
-        memory_size (int) (Optional): memory size (GB). default is 1 
-        worker_count (int) (Optional): number of workers to use. default is 1
+        memory_size (int) (Optional): memory size (GB). default is 10
+        worker_count (int) (Optional): number of workers to use. default is 0
         additional_dirs (list): (Optional) list of directories your script requires
         additional_files (list): (Optional) list of files your script requires
         requirements_file_path (str): (Optional) path to requirements.in file
