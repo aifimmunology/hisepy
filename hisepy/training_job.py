@@ -382,8 +382,8 @@ class TrainingJob:
         while True:
             # Prompt user for methods to remove decorators from
             rm_target = cu.prompt_from_options(
-                "The following methods now have ray decorators: {}. "
-                "Please select the methods you want decorators to be removed from".format(target_names),
+                "The following methods currently use Ray decorators: {}. "
+                "Please select the methods from which you want to remove the Ray decorators".format(target_names),
                 target_names + ["None"]
             )
 
@@ -400,8 +400,8 @@ class TrainingJob:
         target_names = [f[0] for f in ray_remote_targets]
         while True:
             edit_target = cu.prompt_from_options(
-                "The following methods now have ray decorators: {}. "
-                "Please select the methods you want to edit ray decorators for".format(target_names),
+                "The following methods currently use Ray decorators: {}. "
+                "Please select the methods whose Ray decorator parameters you want to edit".format(target_names),
                 target_names + ["None"]
             )
 
