@@ -6,6 +6,7 @@ import subprocess
 import pandas as pd
 import shutil
 import tarfile
+import ast
 import hisepy.common_utils as cu
 import hisepy.formatter as fmt
 import hisepy.reader as hpr
@@ -415,7 +416,7 @@ class TrainingJob:
 
             if edit_resp and len(edit_resp) > 0:
                 rt.modify_ray_remote_decorator(
-                    converted_script, edit_target, edit_resp, converted_script
+                    converted_script, edit_target, ast.literal_eval(edit_resp), converted_script
                 )
         return 
 
