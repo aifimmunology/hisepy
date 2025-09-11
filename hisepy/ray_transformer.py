@@ -531,9 +531,9 @@ class RemoteModifier(ast.NodeTransformer):
         self.new_kwargs = new_kwargs
 
         # Validate new kwargs against known ray.remote parameters
-        invalid_keys = [k for k in new_kwargs if k not in get_ray_remote_params_from_signature()]
+        invalid_keys = [k for k in new_kwargs.keys() if k not in get_ray_remote_params_from_signature()]
         if invalid_keys:
-            raise ValueError(f"Invalid ray.remote parameters: {invalid_keys}")
+            raise ValueError(f"Invalid ray.remote parameters: {invalid_keys}. Valid parameters are: {get_ray_remote_params_from_signature()}")
 
     def visit_FunctionDef(self, node):
         if node.name == self.target_name:
@@ -578,9 +578,10 @@ def modify_ray_remote_decorator(file_path, target_name, new_kwargs, output_path=
         str: Modified code (only if output_path is None).
     """
     # Validate new kwargs
-    invalid_keys = [k for k in new_kwargs if k not in get_ray_remote_params_from_signature()]
+    assert type(new_kwargs) is dict, "prompt response must be a dictionary"
+    invalid_keys = [k for k in new_kwargs.keys() if k not in get_ray_remote_params_from_signature()]
     if invalid_keys:
-        raise ValueError(f"Invalid ray.remote parameters: {invalid_keys}")
+        raise ValueError(f"Invalid ray.remote parameters: {invalid_keys}. Valid parameters are: {get_ray_remote_params_from_signature()}")
 
     with open(file_path, "r") as f:
         source_code = f.read()
