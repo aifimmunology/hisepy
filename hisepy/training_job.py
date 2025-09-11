@@ -70,7 +70,7 @@ def start_training_run(
         worker_count (int) (Optional): number of workers to use. default is 0
         additional_dirs (list): (Optional) list of directories your script requires. default is []
         additional_files (list): (Optional) list of files your script requires. default is []
-        project (str): (Optional) project short name of Project that Ray Job cost will be billed under. default is project selected upon IDE creation
+        project (str): (Optional) short name of project that Ray job cost will be billed under. default is project selected upon IDE creation        
         requirements_file_path (str): (Optional) path to requirements.in file
         image_id (str): (Optional) image ID for the training job. default is None
         use_conda (bool): (Optional) indicator of whether to use conda environment for training; default is False (pip)
