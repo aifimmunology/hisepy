@@ -598,6 +598,23 @@ class DashAppImg:
             tar.add(self.work_dir, arcname="")
         return True
 
+    def get_manifest_files(self): 
+        """ Given a list, returns indencies of entries that have .zarr file extension """
+        def __is_zarr(filename): 
+            # check if filename contains .zarr extension 
+            if ".zarr" in filename:
+                return True
+            return False
+        
+        # loop through list and track which files/directories are of type .zarr
+        manifest_files = []
+        for f in list(self.filepaths) + list(self.directories): 
+            # parse file name 
+            filename = os.path.basename(f)
+            if __is_zarr(filename):
+                manifest_files += [f]
+        return manifest_files
+
     def export_dash_image(self):
         """ Uploads, saves and deploys Dash app """
 
@@ -607,9 +624,11 @@ class DashAppImg:
 
         print("POST hydration/source/studyspace/file for hero image:")
         print(img_resp)
-
+        
+        manifest_files = self.get_manifest_files()
+        app_file_list = manifest_files + ['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)]
         upload_resp = upload_files(
-            files=['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)],
+            files=app_file_list,
             study_space_id=self.study_space_id,
             title=self.title,
             input_file_ids=self.input_file_ids,
@@ -618,42 +637,24 @@ class DashAppImg:
             do_prompt=False,
             do_conda_build_check=self.do_conda_build_check)
 
-        print("POST toolchain/file for dash app tarball:")
+        print("POST ide-nextgen/file for dash app tarball:")
         print(upload_resp)
+        
         homedir = IDE_HOME_DIR if cu.is_legacy_ide(
         ) else CONFIG['IDE']['HOME_DIR_V2']
-        save_args = {
-            "studySpaceId": self.study_space_id,
-            "title": self.title,
-            "instanceId": IDEInstance().friendlyName,
-            "inputFileIds": self.input_file_ids,
-            "sampleIds": self.input_sample_ids,
-            "notebook": current_notebook(),
-            "homedir": homedir,
-            'description': self.description,
-            "images": img_resp['id'],
-            "traceId": upload_resp['TraceId']
+
+        # we'll always at least have 1 entry in app_file_list. 
+        # if a zarr is being uploaded, add that to the datasource, which will be the first entry of the list 
+        dash_flow_payload = { 
+            "dataSource": app_file_list[0], # TODO: extend to work with lists...? 
+            "dataFile": upload_resp['FileIds'][0], # TODO: extend..? 
+            "images": [self.hero_image]
         }
-        save_url = hise_url("toolchain", "save_dash_app_path", args=save_args)
-        headers = get_bearer_token_header()
-        # We don't technically need the save response because it's the same Trace ID,
-        # but we'll go through it to help with debugging if save returns something crazy
-        save_resp = parse_hise_response(
-            requests.post(save_url, headers=headers))
-
-        print("POST toolchain/visualization/dash to save dash app:")
-        print(save_resp)
-
-        deploy_url = hise_url("toolchain",
-                              "deploy_dash_app_path",
-                              resource=save_resp['TraceId'])
-        deploy_resp = parse_hise_response(
-            requests.post(deploy_url, headers=headers))
-
-        print("POST toolchain/deploy/visualization to deploy dash app:")
-        print(deploy_resp)
-
-        return deploy_resp
+        dash_workflow_url = hise_url("ide_management", "dash_workflow", resource=upload_resp['TraceId'])
+        workflow_resp = parse_hise_response(
+            requests.post(dash_workflow_url, json=dash_flow_payload, headers=get_bearer_token_header()))
+        print("POST ide-nextgen/visualization/dash/workflow:")
+        return workflow_resp
 
 
 def validate_app_path(app_path):
