@@ -6,7 +6,7 @@ import uuid
 import pandas as pd
 import copy
 from termcolor import colored
-import math 
+import math
 import requests
 from hisepy.instances import IDEInstance
 import hisepy.common_utils as cu
@@ -94,7 +94,9 @@ class MongoQuery:  # class to handle mongo query language translation
         # create data.frame of all queryable fields
         new_query_dict = self.query_dict.copy()
         q_df = hl.lookup_queryable_fields()
-        q_df = q_df.loc[~q_df[['field_type', 'field']].duplicated(), ]
+        q_df = q_df.loc[
+            ~q_df[['field_type', 'field']].duplicated(),
+        ]
 
         # go through each key of user's dict and append the field_type as a prefix
         id_fields = [
@@ -169,24 +171,24 @@ class MongoQuery:  # class to handle mongo query language translation
         return
 
 
-
 def count_payload_entries(query: dict):
     """
     """
     count_endpoint = "https://{s}/{de}?_count=true".format(
         s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
-    count = cu.parse_hise_response(requests.post(count_endpoint, 
-                                                 data = json.dumps({"filter": query}),
-                                                 headers=get_bearer_token_header()))
+    count = cu.parse_hise_response(
+        requests.post(count_endpoint,
+                      data=json.dumps({"filter": query}),
+                      headers=get_bearer_token_header()))
     return count['payload']
 
 
-def submit_file_descriptor_request(formatted_query: dict, count : int): 
-    
-    # paginate/chunk if count is greater than pagination_size we set in config 
+def submit_file_descriptor_request(formatted_query: dict, count: int):
+
+    # paginate/chunk if count is greater than pagination_size we set in config
     if count > CONFIG['IDE']['PAGINATION_SIZE']:
         obj = submit_paginated_query(formatted_query, count)
-    else: 
+    else:
         endpoint = "https://{s}/{de}".format(
             s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
         obj = cu.parse_hise_response(
@@ -195,23 +197,27 @@ def submit_file_descriptor_request(formatted_query: dict, count : int):
                           headers=get_bearer_token_header()))
     return obj
 
-def submit_paginated_query(query : dict, number_entries: int): 
+
+def submit_paginated_query(query: dict, number_entries: int):
     """
     """
 
-    # determine how many chunks 
+    # determine how many chunks
     page_size = CONFIG['IDE']['PAGINATION_SIZE']
     obj = {'payload': []}
     num_chunks = math.ceil(number_entries / page_size)
     for i in range(0, num_chunks):
         endpoint = "https://{s}/{de}?page_size={ps}&page_number={pn}".format(
-            s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'], ps=page_size, pn=i+1)
+            s=hise_server(),
+            de=CONFIG['LEDGER']['FILE_SEARCH_PATH'],
+            ps=page_size,
+            pn=i + 1)
         this_chunk = cu.parse_hise_response(
             requests.post(endpoint,
-                            data=json.dumps({"filter": query}),
-                            headers=get_bearer_token_header()))
+                          data=json.dumps({"filter": query}),
+                          headers=get_bearer_token_header()))
         obj['payload'] += this_chunk['payload']
-    return obj 
+    return obj
 
 
 def query_files(user_query: dict):
@@ -229,8 +235,8 @@ def query_files(user_query: dict):
     query_instance = MongoQuery(user_query)
     formatted_query = query_instance.query_dict_to_mongo_query(
         query_instance.add_prefix_to_query())
-    
-    # count how many entries are in query 
+
+    # count how many entries are in query
     count = count_payload_entries(formatted_query)
     obj = submit_file_descriptor_request(formatted_query, count)
 
@@ -284,7 +290,8 @@ def get_file_descriptors(query_dict: dict = None):
                 "appending descriptor failed. descriptor: {}".format(
                     this_desc))
     # attach project info to descriptors
-    dict_df['descriptors'] = hf.attach_project_info_to_df(dict_df['descriptors'])
+    dict_df['descriptors'] = hf.attach_project_info_to_df(
+        dict_df['descriptors'])
     return dict_df
 
 
@@ -298,16 +305,19 @@ def validate_post_query_params(file_list: list = None,
     assert file_list is not None or query_id is not None or query_dict is not None, "One of file_ids, query_dict, or query_id must be a non-null"
     if file_list is not None:
         assert type(file_list) is list
-        assert (query_id is None) and (query_dict is
-                                       None), "You must only use 1 parameter"
+        assert (query_id
+                is None) and (query_dict
+                              is None), "You must only use 1 parameter"
     elif query_id is not None:
         assert type(query_id) is str
-        assert (file_list is None) and (query_dict is
-                                        None), "You must only use 1 parameter"
+        assert (file_list
+                is None) and (query_dict
+                              is None), "You must only use 1 parameter"
     elif query_dict is not None:
         assert type(query_dict) is dict
-        assert (file_list is None) and (query_id is
-                                        None), "You must only use 1 parameter"
+        assert (file_list
+                is None) and (query_id
+                              is None), "You must only use 1 parameter"
 
     if (file_list != None) & (type(file_list) is not list):
         raise TypeError("You must pass a list of file ids to read_files")
@@ -373,6 +383,7 @@ def post_query(file_list: list = None,
         raise TypeError("Response %s is not a list, it is a %s." %
                         (resp.text, type(obj)))
     return obj
+
 
 def read_files(file_list: list = None,
                query_id: list = None,
@@ -441,11 +452,10 @@ def read_files(file_list: list = None,
                 if cu.is_legacy_ide():
                     response.append(cache_and_convert_file_data(f))
                     log_dir = CONFIG['IDE']['HOME_DIR']
-                else: # download file to user's workspace
+                else:  # download file to user's workspace
                     log_dir = CONFIG['STORES']['TEMP_STORE']
-                    dl_resp = requests.request("GET",
-                                            endpoint,
-                                            headers=get_bearer_token_header())
+                    dl_resp = requests.request(
+                        "GET", endpoint, headers=get_bearer_token_header())
                     parsed_dl_resp = cu.parse_hise_response(dl_resp)
                     download_filepath = '{}/{}'.format(
                         CONFIG['IDE']['HOME_DIR_V2'], parsed_dl_resp['Path'])
@@ -456,8 +466,8 @@ def read_files(file_list: list = None,
                             print("Waiting for file to download...")
                         response.append(
                             convert_file_data(f, parsed_dl_resp['Path']))
-                
-                # replace name of file to absolute filepath of download location 
+
+                # replace name of file to absolute filepath of download location
                 this_desc['file']['name'] = download_filepath
                 response[idx].status = True
                 response[idx].descriptors = this_desc
@@ -472,8 +482,7 @@ def read_files(file_list: list = None,
                 # downloaded from a guest account
                 if file_list is not None:
                     this_file_id = file_list[idx]
-                    cu.log_replica_file_download(
-                        f, this_file_id, log_dir)
+                    cu.log_replica_file_download(f, this_file_id, log_dir)
             except:
                 response[idx].status = False
                 response[idx].message = "Failed to download file"
@@ -516,7 +525,8 @@ def convert_file_data(file_data: dict, path_to_file: str):
         '{}/{}'.format(CONFIG['IDE']['HOME_DIR_V2'], path_to_file),
         this_filetype)
     return hise_file(file_id=f_desc["id"],
-                     file_path='{}/{}'.format(CONFIG['IDE']['HOME_DIR_V2'], path_to_file),
+                     file_path='{}/{}'.format(CONFIG['IDE']['HOME_DIR_V2'],
+                                              path_to_file),
                      descriptors=f_desc,
                      file_type=this_filetype,
                      data_values=this_file_values)
@@ -544,13 +554,15 @@ def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
     file_name = f_desc["name"].split("/")[-1]
     this_filetype = cu.get_filetype(file_name)
     if do_cache:
-        cache_file(file_data["url"], file_name, '{}/{}'.format(CONFIG['IDE']['HOME_DIR'], file_dir))
+        cache_file(file_data["url"], file_name,
+                   '{}/{}'.format(CONFIG['IDE']['HOME_DIR'], file_dir))
         this_file_values = hf.convert_data_values(
             '{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id=f_desc["id"],
                      file_path="%s/%s" % (file_dir, file_name),
                      descriptors=f_desc,
                      file_type=this_filetype)
+
 
 def cache_files(file_ids: list = None,
                 query_id: list = None,
@@ -582,24 +594,26 @@ def cache_files(file_ids: list = None,
             print("Error downloading file: {}".format(f['error']['Message']))
             fail_files += [f['error']['File']]
             continue
-        this_file_id, this_file_name, _ = cu.parse_file_descriptor_from_hise_file(f)
+        this_file_id, this_file_name, _ = cu.parse_file_descriptor_from_hise_file(
+            f)
         if cu.is_legacy_ide():
             log_dir = CONFIG['IDE']['HOME_DIR']
             download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                                             c=CONFIG['IDE']['CACHE_DIR'],
-                                             id=this_file_id)
+                                                 c=CONFIG['IDE']['CACHE_DIR'],
+                                                 id=this_file_id)
             f_name = os.path.basename(this_file_name)
             print("downloading fileID: {}".format(this_file_id))
             cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
-        else: 
+        else:
             log_dir = CONFIG['STORES']['TEMP_STORE']
             endpoint = "https://%s/%s/%s/%s" % (hise_server(
             ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
             dl_resp = cu.parse_hise_response(
                 requests.request("GET",
-                                endpoint,
-                                headers=get_bearer_token_header()))
-            this_path = "%s/%s" % (CONFIG['IDE']['HOME_DIR_V2'], dl_resp['Path'])
+                                 endpoint,
+                                 headers=get_bearer_token_header()))
+            this_path = "%s/%s" % (CONFIG['IDE']['HOME_DIR_V2'],
+                                   dl_resp['Path'])
             dl_paths.append(this_path)
         this_file_id = cu.parse_file_id_from_hise_file(f)
         this_sample_id = cu.parse_sample_id_from_hise_file(f)
@@ -609,8 +623,7 @@ def cache_files(file_ids: list = None,
         # downloaded from a guest account
         if file_ids is not None:
             this_file_id = file_ids[idx]
-            cu.log_replica_file_download(f, this_file_id,
-                                         log_dir)
+            cu.log_replica_file_download(f, this_file_id, log_dir)
 
         idx += 1
     return dl_paths
@@ -671,8 +684,10 @@ def download_files(file_dict: dict):
         response.append(hf)
 
     return response
+
+
 def validate_samples_subjects_params(ids_list: list = None,
-                                 query_dict: dict = None):
+                                     query_dict: dict = None):
     """
     Validates user's query parameters for POST request to ledger
     """
@@ -686,8 +701,11 @@ def validate_samples_subjects_params(ids_list: list = None,
         assert ids_list is None, "You must only use 1 parameter"
     return True
 
-# TODO: this method is gonna need to change when generalized metadata models becomes a thing 
-def gen_read_samples_subjects_query(ids_list: list = None, query_dict: dict = None, is_sample_query: bool = True):
+
+# TODO: this method is gonna need to change when generalized metadata models becomes a thing
+def gen_read_samples_subjects_query(ids_list: list = None,
+                                    query_dict: dict = None,
+                                    is_sample_query: bool = True):
     """
     Generates a query for the SampleStatus materialized view.
     """
@@ -696,18 +714,18 @@ def gen_read_samples_subjects_query(ids_list: list = None, query_dict: dict = No
         mg_instance = MongoQuery(query_dict)
         query = mg_instance.query_dict_to_mongo_query(
             mg_instance.add_prefix_to_query())
-        
+
         # have to hardcode cohort
-         # TODO: sanity check that this is still needed after refactor
+        # TODO: sanity check that this is still needed after refactor
         if "cohort.cohortGuid" in query and is_sample_query:
             query["subject.cohort"] = query["cohort.cohortGuid"]
             query.pop("cohort.cohortGuid")
     elif ids_list is not None:
         query = {"id": {"$in": ids_list}}
-    return query 
+    return query
 
 
-def read_samples(sample_ids:list=None, query_dict:dict=None, to_df=True):
+def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
     """
     Read or search the SampleStatus materialized view. User should specify one 
     or the other of sample_ids or query.
@@ -726,28 +744,30 @@ def read_samples(sample_ids:list=None, query_dict:dict=None, to_df=True):
 
     """
 
-    # validate user params 
+    # validate user params
     validate_samples_subjects_params(sample_ids, query_dict)
     query = gen_read_samples_subjects_query(sample_ids, query_dict)
     if query is None:
         raise TypeError(
-            "Failed to generate query from user's parameters. You must specify either a list of sample_ids or a query")
-    
+            "Failed to generate query from user's parameters. You must specify either a list of sample_ids or a query"
+        )
+
     # send request to ledger to get samples
     endpoint = "https://%s/%s" % (hise_server(),
                                   CONFIG['LEDGER']['SAMPLE_SEARCH_PATH'])
-    obj = cu.parse_hise_response(requests.post(endpoint,
-                         data=json.dumps({"filter": query}),
-                         headers=get_bearer_token_header()))
-    
+    obj = cu.parse_hise_response(
+        requests.post(endpoint,
+                      data=json.dumps({"filter": query}),
+                      headers=get_bearer_token_header()))
+
     if obj['payload'] is None:
         raise ValueError("User's query resulted in 0 results")
     if to_df:
         dict_df = hf.sample_to_df(obj["payload"])
 
-        # attach project info to metadata data.frame 
-        dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata']) 
-        return dict_df 
+        # attach project info to metadata data.frame
+        dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
+        return dict_df
     else:
         return obj['payload']
 
@@ -771,7 +791,9 @@ def read_subjects(subject_ids: str = None,
     """
     validate_samples_subjects_params(subject_ids, query_dict)
 
-    query = gen_read_samples_subjects_query(subject_ids, query_dict, is_sample_query=False)
+    query = gen_read_samples_subjects_query(subject_ids,
+                                            query_dict,
+                                            is_sample_query=False)
     if query is None:
         raise TypeError(
             "You must specify either a list of subject_ids or a query")
@@ -779,9 +801,10 @@ def read_subjects(subject_ids: str = None,
     # send thy request to ledger
     endpoint = "https://%s/%s" % (hise_server(),
                                   CONFIG['LEDGER']['SUBJECT_SEARCH_PATH'])
-    obj = cu.parse_hise_response(requests.post(endpoint,
-                         data=json.dumps({"filter": query}),
-                         headers=get_bearer_token_header()))
+    obj = cu.parse_hise_response(
+        requests.post(endpoint,
+                      data=json.dumps({"filter": query}),
+                      headers=get_bearer_token_header()))
 
     if obj['payload'] is None:
         raise ValueError("User's query resulted in 0 results")
@@ -789,6 +812,7 @@ def read_subjects(subject_ids: str = None,
         return hf.attach_project_info_to_df(hf.subject_to_df(obj["payload"]))
     else:
         return obj["payload"]
+
 
 def list_filesets(study_space_id):
     """ 
@@ -816,7 +840,9 @@ def list_filesets(study_space_id):
         raise ValueError("There are no filesets in the study specified")
 
     # don't show users deleted entries
-    obj_df_sub = obj_df.loc[obj_df['deleted'].eq('false'), ]
+    obj_df_sub = obj_df.loc[
+        obj_df['deleted'].eq('false'),
+    ]
     return obj_df_sub[[
         'id', 'studySpaceId', 'title', 'description', 'fileIds'
     ]].reset_index(drop=True)
@@ -840,17 +866,31 @@ def cache_fileset(fileset_id):
 
     # request to hydrate all files in set
     ide_name = IDEInstance().podName
-    endpoint = "{}/{}/{}".format(cu.hise_url('hydration', 'file_set_download'), fileset_id, ide_name)
+    endpoint = "{}/{}/{}".format(cu.hise_url('hydration', 'file_set_download'),
+                                 fileset_id, ide_name)
     obj = cu.parse_hise_response(
-        requests.get(endpoint,
-                     headers=get_bearer_token_header()))
+        requests.get(endpoint, headers=get_bearer_token_header()))
+
+    # filter on fileset_id
+    filter_endpoint = "{}".format(cu.hise_url('tracer', 'file_set', 'filter'))
+    fileset_dict_query = {'id': [fileset_id]}
+    fileset_query = MongoQuery(fileset_dict_query).query_dict_to_mongo_query(
+        fileset_dict_query)
+    fileset_obj = cu.parse_hise_response(
+        requests.post(filter_endpoint,
+                      headers=get_bearer_token_header(),
+                      data=json.dumps({"filter": fileset_query})))
+
+    # log file ids
+    for f in list(fileset_obj[0]['fileIds'].keys()):
+        cu.log_downloaded_files(file_id=f,
+                                ide_dir=CONFIG['STORES']['TEMP_STORE'])
 
     # return the user all the files that were downloaded
-    # TODO: backend should just return me this list 
-    output_file_paths= cu.list_all_filepaths('{input}/{crc}/fileset/{fsid}'.format(
-        input=CONFIG['STORES']['INPUT_STORE'],
-        crc=cu.crc32_from_string(HiseUser().email),
-        fsid=fileset_id
-    ))
+    output_file_paths = cu.list_all_filepaths(
+        '{input}/{crc}/fileset/{fsid}'.format(
+            input=CONFIG['STORES']['INPUT_STORE'],
+            crc=cu.crc32_from_string(HiseUser().email),
+            fsid=fileset_id))
 
     return output_file_paths
