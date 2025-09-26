@@ -6,7 +6,8 @@ import requests
 import shutil
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header
+from hisepy.upload import gen_upload_body
+from hisepy.auth import get_bearer_token_header, ide_instance_guid
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -65,24 +66,105 @@ def do_post_file_to_private_folder(folder_name: str, file_path: str):
     return resp
 
 
-def upload_file_to_private_folder(file_path: str, folder_name: str = None):
+def do_post_file_to_private_folder_v2(folder_name: str,
+                                      file_path: str = None,
+                                      list_of_files: list = None,
+                                      destination: str = None):
     '''
     Uploads a file to a private folder.
 
     Parameters: 
-        folder_name (str) : (optional)  Name of Private Folder.
+        folder_name (str) : Name of Private Folder.
         file_path (str): Filepath of file you want uploaded.
 
     Returns: 
         Response object
     '''
+    assert type(folder_name) is str, 'folder_name must be of type str'
+    assert type(
+        file_path) is str or file_path is None, 'file_name must be of type str'
+    # assert either file_path, or list_of_files is defined, not both
+    assert (file_path is not None) ^ (
+        list_of_files is not None
+    ), "one of file_path or list_of_files must be defined, not both"
+
+    if file_path is not None:
+        assert len(
+            file_path) < 1024, 'file_name character length cannot exceed 1024'
+        files = [file_path]
+    elif list_of_files is not None:
+        for f in list_of_files:
+            assert len(
+                f
+            ) < 1024, 'file_name {} character length cannot exceed 1024'.format(
+                f)
+        files = list_of_files
+
+    qargs = {'instanceGuid': ide_instance_guid(), 'destination': destination}
+    url = cu.hise_url('ide_management',
+                      'upload_user_folder_path',
+                      resource="%s/files" % folder_name,
+                      args=qargs)
+    resp = cu.parse_hise_response(
+        requests.post(url,
+                      json={"files": files},
+                      headers=get_bearer_token_header()))
+    return resp
+
+
+def validate_upload_private_folder_params(file_path: str = None,
+                                          folder_name: str = None,
+                                          list_of_files: list = None,
+                                          destination: str = None):
     assert type(
         folder_name
     ) is str or folder_name is None, 'folder_name must be of type str'
-    assert type(file_path) is str, 'file_name must be of type str'
-    assert len(
-        file_path) < 1024, 'file_name character length cannot exceed 1024'
+    assert type(
+        file_path) is str or file_path is None, 'file_name must be of type str'
+    assert type(
+        list_of_files
+    ) is list or list_of_files is None, "list_of_files must be of type list"
+    assert (file_path is not None) ^ (
+        list_of_files is not None
+    ), "one of file_path or list_of_files must be defined, not both"
 
+    if file_path is not None:
+        assert len(
+            file_path) < 1024, 'file_name character length cannot exceed 1024'
+        assert os.path.exists(file_path), "file {} not found".format(file_path)
+    elif list_of_files is not None:
+        for f in list_of_files:
+            assert os.path.exists(f), "file {} not found".format(f)
+            assert len(
+                f
+            ) < 1024, 'file_name {} character length cannot exceed 1024'.format(
+                f)
+
+    if destination is not None:
+        assert ~cu.string_contains_whitespaces(
+            destination
+        ), "white space detected in destination parameter. Please remove all whitespaces"
+    return
+
+
+def upload_file_to_private_folder(file_path: str = None,
+                                  folder_name: str = None,
+                                  list_of_files: list = None,
+                                  destination: str = None):
+    '''
+    Uploads a file to a private folder.
+
+    Parameters: 
+        file_path (str): Filepath of file you want uploaded.
+        folder_name (str) : (optional)  Name of Private Folder.
+        list_of_files (list): (optional) List of filepaths for upload.
+        destination (str): (optional) name of subdirectory to save within ~/private
+
+    Returns: 
+        Response object
+    '''
+    validate_upload_private_folder_params(file_path, folder_name,
+                                          list_of_files, destination)
     if folder_name is not None:
         return do_post_file_to_private_folder(folder_name, file_path)
     else:  # use nextgen-ide private folder
@@ -95,7 +177,9 @@ def upload_file_to_private_folder(file_path: str, folder_name: str = None):
             raise ValueError(
                 'No private folders found. Please contact immunology support')
         else:
-            return do_post_file_to_private_folder(pfs[0], file_path)
+            return do_post_file_to_private_folder_v2(pfs[0], file_path,
+                                                     list_of_files,
+                                                     destination)
 
 
 def list_files_in_all_private_folders():
