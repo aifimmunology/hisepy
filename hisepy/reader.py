@@ -13,7 +13,7 @@ import hisepy.common_utils as cu
 import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
-from hisepy.auth import get_bearer_token_header, hise_server, debug, HiseUser
+from hisepy.auth import get_bearer_token_header, hise_server, debug
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -266,8 +266,6 @@ def get_file_descriptors(query_dict: dict = None):
             [new_dict_desc['labResults'], dict_df['labResults']], axis=0)
         dict_df['specimens'] = pd.concat(
             [new_dict_desc['specimens'], dict_df['specimens']], axis=0)
-        dict_df['survey'] = pd.concat(
-            [new_dict_desc['survey'], dict_df['survey']], axis=0)
         return dict_df
 
     assert 'fileType' in query_dict.keys(
@@ -278,8 +276,7 @@ def get_file_descriptors(query_dict: dict = None):
     dict_df = {
         'descriptors': pd.DataFrame(),
         'labResults': pd.DataFrame(),
-        'specimens': pd.DataFrame(),
-        'survey': pd.DataFrame()
+        'specimens': pd.DataFrame()
     }
     for this_desc in obj:
         try:
@@ -289,9 +286,6 @@ def get_file_descriptors(query_dict: dict = None):
             raise Exception(
                 "appending descriptor failed. descriptor: {}".format(
                     this_desc))
-    # attach project info to descriptors
-    dict_df['descriptors'] = hf.attach_project_info_to_df(
-        dict_df['descriptors'])
     return dict_df
 
 
@@ -466,9 +460,6 @@ def read_files(file_list: list = None,
                             print("Waiting for file to download...")
                         response.append(
                             convert_file_data(f, parsed_dl_resp['Path']))
-
-                # replace name of file to absolute filepath of download location
-                this_desc['file']['name'] = download_filepath
                 response[idx].status = True
                 response[idx].descriptors = this_desc
                 response[idx].message = "OK"
@@ -763,11 +754,7 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
     if obj['payload'] is None:
         raise ValueError("User's query resulted in 0 results")
     if to_df:
-        dict_df = hf.sample_to_df(obj["payload"])
-
-        # attach project info to metadata data.frame
-        dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
-        return dict_df
+        return hf.sample_to_df(obj["payload"])
     else:
         return obj['payload']
 
@@ -809,7 +796,7 @@ def read_subjects(subject_ids: str = None,
     if obj['payload'] is None:
         raise ValueError("User's query resulted in 0 results")
     if to_df:
-        return hf.attach_project_info_to_df(hf.subject_to_df(obj["payload"]))
+        return hf.subject_to_df(obj["payload"])
     else:
         return obj["payload"]
 
@@ -848,49 +835,50 @@ def list_filesets(study_space_id):
     ]].reset_index(drop=True)
 
 
-def cache_fileset(fileset_id):
+def cache_filesets(fileset_id, study_space_id):
     """ 
     Downloads all files pertaining to a fileset to a user's workspace.
 
     Parameters: 
         fileset_id (str) : unique identifier for a fileset in a study
+        study_space_id (str) : unique identifier for a study in the collaboration space
 
     Example:
-        hp.cache_fileset(fileset_id='c39e3ae5-ec11-4f02-b89d-255945c5788e')
-    
-    Returns: 
-        None. Files will be downloaded to /input/.../fileset/<fileset_id>
+        hp.cache_filesets(fileset_title='Reports on why this study is worth it', 
+                            study_space_id='a9ddcfa9-e36d-451e-9e00-0f582e09e696')
     """
     assert fileset_id is not None, "You must specify a fileset_id"
+    assert study_space_id is not None, "You must specify a study_space_id"
     assert type(fileset_id) is str, "fileset_id must be of type string"
+    assert type(study_space_id) is str, "study_space_id must be of type string"
 
-    # request to hydrate all files in set
-    ide_name = IDEInstance().podName
-    endpoint = "{}/{}/{}".format(cu.hise_url('hydration', 'file_set_download'),
-                                 fileset_id, ide_name)
-    obj = cu.parse_hise_response(
-        requests.get(endpoint, headers=get_bearer_token_header()))
+    # get all the fileIds to download
+    fileset_df = list_filesets(study_space_id)
+    if fileset_id is not None:
+        fileset_df_sub = fileset_df.loc[
+            fileset_df['id'].eq(fileset_id),
+        ]
+        these_file_ids = list(fileset_df_sub['fileIds'].item().keys())
+        fileset_title = str(fileset_df_sub['title'].item())
 
-    # filter on fileset_id
-    filter_endpoint = "{}".format(cu.hise_url('tracer', 'file_set', 'filter'))
-    fileset_dict_query = {'id': [fileset_id]}
-    fileset_query = MongoQuery(fileset_dict_query).query_dict_to_mongo_query(
-        fileset_dict_query)
-    fileset_obj = cu.parse_hise_response(
-        requests.post(filter_endpoint,
-                      headers=get_bearer_token_header(),
-                      data=json.dumps({"filter": fileset_query})))
+    # make sure we only have a single fileSet entry we're downloading from
+    if len(fileset_df_sub) == 0:
+        raise ValueError(
+            "There is no fileset entry with the title and study specified")
 
-    # log file ids
-    for f in list(fileset_obj[0]['fileIds'].keys()):
-        cu.log_downloaded_files(file_id=f,
-                                ide_dir=CONFIG['STORES']['TEMP_STORE'])
+    # make requests to hydration
+    obj = post_query(file_list=these_file_ids)
 
-    # return the user all the files that were downloaded
-    output_file_paths = cu.list_all_filepaths(
-        '{input}/{crc}/fileset/{fsid}'.format(
-            input=CONFIG['STORES']['INPUT_STORE'],
-            crc=cu.crc32_from_string(HiseUser().email),
-            fsid=fileset_id))
+    # save all files in ~/cache/<filesetName>/...
+    cache_dir = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], fileset_title)
+    for this_obj in obj:
+        # split filepath string into path and filename.
+        split_filename = os.path.split(this_obj['descriptors']['file']['name'])
+        this_file_id = this_obj['descriptors']['file']['id']
+        this_filename = split_filename[1]
+        cache_file(
+            url=this_obj['url'],
+            file_name=this_filename,  # just grab the filename (could be a path)
+            file_dir="%s/%s" % (cache_dir, this_file_id))
 
-    return output_file_paths
+    return

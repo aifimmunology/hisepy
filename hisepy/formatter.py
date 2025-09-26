@@ -18,18 +18,7 @@ import hisepy.common_utils as cu
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
-
-def attach_project_info_to_df(df): 
-    """ Adds project information to a data.frame object. data.frame object must have projectGuid column
-    """
-    # get projects 
-    proj_df = cu.get_projects() 
-
-    # add 'project' prefix to project columns 
-    proj_df = proj_df.add_prefix('project.')
-
-    # merge project info to data.frame
-    return  pd.merge(df, proj_df, how='left', left_on='projectGuid', right_on='project.guid')
+# TODO: move hard-coded named fields to config.yaml file
 
 
 def convert_data_values(filepath: str, filetype: str):
@@ -45,62 +34,33 @@ def convert_data_values(filepath: str, filetype: str):
             "Uh-oh, the file wasn't downloaded into the /cache directory")
 
 
-def convert_single_val_to_df(df, single_val, col_name):
-    """ Converts a single value to a data.frame object
+# there's another layer/dict under emr.patientData. is leaving a dict under this column okay?
+# Do we want to expand this and create a df? maybe have a parameter asking what users want?
+def subject_to_df_worker(subject_out):
     """
-    assert (type(single_val) is str) or (type(single_val) is int) or (type(single_val) is bool), "Expected a single value to be of type str, int, or bool. Received type %s" % type(single_val)
-    single_df_tmp = pd.DataFrame([single_val], columns=[col_name])
-    df = pd.concat([df, single_df_tmp], axis=1)
-    return df
-
-
-def convert_dict_to_df(df, dict_val, col_name, add_prefix=True):
-    """ Converts a dictionary to a data.frame object
+    Takes output from readSubjects, and reformats to a data.frame
+        Parameters:
+            subject_out: list
+                list of dictionaries containing data from subject materialized view
+        Returns:
+            final_df : data.frame
+                data.frame containing data from subject materialized view
     """
-    assert type(dict_val) is dict, "Expected a dictionary to be of type dict. Received type %s" % type(dict_val)
-    dict_val.update((k, [v]) for k, v in dict_val.items() if type(dict_val[k]) is not list)
-    dict_val.update((k, v.append('')) for k, v in dict_val.items() if type(v) is list and len(v) == 0)
-    dict_df_tmp = pd.DataFrame.from_dict(dict_val)
-    if add_prefix:
-        dict_df_tmp = dict_df_tmp.add_prefix('{}.'.format(col_name))
-    else: 
-        pass
-    df = pd.concat([df, dict_df_tmp], axis=1)
-    return df
-
-def convert_list_to_df(df, list_val, col_name):
-     # if there's just 1 entry, convert it to a data.frame  
-    if len(list_val) == 1 and type(list_val[0]) is not dict:
-        df = convert_single_val_to_df(df, list_val[0], col_name)
-    elif len(list_val) > 1:
-        df = convert_single_val_to_df(df, str(list_val), col_name)
-    else: 
-        # we have a dictionary with possibly multiple entries
-        for this_dict in list_val: 
-            df = convert_dict_to_df(df, this_dict, col_name)
-    return df
-    
-
-def reshape_custom_metadata(custom_metadata, add_prefix=True):
-    """ Takes a json payload and reshapes to a data.frame object
-    """
-    dict_keys = custom_metadata.keys()
+    dict_keys = subject_out.keys()
     meta_df = pd.DataFrame()
     single_df = pd.DataFrame()
     for dk in dict_keys:
-        this_entry = custom_metadata[dk]
-        # skip if a field is null 
-        if this_entry is None: 
-            single_df = convert_single_val_to_df(single_df, "", dk)
-        elif type(this_entry) is dict:
-            if len(this_entry) == 0:
-                single_df = convert_single_val_to_df(single_df, "", dk)
-            else:
-                meta_df = convert_dict_to_df(meta_df, this_entry, dk, add_prefix)
-        elif (type(this_entry) is str) or (type(this_entry) is bool) or (type(this_entry) is int):
-            single_df = convert_single_val_to_df(single_df, this_entry, dk)
-        elif type(this_entry) is list:
-           meta_df = convert_list_to_df(meta_df, this_entry, dk)
+        this_entry = subject_out[dk]
+        if type(this_entry) == dict:
+            this_entry.update(
+                (k, [v]) for k, v in
+                this_entry.items())  # convert values to lists inplace
+            metadata_df_tmp = pd.DataFrame.from_dict(this_entry)
+            metadata_df_tmp = metadata_df_tmp.add_prefix('{}.'.format(dk))
+            meta_df = pd.concat([meta_df, metadata_df_tmp], axis=1)
+        elif type(this_entry) == str:
+            single_tmp = pd.DataFrame([this_entry], columns=[dk])
+            single_df = pd.concat([single_df, single_tmp], axis=1)
         else:
             raise ValueError(
                 "There's an unexpected entry for collection... {}. please contact dev support!"
@@ -110,10 +70,10 @@ def reshape_custom_metadata(custom_metadata, add_prefix=True):
 
 
 def subject_to_df(list_subject_out):
-    subject_df = reshape_custom_metadata(list_subject_out[0])
+    subject_df = subject_to_df_worker(list_subject_out[0])
     if len(list_subject_out) > 1:
         for i in range(1, len(list_subject_out)):
-            tmp_df = reshape_custom_metadata(list_subject_out[i])
+            tmp_df = subject_to_df_worker(list_subject_out[i])
             subject_df = pd.concat([subject_df, tmp_df], ignore_index=True)
     return subject_df
 
@@ -144,44 +104,89 @@ def _dict_to_df(input_df, col_name):
                 [fin_df, pd.DataFrame.from_dict(this_dict)], ignore_index=True)
     return fin_df
 
-def reshape_list_metadata_to_df(spec_obj):
+
+def sample_to_df_worker(sample_out):
+    """ 
+    Reformats JSON output from read_samples() to a data.frame object 
+
+    Parameters:
+        sample_out (dict): response object from read_samples() 
+    Returns: 
+        a dictionary of 4 data.frame objects with the following keys: ['metadata','labResults', 'specimens','survey']
     """
-    Given a list of specimens, returns a data.frame object
 
-        Parameters:
-            spec_obj : list
-                list of dictionaries for each specimen
+    # initialize all data.frame objects in case there is nothing to reformat
+    metadata_df = pd.DataFrame(data=[''])
+    specimen_df = pd.DataFrame(data=[''])
+    surv_df = pd.DataFrame(data=[''])
+    lab_df = pd.DataFrame(data=[''])
+    for dv in sample_out.keys():
+        if dv == 'specimens':
+            specimen_df = pd.read_json(json.dumps(sample_out[dv]))
+        elif dv == 'survey':
+            surv_df = pd.read_json(json.dumps(sample_out[dv]))
+            if len(surv_df) == 0:
+                continue
+            # expand answers column where possible
+            answers_df = pd.DataFrame()
+            for i in list(range(0, len(surv_df))):
+                these_answers = pd.DataFrame([surv_df['answers'][i]])
 
-        Returns:
-            spec_df : pd.dataframe
-                pandas data.frame
-    """
-    spec_df = pd.DataFrame()
-    for i in range(0, len(spec_obj)):
-        this_spec_df = reshape_custom_metadata(spec_obj[i])
-        spec_df = pd.concat([spec_df, this_spec_df], ignore_index=True)
-    return spec_df
+                # assign id for later merge
+                these_answers['id'] = surv_df.loc[i, 'id']
 
-def reshape_survey_results_to_df(survey_obj): 
-    """
-    Given a list of survey results, returns a data.frame object
+                # concat answers together
+                answers_df = pd.concat([answers_df, these_answers])
 
-        Parameters:
-            survey_obj : dict
-                dictionary fof survey results
+            # rename columns by adding prefix "answers"
+            answers_df = answers_df.add_prefix('answers.').reset_index(
+                drop=True)
+            surv_df = surv_df.merge(answers_df,
+                                    left_on='id',
+                                    right_on='answers.id')
 
-        Returns:
-            surv_df : pd.dataframe
-                pandas data.frame
-    """
-    # reshape survey answers - take each dict entry and convert to a data.frame
-    ans_df = convert_dict_to_df(pd.DataFrame(), survey_obj['answers'], 'answers')
-    if survey_obj is not None:
-        survey_obj.update((k, [v]) for k, v in survey_obj.items() if type(survey_obj[k]) is not list)
-        this_surv_df = convert_dict_to_df(pd.DataFrame(), survey_obj, '', add_prefix=False)
-        del this_surv_df['answers']
-    surv_df = pd.concat([this_surv_df, ans_df], axis=1) # add answers to survey df
-    return surv_df
+            # clean up
+            surv_df.drop(columns=['answers', 'answers.id'], inplace=True)
+        elif dv == 'lab':
+            lab_df = pd.DataFrame([sample_out[dv]])
+            # expand on lab results
+            lab_results = pd.DataFrame([lab_df['labResults'][0]])
+            lab_df = pd.concat([lab_df, lab_results], axis=1)
+
+            lab_df.drop(columns='labResults', inplace=True)
+
+        # everything else goes under metadata
+        else:
+            this_entry = sample_out[dv]
+
+            if type(this_entry) == str:
+                metadata_df[dv] = this_entry
+            # only want to do this for samples/subject
+            elif type(this_entry) == dict:
+                if dv in ['sample', 'subject']:
+                    tmp_df = pd.DataFrame([sample_out[dv]
+                                           ]).add_prefix('{}.'.format(dv))
+                    metadata_df = pd.concat([metadata_df, tmp_df], axis=1)
+                else:
+                    metadata_df[dv] = [sample_out[dv]]
+
+    # add idenftifier columns to each data.frame object (subjectGuid & sampleKitGuid)
+    this_subject_id = metadata_df.loc[:, 'subject.subjectGuid'].item()
+    this_samplekit_id = metadata_df.loc[:, 'sample.sampleKitGuid'].item()
+    this_project_id = metadata_df.loc[:, 'projectGuid'].item()
+    for this_obj in [lab_df, surv_df, specimen_df]:
+        this_obj['subjectGuid'] = str(this_subject_id)
+        this_obj['sampleKitGuid'] = str(this_samplekit_id)
+        this_obj['projectGuid'] = str(this_project_id)
+
+    dict_df = {
+        'metadata': metadata_df,
+        'specimens': specimen_df,
+        'survey': surv_df,
+        'labResults': lab_df
+    }
+
+    return dict_df
 
 
 def sample_to_df(list_of_sample_obj):
@@ -196,54 +201,84 @@ def sample_to_df(list_of_sample_obj):
                 dictionary with keys ['metadata','specimens'] where each key is mapped to a data.frame
 
     """
-    sample_df_dict = {}
     if len(list_of_sample_obj) == 0:
-        return pd.DataFrame()
-    if 'specimens' in list_of_sample_obj[0].keys():
-        spec_df = reshape_list_metadata_to_df(list_of_sample_obj[0]['specimens'])
-        list_of_sample_obj[0].pop('specimens') # remove so we don't reshape it again 
-    
-    surv_df = pd.DataFrame()
-    if 'survey' in list_of_sample_obj[0].keys():
+        return {}
 
-        # we have a list of dictionaries, so we need to reshape each dictionary to a data.frame
-        for i in range(0, len(list_of_sample_obj[0]['survey'])):
-            this_dict = list_of_sample_obj[0]['survey'][i]
-            this_surv_df = reshape_survey_results_to_df(this_dict) 
-            surv_df = pd.concat([surv_df, this_surv_df], ignore_index=True)
-        list_of_sample_obj[0].pop('survey') # remove so we don't reshape it again
-    lab_df = pd.DataFrame()
-    if 'lab' in list_of_sample_obj[0].keys() and list_of_sample_obj[0]['hasLabResults'] is True:
-        lab_df = reshape_custom_metadata(list_of_sample_obj[0]['lab'], False)
-        list_of_sample_obj[0].pop('lab') # remove so we don't reshape it again
-    sample_df = reshape_custom_metadata(list_of_sample_obj[0])
-
+    sample_df_dict = sample_to_df_worker(list_of_sample_obj[0])
     if len(list_of_sample_obj) > 1:
         # loop and append
-        this_surv_df = pd.DataFrame()
         for i in range(1, len(list_of_sample_obj)):
-            # reshape specimens, survey, and labResults first, if they exist 
-            if 'specimens' in list_of_sample_obj[i].keys():
-                this_spec_df = reshape_list_metadata_to_df(list_of_sample_obj[i]['specimens'])
-                list_of_sample_obj[i].pop('specimens') # remove so we don't reshape it again 
-                spec_df = pd.concat([spec_df.reset_index(drop=True), this_spec_df.reset_index(drop=True)], ignore_index=True)
-            if 'survey' in list_of_sample_obj[i].keys():                
-                for j in range(0, len(list_of_sample_obj[i]['survey'])):
-                    this_surv_df = reshape_survey_results_to_df(list_of_sample_obj[i]['survey'][j])
-                    surv_df = pd.concat([surv_df, this_surv_df], ignore_index=True)
-                list_of_sample_obj[i].pop('survey') # remove so we don't reshape it again
-            if 'lab' in list_of_sample_obj[i].keys() and list_of_sample_obj[i]['hasLabResults'] is True:
-                this_lab_df = reshape_custom_metadata(list_of_sample_obj[i]['lab'], False)
-                list_of_sample_obj[i].pop('lab') # remove so we don't reshape it again`
-                lab_df = pd.concat([lab_df, this_lab_df])
-            # reshape the rest of metadata 
-            this_sample_df = reshape_custom_metadata(list_of_sample_obj[i])
-            sample_df = pd.concat([sample_df, this_sample_df])
-    sample_df_dict['metadata'] = sample_df
-    sample_df_dict['specimens'] = spec_df
-    sample_df_dict['survey'] = surv_df
-    sample_df_dict['labResults'] = lab_df
+            tmp_df_dict = sample_to_df_worker(list_of_sample_obj[i])
+            sample_df_dict['metadata'] = pd.concat(
+                [sample_df_dict['metadata'], tmp_df_dict['metadata']],
+                ignore_index=True)
+            sample_df_dict['specimens'] = pd.concat(
+                [sample_df_dict['specimens'], tmp_df_dict['specimens']],
+                ignore_index=True)
+            sample_df_dict['survey'] = pd.concat(
+                [sample_df_dict['survey'], tmp_df_dict['survey']],
+                ignore_index=True)
+            sample_df_dict['labResults'] = pd.concat(
+                [sample_df_dict['labResults'], tmp_df_dict['labResults']],
+                ignore_index=True)
     return sample_df_dict
+
+
+def _desc_lab_to_df(this_desc):
+    """
+    Takes a file descriptor and reshapes lab results into a data.frame
+
+        Parameters:
+            this_desc : dict
+                dictionary that contains labResults
+
+        Returns:
+            lab_df : data.frame of labResults
+    """
+
+    lab_df = pd.DataFrame()
+
+    # copy results, and convert entries to list
+    if this_desc['labResults'] is None:
+        labr = pd.DataFrame()
+    else:
+        labr = this_desc['labResults'].copy()
+        labr.update((k, [v]) for k, v in labr.items())
+
+    # handle revision history
+    if (this_desc['revisionHistory'] is None) or (this_desc['revisionHistory']
+                                                  == list()):
+        revision_df = pd.DataFrame()
+    else:
+        revh = this_desc['revisionHistory'][0]
+        revision_df = pd.DataFrame()
+        if revh is not None:
+            datah = revh['dataHistory'].copy()
+            datah.update((k, [v]) for k, v in datah.items())
+            datah_df = pd.DataFrame(datah)
+            revh.pop('dataHistory')
+            revh.update((k, [v]) for k, v in revh.items())
+            revision_df = pd.concat([datah_df, pd.DataFrame(revh)], axis=1)
+
+    # remove labResult from this entry and convert the rest into a data.frame
+    this_desc.pop('labResults')
+    this_desc.update((k, [v]) for k, v in this_desc.items())
+
+    lab_df = pd.concat(
+        [pd.DataFrame(labr),
+         pd.DataFrame(this_desc), revision_df], axis=1)
+    #de-dupe
+    return lab_df.loc[:, ~lab_df.columns.duplicated()]
+
+
+def _desc_specimen_to_df(this_desc, sample_kit_guid):
+    spec_df = pd.DataFrame()
+    for i in range(0, len(this_desc)):
+        this_desc[i].update((k, [v]) for k, v in this_desc[i].items())
+        specimen_tmp = pd.DataFrame.from_dict(this_desc[i])
+        spec_df = pd.concat([spec_df, specimen_tmp], axis=0)
+    spec_df['sampleKitGuid'] = sample_kit_guid
+    return spec_df
 
 
 def reshape_descriptors(this_desc):
@@ -256,36 +291,49 @@ def reshape_descriptors(this_desc):
     dict_df = {
         'descriptors': pd.DataFrame(),
         'labResults': pd.DataFrame(),
-        'specimens': pd.DataFrame(),
-        'survey': pd.DataFrame()
+        'specimens': pd.DataFrame()
     }
-    # check if lab results exist - reformat and remove from dictionary if it does
-    lab_df = pd.DataFrame()
-    if 'lab' in this_desc.keys():
-        lab_df = reshape_custom_metadata(this_desc['lab'], False)
-        this_desc.pop('lab') # remove so we don't reshape it again
+    this_df_desc = pd.DataFrame()
+    for dk in this_desc.keys():
+        if (dk in [
+                'specimens', 'lab', 'emr', 'lastUpdated', 'labLastModified',
+                'surveyLastModified', 'survey'
+        ]) | (this_desc[dk] is None) | (this_desc[dk] == []):
+            continue
+        # convert dictionary to dataframe
+        copy_tmp = this_desc[dk].copy()
+        copy_tmp.update((k, [v]) for k, v in copy_tmp.items())
+        tmp_df = pd.DataFrame(copy_tmp)
 
-    # check if specimens exist - reformat and remove from dictionary if it does 
-    spec_df = pd.DataFrame() 
-    if 'specimens' in this_desc.keys():
-        if this_desc['specimens'] is not None: 
-            spec_df = reshape_list_metadata_to_df(this_desc['specimens'])
-        else:
-            pass
-        this_desc.pop('specimens') # remove so we don't reshape it again
-    surv_df = pd.DataFrame()
-    if 'survey' in this_desc.keys():
-        if this_desc['survey'] is not None: 
-            surv_df = reshape_list_metadata_to_df(this_desc['survey'])
-        else: 
-            pass
-        this_desc.pop('survey')
-    dict_df['descriptors'] = reshape_custom_metadata(this_desc)
+        # rename columns by adding a prefix (i.e lab.<col>, file.<col>, etc)
+        tmp_df_cols = tmp_df.columns.tolist()
+        new_cols = ['{}.{}'.format(dk, i) for i in tmp_df_cols]
+        tmp_df.columns = new_cols
+
+        this_df_desc = pd.concat([this_df_desc, tmp_df], axis=1)
+
+    # handle lastUpdated, labLastModified, and surveyLastModified - create df then rename column
+    update_df = pd.DataFrame()
+    for update_col in ['lastUpdated', 'labLastModified', 'surveyLastModified']:
+        this_desc[update_col] = [this_desc[update_col]]
+        update_df = pd.DataFrame.from_dict(
+            this_desc[update_col]).rename(columns={0: update_col})
+        this_df_desc = pd.concat([this_df_desc, update_df],
+                                 axis=1)  #column bind
+
+    # now take care of lab results
+    lab_df = _desc_lab_to_df(this_desc['lab'].copy())
+
+    # and now handle specimens
+    spec_df = _desc_specimen_to_df(this_desc['specimens'],
+                                   this_desc['sample']['sampleKitGuid'])
+
+    # do some final cleaning and return a dictionary of data.frames
+    dict_df['descriptors'] = this_df_desc
     dict_df['labResults'] = lab_df
-    dict_df['survey'] = surv_df
     dict_df['specimens'] = spec_df
     return dict_df
-    
+
 
 def hise_file_to_df(list_of_hise_files):
     """
@@ -331,8 +379,8 @@ def hise_file_to_df(list_of_hise_files):
         # create an object of data values for a given data type
         if filetype == 'csv':
             # attach file_name
-            list_of_hise_files[i].data_values['filename'] = str(list_of_hise_files[
-                i].descriptors['file']['name'][0])
+            list_of_hise_files[i].data_values['filename'] = list_of_hise_files[
+                i].descriptors['file']['name']
             values_df = pd.concat(
                 [values_df, list_of_hise_files[i].data_values],
                 ignore_index=True)

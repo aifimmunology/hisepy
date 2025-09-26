@@ -12,7 +12,7 @@ from .project_folder import (list_project_folders,
                              download_from_project_folder)
 from .reader import (hise_file, MongoQuery, read_files, read_subjects,
                      read_samples, query_files, get_file_descriptors,
-                     cache_fileset, list_filesets, cache_files)
+                     cache_filesets, list_filesets, cache_files)
 from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
                         clear_notebook_job)
 from .upload import (save_static_image, save_visualization, load_visualization,
@@ -20,7 +20,6 @@ from .upload import (save_static_image, save_visualization, load_visualization,
                      save_dash_app, set_default_store, set_default_project,
                      get_default_store, get_default_project, upload_files,
                      retry_ide_commit)
-from .utils import (set_memory_limit, get_memory_usage, conda_env_builds, update_sdk_version)
 from .abstraction import (save_abstraction, result_filetype_to_guid,
                           get_result_files)
 from .private_folders import (
@@ -28,10 +27,8 @@ from .private_folders import (
     move_file_in_private_folder, delete_file_in_private_folder,
     download_from_private_folder, rename_file_in_private_folder,
     upload_file_to_private_folder, delete_private_folder,
-    find_private_folder_of_file)
-from .instances import (stop_ide)
-from .training_job import (start_training_run, review_training_job_run) 
-from .conda_pack import save_custom_conda_environment
+    find_private_folder_of_file, upload_file_to_private_folder_v2)
+from .instances import (stop_ide, suspend_ide)
 from .version import __version__
 
 # if somebody does "from somepackage import *", this is what they will
@@ -50,5 +47,5 @@ __all__ = [
     'get_result_files', 'get_study_spaces', 'get_trace', 'get_files_for_query',
     'save_dash_app', 'list_filesets', 'cache_filesets', 'save_abstraction',
     'set_default_store', 'set_default_project', 'get_default_store',
-    'get_default_project', 'set_memory_limit', 'get_memory_usage'
+    'get_default_project'
 ]

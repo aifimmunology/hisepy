@@ -41,7 +41,6 @@ class IDEInstance:
 
     def __init__(self):
         self.__url = cu.hise_url("tracer", "ide_instance", ide_instance_guid())
-        self.__tag_ide_url = cu.hise_url("ide_management", "tag_ide", ide_instance_guid())
         try:
             ide = cu.hise_get(self.__url)
             for key, value in ide.items():
@@ -55,13 +54,6 @@ class IDEInstance:
         data["id"] = self.id
         return requests.request("PUT",
                                 self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header())
-    
-    def __update_ide_tag(self, data):
-        data['id'] = self.id
-        return requests.request("PUT",
-                                self.__tag_ide_url,
                                 data=json.dumps(data),
                                 headers=get_bearer_token_header())
 
@@ -99,7 +91,7 @@ class IDEInstance:
 
     def set_default_project(self, projectShortName: str):
         g = cu.project_shortname_to_guid(projectShortName)
-        r = self.__update_ide_tag({"destinationProjectGuid": g})
+        r = self.__update({"destinationProjectGuid": g})
         self.destinationProjectGuid = g
         return r
 
@@ -129,7 +121,7 @@ def instance_account_guid():
     iguid = os.getenv("INSTANCE_ACCOUNT_GUID")
     if iguid is None:
         raise Exception(
-            " The Account GUID is not set. This IDE is misconfigured. Please contact support"
+            "The Account GUID is not set. This IDE is misconfigured. Please contact support"
         )
     return iguid
 
@@ -138,42 +130,17 @@ def hise_server():
     return os.getenv("HISE_SERVER") or "dev.allenimmunology.org"
 
 
-def guest_hise_server(original_url=None): 
-    
-    if original_url is None:
-        original_url = os.getenv("HISE_SERVER")
-    user_info = HiseUser()
-    # validations 
-    if len(user_info.current_projects) > 1:
-        raise SystemError(
-            "You are using a guest account with multiple projects. Please contact support"
-        )
-    elif len(user_info.current_projects) == 0: 
-        raise SystemError(
-            "You are using a guest account with no projects. Please contact support"
-        )
-    
-    # create guest URI 
-    # query projects and grab gcp_project_id
-    project_resp = cu.parse_hise_response(requests.get(cu.hise_url('amds', 'project_path'), 
-                 headers=get_bearer_token_header()))
-    gcp = project_resp[0]['gcp_project_id'] 
-    #server_env = os.getenv("HISE_SERVER")
-
-    # ensure there's at least one period before splitting 
-
-    uri_parts = original_url.split('.', 1)
-    uri = '.'.join((uri_parts[0], gcp, uri_parts[1])) if len(uri_parts) > 1 else f"{gcp}.{uri_parts[1]}"
-    return uri 
-
 def ide_is_from_regular_account():
     return HiseUser().current_account_type == regular_account_type
 
-def ide_is_from_guest_account(): 
+
+def ide_is_from_guest_account():
     return HiseUser().current_account_type == guest_account_type
 
-def ide_is_from_certificate_account(): 
+
+def ide_is_from_certificate_account():
     return HiseUser().current_account_type == certificate_account_type
+
 
 def get_from_metadata_server(path):
     try:

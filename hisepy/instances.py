@@ -3,7 +3,7 @@ import os
 import json
 
 import hisepy.common_utils as cu
-from hisepy.auth import get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server
+from hisepy.auth import get_bearer_token_header, hise_server, IDEInstance
 from hisepy.upload import valid_upload_stores, project_store, permanent_store
 from hisepy.common_utils import hise_url
 
@@ -18,12 +18,28 @@ def stop_ide():
     obj = cu.parse_hise_response(
         requests.request("POST",
                          "https://{s}/{tool}/{ide}/stop".format(
-                             s=guest_hise_server() if ide_is_from_guest_account() else hise_server(),
-                             tool=CONFIG['IDE_MANAGEMENT']['IDE_PATH'],
-                             ide=IDEInstance().id),
+                             s=hise_server(),
+                             tool=CONFIG['TOOLCHAIN']['TOOLCHAIN_IDE'],
+                             ide=this_ide_name),
                          headers=get_bearer_token_header()))
     if obj is None:
         raise SystemError('unable to find IDE: {}'.format(this_ide_name))
     else:
         print('{} has successfully been stopped'.format(this_ide_name))
 
+
+def suspend_ide():
+    ''' Suspends the active instance that is calling this function. '''
+    # get IDE name
+    this_ide_name = IDEInstance().friendlyName
+    obj = cu.parse_hise_response(
+        requests.request("POST",
+                         "https://{s}/{tool}/{ide}/suspend".format(
+                             s=hise_server(),
+                             tool=CONFIG['TOOLCHAIN']['TOOLCHAIN_IDE'],
+                             ide=this_ide_name),
+                         headers=get_bearer_token_header()))
+    if obj is None:
+        raise SystemError('unable to find IDE: {}'.format(this_ide_name))
+    else:
+        print('{} has successfully been suspended'.format(this_ide_name))

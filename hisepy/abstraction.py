@@ -9,14 +9,12 @@ import hisepy.common_utils as cu
 import hisepy.upload as cup
 import hisepy.auth as auth
 from hisepy.auth import get_bearer_token_header, IDEInstance, debug
-from hisepy.utils import conda_env_builds
 import pandas as pd
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR_V2'] if not debug() else os.getcwd()
 any_project_urn = "urn:hise:project:any"
-save_abstraction_conda_env_checked = False
 
 
 def get_result_files(to_df=True):
@@ -89,7 +87,8 @@ def result_filetype_to_guid(filetype: str, proj_guid):
 
     # check that the result file exists for the chosen project, or if the project is set to "urn:hise:project:any"
     results_in_proj_df = agg_df.loc[
-        agg_df['projectGuid'].isin([proj_guid, any_project_urn]), ]
+        agg_df['projectGuid'].isin([proj_guid, any_project_urn]),
+    ]
     if filetype not in results_in_proj_df[['fileType']].values:
         raise ValueError(
             "%s is not a valid resultFile name for project guid, %s. The following is a list of valid resultFile names for this project: %s"
@@ -97,8 +96,8 @@ def result_filetype_to_guid(filetype: str, proj_guid):
     else:
         # now filter on ResultFile.fileType
         desired_result = results_in_proj_df.loc[
-            results_in_proj_df['fileType'].eq(filetype), ].reset_index(
-                drop=True)
+            results_in_proj_df['fileType'].eq(filetype),
+        ].reset_index(drop=True)
 
     # handle potential name collisions
     if len(desired_result) > 1:
@@ -349,8 +348,7 @@ def save_abstraction(app_filepath: str = None,
                      result_file_types: list = None,
                      is_sample_metadata_app: bool = None,
                      is_subject_metadata_app: bool = None,
-                     image: str = None, # optional
-                     do_conda_build_check: bool =True):
+                     image: str = None):  # optional
     """ 
     Save an abstraction to current user's account.
     
@@ -371,17 +369,6 @@ def save_abstraction(app_filepath: str = None,
     Example: 
         hp.save_abstraction()
     """
-    # check that the users' default conda environment builds
-    # if ran subsequently, and conda env builds successfully, skip this check
-    global save_abstraction_conda_env_checked
-    if not save_abstraction_conda_env_checked: 
-        if (not do_conda_build_check) or (debug()):
-            pass
-        elif do_conda_build_check and (not conda_env_builds()):
-            raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
-        else:
-            save_abstraction_conda_env_checked = True
-
     # parameter check
     _validate_abstraction_params(title, description, result_file_types,
                                  additional_files, additional_dirs,
