@@ -146,8 +146,7 @@ class TestUploader():
             "name": "test study",
             "shortName": "testing"
         }
-        with patch('hisepy.upload.get_study_space',
-                   return_value=mock_study):
+        with patch('hisepy.upload.get_study_space', return_value=mock_study):
             assert hpu.get_study_space(
                 "84dfd43c-e034-4ae8-8a50-25ecbce6fe24") == mock_study
 
@@ -230,15 +229,14 @@ class TestUploader():
             hpu.check_project_against_study_space("mock_project",
                                                    "bad_study_id")
     """
+
     def test_validate_upload_input_ids(self):
 
         # create cache log file wiht some sample and file ids
         cache_file = f"{self.wd}/{CONFIG['IDE']['CACHE_LOG_NAME']}"
         cache_df = pd.DataFrame({
             "fileId": ["f1", "f2"],
-            'replicaFileId' : ['fr1', 'fr2'],
-            "sampleId": ["s1", "s2"],
-            'replicaSampleId' : ['sr1', 'sr2']
+            "sampleId": ["s1", "s2"]
         })
         pyreadr.write_rds(cache_file, cache_df)
         assert cu.validate_upload_input_ids(['f1', 'f2'], ['s1', 's2'],

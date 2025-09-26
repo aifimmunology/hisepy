@@ -44,7 +44,11 @@ class TestReader:
         self.list_descriptor = [
         ]  # TODO for olink data, or any other data has multiple samples per file
 
-        self.mock_ide_obj = {'id': 'ide_id1', 'name': 'ide_name1', 'type': 'Legacy'}
+        self.mock_ide_obj = {
+            'id': 'ide_id1',
+            'name': 'ide_name1',
+            'type': 'Legacy'
+        }
 
     def test_validate_download_params(self):
         file_ids = ['file_id1', 'file_id2']
@@ -147,7 +151,7 @@ class TestReader:
 
         # open the file and check if file_id1 is in the file
         log_file = pyreadr.read_r('.hisefilelog.rds')[None]
-        fileIds = log_file['replicaFileId'].values
+        fileIds = log_file['fileId'].values
         assert 'file_id1' in fileIds, "Failed to log downloaded files correctly. Expected file_id1, but it does not exist in the log file"
 
     """ NOTE: can't test this here because it makes an api call
@@ -241,9 +245,6 @@ class TestReader:
                 match="query dictionary values must be of type list"):
             hpr.validate_query_files_params({'fileType': 'txt'})
 
-
-
-
     """ TODO: properly mock a class that's instantiated from a GET call 
     def test_is_legacy_ide(self, init_test):
         with patch('hisepy.common_utils.get_ide', return_value=self.mock_ide_obj), patch('hisepy.auth.IDEInstance', return_value=self.mock_ide_obj):
@@ -253,7 +254,7 @@ class TestReader:
     # TODO: needs refactoring
     def test_read_files(self):
         return
-    
+
     def test_validate_samples_subjects_params(self, init_test):
         hpr.validate_samples_subjects_params(self.file_ids, None)
         hpr.validate_samples_subjects_params(None, self.query_dict)
@@ -263,7 +264,6 @@ class TestReader:
                 Exception,
                 match="either list of ids or query_dict must be a non-null"):
             hpr.validate_samples_subjects_params(None, None)
-        with pytest.raises(
-                Exception,
-                match="You must only use 1 parameter"):
-            hpr.validate_samples_subjects_params(self.file_ids, self.query_dict)
+        with pytest.raises(Exception, match="You must only use 1 parameter"):
+            hpr.validate_samples_subjects_params(self.file_ids,
+                                                 self.query_dict)

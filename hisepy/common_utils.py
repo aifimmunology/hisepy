@@ -8,7 +8,6 @@ Contributors: James Harvey
 """
 
 import os
-import sys
 import requests
 import shutil
 import urllib
@@ -21,9 +20,7 @@ import json
 import pathlib
 import copy
 import time
-import subprocess
-import zlib
-from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server
+from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -37,56 +34,6 @@ def read_yaml(file_path):
 CONFIG = read_yaml('{}/config.yaml'.format(_here))
 num_printed_notebooks = 3  # number of options user gets when a save call is invoked
 the_current_notebook = None
-
-
-def convert_notebook_to_python(notebook_path, output_path=None):
-    ''' Convert notebook to a python script
-    '''
-
-    def _validate_convert_notebook_params(notebook_path, output_path):
-        # check if the notebook_path is a valid notebook file
-        if not notebook_path.endswith('.ipynb'):
-            raise ValueError(
-                "notebook path must end in .ipynb: {}".format(notebook_path))
-        elif not os.path.isfile(notebook_path):
-            raise FileNotFoundError(
-                "notebook path does not exist: {}".format(notebook_path))
-        # check if the output path is a valid directory and ends in .py
-        elif output_path is not None and not output_path.endswith('.py'):
-            raise ValueError(
-                "output path must end in .py: {}".format(output_path))
-        return
-
-    # TODO: ensure /temp/training_job exists
-    if output_path is None:
-        output_path = '{}/{}/{}'.format(
-            CONFIG['STORES']['TEMP_STORE'],
-            CONFIG['TEMP_FOLDERS']['TRAINING_JOB_TMP'],
-            CONFIG['TEMP_FILES']['NBCONVERT_TMP_FILE'])
-
-    # validate input params
-    _validate_convert_notebook_params(notebook_path, output_path)
-
-    subprocess.run("jupyter nbconvert --to python {i} --output {out}".format(
-        i=notebook_path, out=output_path),
-                   shell=True,
-                   check=True)
-    print("converted notebook to python script: {}".format(output_path))
-    return
-
-
-def copy_files(src, dst):
-    """ Copies file src to dst """
-    if not os.path.exists(src):
-        raise FileNotFoundError("Source file does not exist: {}".format(src))
-
-    # copy the file
-    shutil.copy(src, dst)
-    return
-
-
-def crc32_from_string(s):
-    return zlib.crc32(s.encode('utf-8')) & 0xFFFFFFFF
 
 
 def current_notebook():
@@ -262,53 +209,6 @@ def is_legacy_ide():
             "ide instance type is not recognized. Please contact support")
 
 
-def is_valid_upload_kernel():
-    ''' Validates if the current kernel is a valid one for uploading results 
-    '''
-    # get instance obj from tracer
-    inst = IDEInstance()
-    ide_guid = inst.id
-
-    # parse out modality info from instance obj
-    modality_name = inst.environment['condaEnvName']
-    conda_env_path = '%s/%s' % (CONFIG['STORES']['ENV_STORE'], modality_name)
-
-    # determine what conda env was used for the kernel
-    kernel_source = sys.prefix
-
-    # compare conda env from instance obj to conda env from current kernel
-    if conda_env_path != kernel_source:
-        return False
-    return True
-
-
-def files_within_private(files):
-    ''' 
-    Returns a list of files within the private directory
-    '''
-    assert type(files) is list, "files must be a list"
-    bad_files = []
-
-    # check if the files are within the private directory
-    for f in files:
-
-        # absolute path if passed in a relative one
-        if not os.path.isabs(f):
-            f = os.path.abspath(f)
-        if f.startswith(CONFIG['STORES']['PRIVATE_STORE']):
-            bad_files.append(f)
-    return bad_files
-
-
-def list_all_filepaths(directory):
-    filepaths = []
-    for root, _, files in os.walk(directory):
-        for filename in files:
-            filepath = os.path.join(root, filename)
-            filepaths.append(filepath)
-    return filepaths
-
-
 def parse_file_id_from_hise_file(hise_file):
     """
     Takes a hise_file object and returns the file_id
@@ -451,9 +351,7 @@ def list_files_and_dirs(directory):
 
 def log_downloaded_files(file_id: str,
                          sample_id: str = None,
-                         ide_dir: str = None,
-                         replica_file_id: str = None,
-                         replica_sample_id: str = None):
+                         ide_dir: str = None):
     """
     Attaches fileId for the project folder file that was downloaded 
     
@@ -487,9 +385,7 @@ def log_downloaded_files(file_id: str,
         new_entry = pd.DataFrame(
             data={
                 'fileId': [file_id],
-                'replicaFileId': [replica_file_id],
                 'sampleId': [sample_id],
-                'replicaSampleId': [replica_sample_id],
                 'downloadSourceDir': [download_workdir],
                 'downloadTimeStamp': [str(datetime.datetime.now())]
             })
@@ -513,7 +409,9 @@ def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
         hise_file)
     if (this_file_id != file_id):
         tmp_hise_file = copy.deepcopy(hise_file)
-        log_downloaded_files(file_id, None, ide_dir, this_file_id, None)
+        # tmp_hise_file["id"] = file_id
+        # import pdb; pdb.set_trace()
+        log_downloaded_files(this_file_id, None, ide_dir)
     return
 
 
@@ -581,8 +479,9 @@ def prompt_user(msg: str = None, additional_fields=None):
         raise ValueError("Must provide a contextual message")
     if additional_fields is None:
         additional_fields = ""
-    print("{m}: {af}".format(m=msg, af=additional_fields))
-    user_input = input('Do you want to proceed? (y/n)')
+    print("{m}: {af}. Do you want to Proceed? [Y/N]".format(
+        m=msg, af=additional_fields))
+    user_input = input('(y/n')
     while user_input.lower() not in ['y', 'n']:
         print('please enter either "n" for no, or "y" for yes.')
         user_input = input('(y/n)')
@@ -590,18 +489,6 @@ def prompt_user(msg: str = None, additional_fields=None):
         return True
     elif user_input.lower() == 'n':
         return False
-
-
-def prompt_user_custom(msg: str = None):
-    """ Prompts end users and asks for custom input """
-    if msg is None:
-        raise ValueError("Must provide a contextual message")
-    print(msg)
-    user_input = input(r'Please enter your response \{key:val\}: ')
-    while user_input == '':
-        print('Input cannot be empty. Please try again.')
-        user_input = input('Please enter your response: ')
-    return user_input
 
 
 def prompt_yn(prompt: str):
@@ -620,38 +507,6 @@ def remove_dir(directory):
     """ Removes entire directory, including any child files """
     shutil.rmtree(directory)
     return True
-
-
-def replica_files_used(input_file_ids: list, ide_dir: str = None):
-    '''
-    '''
-    replica_file_ids = []
-    if ide_dir is None:
-        ide_dir = CONFIG['IDE']['HOME_DIR']
-
-    # read log file
-    cache_file = pyreadr.read_r('{h}/{c}'.format(
-        h=ide_dir, c=CONFIG['IDE']['CACHE_LOG_NAME']))
-
-    # extract out the data.frame
-    cache_df = cache_file[None]
-
-    # subset to entries where input_file_ids have non-null replicaFileIds
-    replica_subset = cache_df.loc[
-        (cache_df['fileId'].isin(input_file_ids)) &
-        (~cache_df['replicaFileId'].isnull()),
-    ]
-    replica_ids = replica_subset['replicaFileId'].unique().tolist()
-    # assert that the length of replicas and input_file_ids are still the same
-    if len(input_file_ids) != len(replica_ids):
-        raise SystemError(
-            "The number of replica Ids does not match the number of input fileIds. Please contact the support team to resolve"
-        )
-        return
-    if len(replica_ids) == 0:
-        return None
-    else:
-        return replica_ids
 
 
 def string_contains_whitespaces(file_str):
@@ -731,14 +586,12 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
     mismatch_download_sources = dict()
     notebook_dir = os.getcwd()
     for f in input_file_ids:
-        if (f not in cache_df['fileId'].unique()) and (
-                f not in cache_df['replicaFileId'].unique()):
+        if f not in cache_df['fileId'].unique():
             invalid_file_ids += [f]
 
     invalid_sample_ids = []
     for s in input_sample_ids:
-        if (s not in cache_df['sampleId'].unique()) and (
-                s not in cache_df['replicaSampleId'].unique()):
+        if s not in cache_df['sampleId'].unique():
             invalid_sample_ids += [s]
 
     if len(invalid_file_ids) > 0:
