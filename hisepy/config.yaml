@@ -73,6 +73,7 @@ AMDS:
   AMDS_NAME : accountmanager
   PROJECT_PATH : accountmanager/project
   USER_PATH: accountmanager/userinfo
+  ACCOUNT_PATH : accountmanager/account
   
 # ledger file availabilities 
 BIO_SDK_FILE_AVAILABILITIES: 
@@ -140,6 +141,7 @@ IDE_MANAGEMENT:
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
   IDE_PATH: ide-nextgen/instances 
   TAG_IDE: ide-nextgen/instances/tag/ide
+  UPLOAD_USER_FOLDER_PATH: ide-nextgen/filev3/userFolder
   SAVE_CUSTOM_CONDA_ENV: ide-nextgen/build/conda/save/hise
   INSTALL_SDK: ide-nextgen/sdk/install
   SDK_VERSION: ide-nextgen/instances/sdk

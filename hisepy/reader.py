@@ -14,9 +14,11 @@ import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
 from hisepy.auth import get_bearer_token_header, hise_server, debug, HiseUser
+from hisepy.logging import with_default_logging, logger
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+# logger = logging.getLogger(__name__)
 
 
 class hise_file:
@@ -564,6 +566,7 @@ def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
                      file_type=this_filetype)
 
 
+@with_default_logging
 def cache_files(file_ids: list = None,
                 query_id: list = None,
                 query_dict: dict = None):
@@ -848,6 +851,7 @@ def list_filesets(study_space_id):
     ]].reset_index(drop=True)
 
 
+@with_default_logging
 def cache_fileset(fileset_id):
     """ 
     Downloads all files pertaining to a fileset to a user's workspace.
@@ -876,6 +880,8 @@ def cache_fileset(fileset_id):
     fileset_dict_query = {'id': [fileset_id]}
     fileset_query = MongoQuery(fileset_dict_query).query_dict_to_mongo_query(
         fileset_dict_query)
+    import pdb
+    pdb.set_trace()
     fileset_obj = cu.parse_hise_response(
         requests.post(filter_endpoint,
                       headers=get_bearer_token_header(),

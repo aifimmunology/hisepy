@@ -23,8 +23,8 @@ import copy
 import time
 import subprocess
 import zlib
-from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server
-
+from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
+#from hisepy.reader import MongoQuery
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
 
@@ -181,6 +181,14 @@ def find_files(directory, filenames):
     return files_list
 
 
+def get_environment_name():
+    # get instance obj from tracer
+    inst = IDEInstance()
+
+    # parse out modality info from instance obj
+    return inst.environment['condaEnvName']
+
+
 def get_filetype(this_filename):
     if "." in this_filename:
         return this_filename.split(".")[-1]
@@ -208,6 +216,21 @@ def get_ide(ide_instance_guid):
     return resp
 
 
+def get_organization():
+
+    # get account from amds
+    acct_guid = instance_account_guid()
+    query_dict = {'guid': acct_guid}
+    url = hise_url('amds', 'account_path', 'filter')
+    account_info = parse_hise_response(
+        requests.post(url,
+                      headers=get_bearer_token_header(),
+                      data=json.dumps({"filter": query_dict})))
+
+    # get org guid
+    return account_info[0]['organization']['guid']
+
+
 def get_projects(to_df: bool = True):
     """
     Returns information on all projects in the current account
@@ -228,6 +251,12 @@ def get_projects(to_df: bool = True):
         return proj_df
 
     return resp
+
+
+def get_sdk_version():
+    url = hise_url("ide_management", "sdk_version", 'python')
+    version_tag = hise_get(url)
+    return version_tag
 
 
 def is_legacy_ide():
@@ -597,7 +626,7 @@ def prompt_user_custom(msg: str = None):
     if msg is None:
         raise ValueError("Must provide a contextual message")
     print(msg)
-    user_input = input(r'Please enter your response \{key:val\}: ')
+    user_input = input('Please enter your response \{key:val\}: ')
     while user_input == '':
         print('Input cannot be empty. Please try again.')
         user_input = input('Please enter your response: ')
