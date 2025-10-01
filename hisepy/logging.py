@@ -75,7 +75,7 @@ class LogEntry:
 
 
 class ErrorHandler(logging.Handler):
-    """Custom logging handler that writes ERROR logs to YAML file."""
+    """Custom logging handler that writes ERROR logs to ide-container logs"""
 
     def __init__(self):
         super().__init__(level=logging.ERROR)  # consume only error logs
@@ -128,7 +128,6 @@ def with_logging(func: Callable[..., Any],
             raise
         finally:
             time_elapsed = time.time() - start_time
-            # --- write structured info to YAML ---
             data = LogEntry(method_name=func.__name__,
                             parameters={
                                 "args": args,
