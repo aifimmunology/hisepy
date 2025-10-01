@@ -567,68 +567,96 @@ def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
 
 
 @with_default_logging
-def cache_files(file_ids: list = None,
-                query_id: list = None,
-                query_dict: dict = None):
-    """ 
-    Downloads requested files to the following directory: "./cache/<fileID>" # TODO: update path example 
+def cache_files(file_ids: Optional[List[str]] = None,
+                query_id: Optional[List[str]] = None,
+                query_dict: Optional[Dict] = None) -> List[str]:
+    """ Downloads requested files to an IDE
+    
     Parameters: 
         file_ids (list): list of file IDs
         query_id (list): list of a single query ID
+        query_dict (dict): query in the format of a dict
+
+    Returns: 
+        a list of filepaths that were successfully downloaded
     """
+    start_time = time.time()
     cu.validate_download_params(file_ids, query_id, query_dict)
-    # check if user submitted a query_id vs file_id
-    if query_id is not None:
-        # expand file_ids from query_id, if needed
+
+    # Determine how to get the response object
+    if query_id:
         resp_obj = post_query(query_id=query_id[0])
-    elif query_dict is not None:
+    elif query_dict:
         resp_obj = post_query(query_dict=query_dict)
     else:
-        # TODO: don't need to call this since we already have the file_ids..
-        # something to handle during refactoring
         resp_obj = post_query(file_list=file_ids)
 
-    idx = 0
-    fail_files = []
-    dl_paths = []
+    dl_paths: List[str] = []
+    fail_files: List[str] = []
     ide_name = IDEInstance().podName
-    for f in resp_obj:
-        if 'error' in f:
-            print("Error downloading file: {}".format(f['error']['Message']))
-            fail_files += [f['error']['File']]
-            continue
-        this_file_id, this_file_name, _ = cu.parse_file_descriptor_from_hise_file(
-            f)
-        if cu.is_legacy_ide():
-            log_dir = CONFIG['IDE']['HOME_DIR']
-            download_dir = '{h}/{c}/{id}'.format(h=CONFIG['IDE']['HOME_DIR'],
-                                                 c=CONFIG['IDE']['CACHE_DIR'],
-                                                 id=this_file_id)
-            f_name = os.path.basename(this_file_name)
-            print("downloading fileID: {}".format(this_file_id))
-            cache_file(url=f['url'], file_name=f_name, file_dir=download_dir)
-        else:
-            log_dir = CONFIG['STORES']['TEMP_STORE']
-            endpoint = "https://%s/%s/%s/%s" % (hise_server(
-            ), CONFIG['HYDRATION']['DOWNLOAD_PATHV2'], this_file_id, ide_name)
-            dl_resp = cu.parse_hise_response(
-                requests.request("GET",
-                                 endpoint,
-                                 headers=get_bearer_token_header()))
-            this_path = "%s/%s" % (CONFIG['IDE']['HOME_DIR_V2'],
-                                   dl_resp['Path'])
-            dl_paths.append(this_path)
-        this_file_id = cu.parse_file_id_from_hise_file(f)
-        this_sample_id = cu.parse_sample_id_from_hise_file(f)
-        cu.log_downloaded_files(this_file_id, this_sample_id, log_dir)
 
-        # if the user passes in a file_list, make sure they didn't get redirected because they
-        # downloaded from a guest account
-        if file_ids is not None:
-            this_file_id = file_ids[idx]
-            cu.log_replica_file_download(f, this_file_id, log_dir)
+    for idx, f in enumerate(resp_obj):
+        try:
+            if "error" in f:
+                msg = f["error"].get("Message", "Unknown error")
+                failed_file = f["error"].get("File", "Unknown file")
+                logger.error("Error downloading file %s: %s",
+                             failed_file,
+                             msg,
+                             extra={"time_elapsed": time.time() - start_time})
+                fail_files.append(failed_file)
+                continue
 
-        idx += 1
+            file_id, file_name, _ = cu.parse_file_descriptor_from_hise_file(f)
+
+            if cu.is_legacy_ide():
+                log_dir = CONFIG["IDE"]["HOME_DIR"]
+                download_dir = os.path.join(
+                    CONFIG["IDE"]["HOME_DIR"],
+                    CONFIG["IDE"]["CACHE_DIR"],
+                    str(file_id),
+                )
+                fname = os.path.basename(file_name)
+                logger.info("Downloading fileID %s -> %s", file_id,
+                            download_dir)
+                cache_file(url=f["url"],
+                           file_name=fname,
+                           file_dir=download_dir)
+
+            else:
+                log_dir = CONFIG["STORES"]["TEMP_STORE"]
+                endpoint = "https://%s/%s/%s/%s" % (
+                    hise_server(),
+                    CONFIG["HYDRATION"]["DOWNLOAD_PATHV2"],
+                    file_id,
+                    ide_name,
+                )
+                dl_resp = cu.parse_hise_response(
+                    requests.request("GET",
+                                     endpoint,
+                                     headers=get_bearer_token_header()))
+                this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
+                                         dl_resp["Path"])
+                dl_paths.append(this_path)
+
+            # Log downloads
+            this_file_id = cu.parse_file_id_from_hise_file(f)
+            this_sample_id = cu.parse_sample_id_from_hise_file(f)
+            cu.log_downloaded_files(this_file_id, this_sample_id, log_dir)
+
+            if file_ids:
+                # ensure correct file mapping
+                original_file_id = file_ids[idx]
+                cu.log_replica_file_download(f, original_file_id, log_dir)
+
+        except Exception as e:
+            logger.exception("Unexpected error processing file response: %s",
+                             f)
+            fail_files.append(str(f))
+
+    if fail_files:
+        logger.warning("Some files failed to download: %s", fail_files)
+
     return dl_paths
 
 
@@ -851,7 +879,6 @@ def list_filesets(study_space_id):
     ]].reset_index(drop=True)
 
 
-@with_default_logging
 def cache_fileset(fileset_id):
     """ 
     Downloads all files pertaining to a fileset to a user's workspace.
@@ -880,8 +907,6 @@ def cache_fileset(fileset_id):
     fileset_dict_query = {'id': [fileset_id]}
     fileset_query = MongoQuery(fileset_dict_query).query_dict_to_mongo_query(
         fileset_dict_query)
-    import pdb
-    pdb.set_trace()
     fileset_obj = cu.parse_hise_response(
         requests.post(filter_endpoint,
                       headers=get_bearer_token_header(),

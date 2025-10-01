@@ -24,7 +24,7 @@ import time
 import subprocess
 import zlib
 from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
-#from hisepy.reader import MongoQuery
+
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
 
