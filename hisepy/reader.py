@@ -239,7 +239,6 @@ def query_files(user_query: dict):
     # count how many entries are in query
     count = count_payload_entries(formatted_query)
     obj = submit_file_descriptor_request(formatted_query, count)
-
     return obj['payload']
 
 
@@ -258,37 +257,36 @@ def get_file_descriptors(query_dict: dict = None):
         df_dict['labResults'] # lab results
         df_dict['specimens'] # specimen df
     """
-
-    def _append_descriptors(dict_df, new_dict_desc):
-        dict_df['descriptors'] = pd.concat(
-            [new_dict_desc['descriptors'], dict_df['descriptors']], axis=0)
-        dict_df['labResults'] = pd.concat(
-            [new_dict_desc['labResults'], dict_df['labResults']], axis=0)
-        dict_df['specimens'] = pd.concat(
-            [new_dict_desc['specimens'], dict_df['specimens']], axis=0)
-        dict_df['survey'] = pd.concat(
-            [new_dict_desc['survey'], dict_df['survey']], axis=0)
-        return dict_df
-
     assert 'fileType' in query_dict.keys(
     ), 'fileType field must be in the your query dictionary.'
     # get a list of descriptor objects
     obj = query_files(query_dict)
 
-    dict_df = {
-        'descriptors': pd.DataFrame(),
-        'labResults': pd.DataFrame(),
-        'specimens': pd.DataFrame(),
-        'survey': pd.DataFrame()
+    # create empty lists instead of DataFrames
+    collectors = {
+        'descriptors': [],
+        'labResults': [],
+        'specimens': [],
+        'survey': []
     }
+    i = 0
     for this_desc in obj:
+        print(i)
         try:
-            dict_df = _append_descriptors(dict_df,
-                                          hf.reshape_descriptors(this_desc))
-        except:
+            reshaped = hf.reshape_descriptors(this_desc)
+            for key in collectors:
+                collectors[key].append(reshaped[key])
+        except Exception:
             raise Exception(
-                "appending descriptor failed. descriptor: {}".format(
-                    this_desc))
+                f"appending descriptor failed. descriptor: {this_desc}")
+        i += 1
+
+    # concat once per key
+    dict_df = {
+        k: pd.concat(v, ignore_index=True) if v else pd.DataFrame()
+        for k, v in collectors.items()
+    }
+
     # attach project info to descriptors
     dict_df['descriptors'] = hf.attach_project_info_to_df(
         dict_df['descriptors'])
