@@ -1,7 +1,9 @@
 import ast
 import astor
 import sys
+from typing import List, Tuple, Union, Dict, Any
 from pathlib import Path
+import inspect
 
 
 class RayTransformer(ast.NodeTransformer):
@@ -45,6 +47,24 @@ class RayTransformer(ast.NodeTransformer):
 
         self.generic_visit(node)
         self.current_function = None
+
+        # Inject cleanup calls at the end of main()
+        cleanup_calls = [
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Attribute(value=ast.Name(id='ray', ctx=ast.Load()), attr='get', ctx=ast.Load()),
+                    args=[
+                        ast.Call(
+                            func=ast.Attribute(value=ast.Name(id=var, ctx=ast.Load()), attr='cleanup.remote', ctx=ast.Load()),
+                            args=[], keywords=[]
+                        )
+                    ],
+                    keywords=[]
+                )
+            )
+            for var in self.actor_instances
+        ]
+        node.body.extend(cleanup_calls)
         return node
 
     def visit_ClassDef(self, node):
@@ -60,6 +80,31 @@ class RayTransformer(ast.NodeTransformer):
             self._add_remote_decorator(node)
             self.actor_classes.add(node.name)
 
+        # Check if cleanup method exists
+        if not any(isinstance(n, ast.FunctionDef) and n.name == "cleanup" for n in node.body):
+            cleanup_func = ast.FunctionDef(
+                name="cleanup",
+                args=ast.arguments(posonlyargs=[], args=[ast.arg(arg='self')], vararg=None,
+                                   kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),
+                body=[
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Attribute(
+                                    value=ast.Name(id='ray', ctx=ast.Load()),
+                                    attr='actor',
+                                    ctx=ast.Load()
+                                ),
+                                attr='exit_actor',
+                                ctx=ast.Load()
+                            ),
+                            args=[], keywords=[]
+                        )
+                    )
+                ],
+                decorator_list=[]
+            )
+            node.body.append(cleanup_func)
         return node
 
     def _add_remote_decorator(self, node):
@@ -333,6 +378,229 @@ def transform_to_ray(input_path: str, output_path: str = None, num_gpus: int = N
     print(f"Ray-conformant code written to: {output_file}")
 
 
+def is_ray_remote_decorator(decorator):
+    ''' Checks if the decorator is @ray.remote or @ray.remote(...)
+    '''
+    # handles @ray.remote, @ray.remote(...), etc.
+    if isinstance(decorator, ast.Name):
+        return decorator.id == "ray"
+    elif isinstance(decorator, ast.Attribute):
+        return decorator.attr == "remote" and getattr(decorator.value, "id", None) == "ray"
+    elif isinstance(decorator, ast.Call):
+        # Call to ray.remote(...)
+        func = decorator.func
+        return (
+            isinstance(func, ast.Attribute)
+            and func.attr == "remote"
+            and getattr(func.value, "id", None) == "ray"
+        )
+    return False
+
+
+def get_ray_remote_targets(file_path: str) -> List[Tuple[str, str, Dict[str, Any]]]:
+    """
+    Detects uses of @ray.remote and returns the names, types, and any decorator parameters.
+
+    Args:
+        file_path (str): Path to the Python file.
+
+    Returns:
+        List[Tuple[str, str, Dict[str, Any]]]: A list of tuples (name, type, params), where:
+            - name is the name of the function or class decorated with @ray.remote
+            - type is either "function" or "class"
+            - params is a dict of keyword arguments passed to @ray.remote (empty if none)
+    """
+    with open(file_path, "r", encoding="utf-8") as f:
+        source = f.read()
+
+    try:
+        tree = ast.parse(source, filename=file_path)
+    except SyntaxError as e:
+        print(f"Syntax error in {file_path}: {e}")
+        return []
+
+    remote_targets = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            for decorator in node.decorator_list:
+                params = {}
+                # Check if this decorator is @ray.remote
+                if isinstance(decorator, ast.Attribute) and is_ray_remote_decorator(decorator):
+                    node_type = (
+                        "function"
+                        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        else "class"
+                    )
+                    remote_targets.append((node.name, node_type, params))
+
+                # Check if this decorator is a call to @ray.remote(...)
+                elif isinstance(decorator, ast.Call) and is_ray_remote_decorator(decorator):
+                    node_type = (
+                        "function"
+                        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        else "class"
+                    )
+                    # Collect keyword arguments
+                    for kw in decorator.keywords:
+                        try:
+                            params[kw.arg] = ast.literal_eval(kw.value)
+                        except Exception:
+                            params[kw.arg] = "can't evaluate" 
+                    remote_targets.append((node.name, node_type, params))
+
+    return remote_targets
+
+
+class RemoteRemover(ast.NodeTransformer):
+    def __init__(self, target_names: Union[str, List[str]]):
+        super().__init__()
+        if isinstance(target_names, str):
+            self.target_names = {target_names}
+        else:
+            self.target_names = set(target_names)
+        
+    def visit_FunctionDef(self, node):
+        if node.name in self.target_names:
+            node.decorator_list = [
+                d for d in node.decorator_list if not is_ray_remote_decorator(d)
+            ]
+        return self.generic_visit(node)
+
+    def visit_ClassDef(self, node):
+        if node.name in self.target_names:
+            node.decorator_list = [
+                d for d in node.decorator_list if not is_ray_remote_decorator(d)
+            ]
+        return self.generic_visit(node)
+
+def remove_ray_remote_decorator(file_path: str, target_name: Union[str, List[str]], output_path=None):
+    """
+    Removes the @ray.remote decorator (with or without arguments) from specific
+    functions or classes in a Python script.
+
+    Args:
+        file_path (str): Path to the original Python file.
+        target_name (str or List[str]): Name(s) of the function(s) or class(es) with @ray.remote decorator.
+        output_path (str, optional): Path to save the modified script. If None, returns the new code.
+
+    Returns:
+        str: The modified code (only if output_path is None).
+    """
+    if isinstance(target_name, str):
+        target_names = {target_name}
+    else:
+        target_names = set(target_name)
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        source_code = f.read()
+
+    tree = ast.parse(source_code)
+
+    # Create a transformer that removes @ray.remote decorators from specified functions/classes
+    modified_tree = RemoteRemover(target_name).visit(tree)
+    ast.fix_missing_locations(modified_tree)
+
+    new_code = ast.unparse(modified_tree)
+
+    if output_path:
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(new_code)
+    else:
+        return new_code
+
+# TODO: there has to be a way to use inspect.signature to get the 
+# parameters of the ray.remote decorator
+def get_ray_remote_params_from_signature():
+    # well-known params 
+    return {
+        # Remote function options
+        "num_cpus", "num_gpus", "resources", "memory", "object_store_memory",
+        "max_calls", "max_retries", "retry_exceptions", "scheduling_strategy",
+        "name", "concurrency_groups", "max_concurrency", "placement_group",
+        "placement_group_bundle_index", "runtime_env",
+        # Actor options
+        "max_restarts", "max_task_retries", "lifetime", "actor_creation_hook",
+        "name", "namespace",
+    }
+
+class RemoteModifier(ast.NodeTransformer):
+    def __init__(self, target_name: str, new_kwargs: dict):
+        super().__init__()
+        self.target_name = target_name
+        self.new_kwargs = new_kwargs
+
+        # Validate new kwargs against known ray.remote parameters
+        invalid_keys = [k for k in new_kwargs.keys() if k not in get_ray_remote_params_from_signature()]
+        if invalid_keys:
+            raise ValueError(f"Invalid ray.remote parameters: {invalid_keys}. Valid parameters are: {get_ray_remote_params_from_signature()}")
+
+    def visit_FunctionDef(self, node):
+        if node.name == self.target_name:
+            node.decorator_list = [self._modify_decorator(d) for d in node.decorator_list]
+        return self.generic_visit(node)
+
+    def visit_ClassDef(self, node):
+        if node.name == self.target_name:
+            node.decorator_list = [self._modify_decorator(d) for d in node.decorator_list]
+        return self.generic_visit(node)
+
+    def _modify_decorator(self, decorator):
+        if is_ray_remote_decorator(decorator):
+            # Ensure it's a Call node
+            if not isinstance(decorator, ast.Call):
+                decorator = ast.Call(func=decorator, args=[], keywords=[])
+
+            # Merge existing kwargs with new_kwargs
+            existing_kwargs = {kw.arg: kw.value for kw in decorator.keywords}
+            for k, v in self.new_kwargs.items():
+                existing_kwargs[k] = ast.Constant(value=v)
+
+            # Rebuild keyword arguments
+            decorator.keywords = [
+                ast.keyword(arg=k, value=v) for k, v in existing_kwargs.items()
+            ]
+
+        return decorator
+
+def modify_ray_remote_decorator(file_path, target_name, new_kwargs, output_path=None):
+    """
+    Modifies the parameters passed to a @ray.remote decorator on a specific
+    function or class. Raises error if invalid parameters are given.
+
+    Args:
+        file_path (str): Path to the original Python file.
+        target_name (str): Name of the function/class with @ray.remote decorator.
+        new_kwargs (dict): Dictionary of parameters to set for ray.remote(...).
+        output_path (str, optional): Path to save modified script. If None, returns the new code.
+
+    Returns:
+        str: Modified code (only if output_path is None).
+    """
+    # Validate new kwargs
+    assert type(new_kwargs) is dict, "prompt response must be a dictionary"
+    invalid_keys = [k for k in new_kwargs.keys() if k not in get_ray_remote_params_from_signature()]
+    if invalid_keys:
+        raise ValueError(f"Invalid ray.remote parameters: {invalid_keys}. Valid parameters are: {get_ray_remote_params_from_signature()}")
+
+    with open(file_path, "r") as f:
+        source_code = f.read()
+
+    tree = ast.parse(source_code)
+
+    # Create a transformer that modifies @ray.remote decorators
+    modified_tree = RemoteModifier(target_name, new_kwargs).visit(tree)
+    ast.fix_missing_locations(modified_tree)
+
+    new_code = ast.unparse(modified_tree)
+
+    if output_path:
+        with open(output_path, "w") as f:
+            f.write(new_code)
+    else:
+        return new_code
+
+
 def has_ray_init(file_path: str) -> bool:
     """
     Detects whether ray.init() is called anywhere in the given Python file.
@@ -367,6 +635,16 @@ def has_ray_init(file_path: str) -> bool:
 
     return False
 
+def prompt_decorator_changes(msg: str = None): 
+    """ Prompts end users and asks for custom input """
+    if msg is None:
+        raise ValueError("Must provide a contextual message")
+    print(msg)
+    user_input = input('Please submit parameter and value you want edited as {"key":val}: ')
+    while user_input == '':
+        print('Input cannot be empty. Please try again.')
+        user_input = input('Please enter your response: ')
+    return user_input
 
 # === Optional CLI Entry Point ===
 """

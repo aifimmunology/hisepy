@@ -6,6 +6,7 @@ import subprocess
 import pandas as pd
 import shutil
 import tarfile
+import ast
 import hisepy.common_utils as cu
 import hisepy.formatter as fmt
 import hisepy.reader as hpr
@@ -15,38 +16,6 @@ from hisepy.upload import do_conda_export, get_conda_env_name, check_default_pro
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
-
-
-def list_all_training_jobs():
-    '''
-    '''
-    cols_to_keep = CONFIG['TRACER']['TRAINING_JOB_COLS']
-    jobs = TrainingJob().list_all_jobs()
-    job_df = pd.DataFrame()
-    for j in jobs:
-        job_df = pd.concat([job_df, fmt.reshape_custom_metadata(j, False)])
-    return job_df[cols_to_keep].sort_values(
-        by='added', ascending=False
-    )  # NOTE: outputFileIds field is missing for some entries
-
-
-def get_training_job(job_id: str):
-    '''
-    '''
-    cols_to_keep = CONFIG['TRACER']['TRAINING_JOB_COLS']
-    try:
-        return fmt.reshape_custom_metadata(
-            TrainingJob(job_id).get_job()[0], False)[cols_to_keep]
-    except:
-        print("Job is missing an expected column: {}".format(
-            job_id))  # TODO: fix endpoint
-        return
-
-
-def get_training_image(image_id: str):
-    '''
-    '''
-    return
 
 
 def validate_review_run_params(study_space_id: str, job_id: str, image_id: str,
@@ -68,27 +37,16 @@ def validate_review_run_params(study_space_id: str, job_id: str, image_id: str,
     return
 
 
-
-
-# not needed for milestone 1
-def stop_training_job():
-    return
-
-
-def get_training_job_status(job_id):
-    return get_training_job(job_id)[['status']]
-
-
 def start_training_run(
-    provider: str,
-    cpu_count: int,
-    gpu_count: int,
-    memory_size: int,
-    worker_count: int,
     training_job_file_path: str,
     title: str,
     description: str,
     file_set_id: str,
+    provider: str = 'ray',
+    cpu_count: int = 1,
+    gpu_count: int = 0,
+    memory_size: int = 10,
+    worker_count: int = 0,
     additional_dirs: list = [],
     additional_files: list = [],
     project: str = None,
@@ -108,13 +66,14 @@ def start_training_run(
         provider (str) (Optional): 'ray' or 'beaker'. default is ray
         cpu_count (int) (Optional): number of CPUs to use. default is 1
         gpu_count (int) (Optional): number of GPUs to use. default is 0 
-        memory_size (int) (Optional): memory size (GB). default is 1 
-        worker_count (int) (Optional): number of workers to use. default is 1
-        additional_dirs (list): (Optional) list of directories your script requires
-        additional_files (list): (Optional) list of files your script requires
+        memory_size (int) (Optional): memory size (GB). default is 10
+        worker_count (int) (Optional): number of workers to use. default is 0
+        additional_dirs (list): (Optional) list of directories your script requires. default is []
+        additional_files (list): (Optional) list of files your script requires. default is []
+        project (str): (Optional) short name of project that Ray job cost will be billed under. default is project selected upon IDE creation        
         requirements_file_path (str): (Optional) path to requirements.in file
-        image_id (str): (Optional) image ID for the training job
-        use_conda (bool): (Optional) whether to use conda or pip. default is pip
+        image_id (str): (Optional) image ID for the training job. default is None
+        use_conda (bool): (Optional) indicator of whether to use conda environment for training; default is False (pip)
         output_file_size (int): (Optional) estimated output file size (GB). default is 5 GB
 
     Returns: 
@@ -182,7 +141,8 @@ def start_training_run(
             if not user_response:
                 raise Exception(
                     "Training job submission cancelled by user")
-            else: 
+            else:
+                # prompt use 
                 cu.copy_files(job_obj.training_job_file_path, '{}/{}'.format(job_obj.work_dir, 
                                                                            CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
         else: 
@@ -217,9 +177,8 @@ def start_training_run(
     return job_response
 
 
-def review_training_job_run(job_id,
+def review_training_job_run(job_id : str, 
                             study_space_id : str,
-                            approve : bool = False, 
                             review_notes : str = None):
     ''' 
     Approve or reject a training job run:
@@ -227,16 +186,15 @@ def review_training_job_run(job_id,
     Parameters: 
         job_id (str): ID of the training job to review
         study_space_id (str): ID of the study space that contains the job to be reviewed
-        approve (bool): whether to approve or reject the job. default is approve
         review_notes (str): notes for the review
     Returns: 
         dict with keys: [job, approved, message]
     Examples: 
         # approve a training job run
-        hp.review_training_job_run(job_id='12345', study_space_id='67890', approve=True, review_notes='Looks good!')
+        hp.review_training_job_run(job_id='12345', study_space_id='67890', review_notes='Looks good!')
 
         # reject a training job run
-        hp.review_training_job_run(job_id='12345', study_space_id='67890', approve=False, review_notes='Needs more work')
+        hp.review_training_job_run(job_id='12345', study_space_id='67890', review_notes='Needs more work')
     '''
     
     # validate params 
@@ -244,8 +202,6 @@ def review_training_job_run(job_id,
         raise Exception("job_id must be a string")
     if study_space_id is not None and type(study_space_id) is not str:
         raise Exception("study_space_id must be a string")
-    if approve is not None and type(approve) is not bool:
-        raise Exception("approve must be a boolean")
     if review_notes is not None and type(review_notes) is not str:
         raise Exception("review_notes must be a string")
 
@@ -262,7 +218,8 @@ def review_training_job_run(job_id,
     print("Training job output files downloaded to: {}".format(dl_resp['Path']))
 
     # prompt user to review the training job output
-    user_response = cu.prompt_user(CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'], job_id)
+    user_response = cu.prompt_yn(CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'].format(job_id) + 
+                                 "\nWould you like to approve this job?")
     
     jobj = TrainingJob(job_id=job_id, 
                         review_notes=review_notes,
@@ -306,7 +263,8 @@ class TrainingJob:
                                               'ray_workflow')
         self.__beaker_workflow_url = cu.hise_url('job_orchestrate',
                                                  'beaker_workflow')
-
+        self.__review_job_url = cu.hise_url('job_orchestrate',
+                                            'review_job')
         # initialize attributes
         self.provider = provider
         self.package_manager = "conda" if use_conda else "pip"
@@ -415,8 +373,51 @@ class TrainingJob:
                 "training_job_file_path must be a .ipynb or .py file")
 
         # transform script to conform to Ray
+        converted_script = '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE'])
         rt.transform_to_ray(python_script_to_convert, 
-                            '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']), num_gpus=self.gpu_count, num_cpus=self.cpu_count)
+                            converted_script, num_gpus=self.gpu_count, num_cpus=self.cpu_count)
+        
+        # get list of ray remote targets
+        ray_remote_targets = rt.get_ray_remote_targets(converted_script)
+        target_names = [f[0] for f in ray_remote_targets]
+        
+        while True:
+            # Prompt user for methods to remove decorators from
+            rm_target = cu.prompt_from_options(
+                "The following methods currently use Ray decorators: {}. "
+                "Please select the methods from which you want to remove the Ray decorators".format(target_names),
+                target_names + ["None"]
+            )
+
+            if not rm_target or rm_target == "None":
+                # Exit loop if user chose no method
+                break
+
+            # Remove ray decorators from the selected targets
+            rt.remove_ray_remote_decorator(converted_script, rm_target, converted_script)
+
+        # prompt user on transformation, asking if they want to edit ray decorators
+        # if the user selected targets, edit the ray decorators of those targets
+        ray_remote_targets = rt.get_ray_remote_targets(converted_script)
+        target_names = [f[0] for f in ray_remote_targets]
+        while True:
+            edit_target = cu.prompt_from_options(
+                "The following methods currently use Ray decorators: {}. "
+                "Please select the methods whose Ray decorator parameters you want to edit".format(target_names),
+                target_names + ["None"]
+            )
+
+            if not edit_target or edit_target == "None":
+                # Exit loop if user chose no method
+                break
+
+            # Prompt param values for the ray decorators
+            edit_resp = rt.prompt_decorator_changes("")
+
+            if edit_resp and len(edit_resp) > 0:
+                rt.modify_ray_remote_decorator(
+                    converted_script, edit_target, ast.literal_eval(edit_resp), converted_script
+                )
         return 
 
     def copy_scripts_and_dirs_to_temp(self):
@@ -586,63 +587,3 @@ class TrainingJob:
                                 json=review_args,
                                 headers=get_bearer_token_header()))
 
-    """
-            def promote_job(self, data): 
-        data['id'] = self.id 
-        return requests.request({"PUT",
-                                self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()})
-    
-    def approve_job(self, data): 
-        return requests.request({"PUT",
-                                self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()}
-
-    def reject_job(self, data): 
-        data['id'] = self.id
-        return requests.request({"PUT",
-                                self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()})
-    def stop_job(self, data):
-        data['id'] = self.id 
-        return requests.request({"POST",
-                                self.__url, # URL to ray/beaker 
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()})
-   
-        data['id'] = self.id
-        return requests.request({"POST",
-                                self.__url,
-                                data=json.dumps(data),
-                                headers=get_bearer_token_header()})
-    """
-
-
-def get_training_image(image_id: str):
-    '''
-    '''
-    return
-
-
-class TrainingImage:
-    """
-    Class representing a training image
-    
-    Attributes: 
-        id (str)
-    """
-
-    def __init__(self, image_id=None):
-        self.__url = cu.hise_url('tracer', 'training_image')
-        if image_id is not None:
-            self.image_id = image_id
-
-        def get_image(self):
-            return cu.parse_hise_response(
-                requests.get(self.__url, headers=get_bearer_token_header()))
-
-        def get_all_images(self):
-            return
