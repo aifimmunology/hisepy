@@ -212,7 +212,7 @@ def get_projects(to_df: bool = True):
     """
     Returns information on all projects in the current account
 
-    Parameters: 
+    Parameters:
         to_df (bool): reshape to tabular, if True
     """
     keep_cols = ['guid', 'short_name', 'name']
@@ -263,7 +263,7 @@ def is_legacy_ide():
 
 
 def is_valid_upload_kernel():
-    ''' Validates if the current kernel is a valid one for uploading results 
+    ''' Validates if the current kernel is a valid one for uploading results
     '''
     # get instance obj from tracer
     inst = IDEInstance()
@@ -283,7 +283,7 @@ def is_valid_upload_kernel():
 
 
 def files_within_private(files):
-    ''' 
+    '''
     Returns a list of files within the private directory
     '''
     assert type(files) is list, "files must be a list"
@@ -308,14 +308,13 @@ def list_all_filepaths(directory):
             filepaths.append(filepath)
     return filepaths
 
-
 def parse_file_id_from_hise_file(hise_file):
     """
     Takes a hise_file object and returns the file_id
 
     Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object 
-    Returns: 
+        hise_file (hise_file): hisepy.reader.hise_file object
+    Returns:
         a string file_id
     """
     # descriptors can have > 1 entry if filetype == Olink
@@ -331,8 +330,8 @@ def parse_sample_id_from_hise_file(hise_file):
     Takes a hise_file object and returns the sample_id
 
     Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object 
-    Returns: 
+        hise_file (hise_file): hisepy.reader.hise_file object
+    Returns:
         a string sample_id
     """
     # descriptors can have > 1 entry if filetype == Olink
@@ -348,7 +347,7 @@ def project_guid_to_shortname(proj_guid):
     Takes a string, looks up if there's a Project guid with the passed in value. If there is, return the corresponding short name.
     Otherwise, let the user know the Project doesn't exist.
 
-    Parameters: 
+    Parameters:
         proj_guid (str) : the guid of a HISE Project
     """
     proj_df = get_projects()
@@ -366,10 +365,10 @@ def project_guid_to_shortname(proj_guid):
 
 def project_shortname_to_guid(proj_name):
     """
-    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding 
+    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding
     guid. Otherwise, let the user know the Project doesn't exist.
 
-    Parameters: 
+    Parameters:
         proj_name (str) : the short-name of a HISE Project
     """
     proj_df = get_projects()
@@ -455,10 +454,10 @@ def log_downloaded_files(file_id: str,
                          replica_file_id: str = None,
                          replica_sample_id: str = None):
     """
-    Attaches fileId for the project folder file that was downloaded 
-    
-    Parameters: 
-        file_id (str) : file_id of file in project folder 
+    Attaches fileId for the project folder file that was downloaded
+
+    Parameters:
+        file_id (str) : file_id of file in project folder
     """
     # fileID must not be null at least
     if file_id is None:
@@ -503,11 +502,11 @@ def log_downloaded_files(file_id: str,
 
 def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
     """
-    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged 
+    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged
 
-    Parameters: 
-        hise_file (hise_file): hisepy.reader.hise_file object 
-        file_id (str): original file_id that's passed in to read_files() or cache_files() 
+    Parameters:
+        hise_file (hise_file): hisepy.reader.hise_file object
+        file_id (str): original file_id that's passed in to read_files() or cache_files()
     """
     this_file_id, this_file_name, _ = parse_file_descriptor_from_hise_file(
         hise_file)
@@ -522,8 +521,8 @@ def parse_file_descriptor_from_hise_file(hise_file):
     Takes a hise_file object and returns its file_id, file_name and the descriptor object
 
     Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object 
-    Returns: 
+        hise_file (hise_file): hisepy.reader.hise_file object
+    Returns:
         a tuple (file_id, file_name, descriptor object)
     """
     if type(hise_file['descriptors']) is list:
@@ -591,6 +590,16 @@ def prompt_user(msg: str = None, additional_fields=None):
     elif user_input.lower() == 'n':
         return False
 
+
+def prompt_for_input(msg: str = None):
+    """ Prompts user for input """
+    if msg is None:
+        raise ValueError("Must provide a contextual message")
+    try:
+        user_input = input(msg)
+    except (KeyboardInterrupt, EOFError):
+        user_input = None
+    return user_input
 
 def prompt_user_custom(msg: str = None):
     """ Prompts end users and asks for custom input """
@@ -708,7 +717,7 @@ def validate_download_params(file_list: list, query_id: list,
 
 def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
                               ide_dir):
-    """ Checks that files associated with a result have 
+    """ Checks that files associated with a result have
         been seen in a user's IDE
     """
     if input_file_ids is not None:
