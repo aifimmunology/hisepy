@@ -21,9 +21,10 @@ import json
 import pathlib
 import copy
 import time
+import inspect
 import subprocess
 import zlib
-from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server
+from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -181,6 +182,14 @@ def find_files(directory, filenames):
     return files_list
 
 
+def get_environment_name():
+    # get instance obj from tracer
+    inst = IDEInstance()
+
+    # parse out modality info from instance obj
+    return inst.environment['condaEnvName']
+
+
 def get_filetype(this_filename):
     if "." in this_filename:
         return this_filename.split(".")[-1]
@@ -199,6 +208,12 @@ def get_from_config(heading: str, key: str):
     raise ValueError("config value %s:%s not found" % (heading, key))
 
 
+def get_func_params():
+    frame = inspect.currentframe()
+    args_info = inspect.getargvalues(frame)
+    return args_info.locals
+
+
 def get_ide(ide_instance_guid):
     endpoint = "https://{s}/{de}/{ig}".format(s=hise_server(),
                                               de=CONFIG['TRACER']['IDE_PATH'],
@@ -206,6 +221,21 @@ def get_ide(ide_instance_guid):
     resp = parse_hise_response(
         requests.request("GET", endpoint, headers=get_bearer_token_header()))
     return resp
+
+
+def get_organization():
+
+    # get account from amds
+    acct_guid = instance_account_guid()
+    query_dict = {'guid': acct_guid}
+    url = hise_url('amds', 'account_path', 'filter')
+    account_info = parse_hise_response(
+        requests.post(url,
+                      headers=get_bearer_token_header(),
+                      data=json.dumps({"filter": query_dict})))
+
+    # get org guid
+    return account_info[0]['organization']['guid']
 
 
 def get_projects(to_df: bool = True):
@@ -228,6 +258,12 @@ def get_projects(to_df: bool = True):
         return proj_df
 
     return resp
+
+
+def get_sdk_version():
+    url = hise_url("ide_management", "sdk_version", 'python')
+    version_tag = hise_get(url)
+    return version_tag
 
 
 def is_legacy_ide():
@@ -307,22 +343,6 @@ def list_all_filepaths(directory):
             filepath = os.path.join(root, filename)
             filepaths.append(filepath)
     return filepaths
-
-def parse_file_id_from_hise_file(hise_file):
-    """
-    Takes a hise_file object and returns the file_id
-
-    Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object
-    Returns:
-        a string file_id
-    """
-    # descriptors can have > 1 entry if filetype == Olink
-    if type(hise_file['descriptors']) is list:
-        this_file_id = hise_file['descriptors'][0]['file']['id']
-    elif type(hise_file['descriptors']) is dict:
-        this_file_id = hise_file['descriptors']['file']['id']
-    return this_file_id
 
 
 def parse_sample_id_from_hise_file(hise_file):
@@ -500,42 +520,6 @@ def log_downloaded_files(file_id: str,
     return
 
 
-def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
-    """
-    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged
-
-    Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object
-        file_id (str): original file_id that's passed in to read_files() or cache_files()
-    """
-    this_file_id, this_file_name, _ = parse_file_descriptor_from_hise_file(
-        hise_file)
-    if (this_file_id != file_id):
-        tmp_hise_file = copy.deepcopy(hise_file)
-        log_downloaded_files(file_id, None, ide_dir, this_file_id, None)
-    return
-
-
-def parse_file_descriptor_from_hise_file(hise_file):
-    """
-    Takes a hise_file object and returns its file_id, file_name and the descriptor object
-
-    Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object
-    Returns:
-        a tuple (file_id, file_name, descriptor object)
-    """
-    if type(hise_file['descriptors']) is list:
-        this_file_id = hise_file['descriptors'][0]['file']['id']
-        this_file_name = hise_file['descriptors'][0]['file']['name']
-        this_desc = hise_file['descriptors'][0]
-    elif type(hise_file['descriptors']) is dict:
-        this_file_id = hise_file['descriptors']['file']['id']
-        this_file_name = hise_file['descriptors']['file']['name']
-        this_desc = hise_file['descriptors']
-    return this_file_id, this_file_name, this_desc
-
-
 def parse_hise_response(resp):
     obj = None
     try:
@@ -601,12 +585,13 @@ def prompt_for_input(msg: str = None):
         user_input = None
     return user_input
 
+
 def prompt_user_custom(msg: str = None):
     """ Prompts end users and asks for custom input """
     if msg is None:
         raise ValueError("Must provide a contextual message")
     print(msg)
-    user_input = input(r'Please enter your response \{key:val\}: ')
+    user_input = input('Please enter your response \{key:val\}: ')
     while user_input == '':
         print('Input cannot be empty. Please try again.')
         user_input = input('Please enter your response: ')
@@ -677,42 +662,6 @@ def tardir(output_filename, source_dir):
     """ Utility function that will create a tar file for an entire directory and its children """
     with tarfile.open(output_filename, "w:gz") as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir))
-
-
-def validate_download_params(file_list: list, query_id: list,
-                             query_dict: dict):
-    # verify input parameters are sane
-    if file_list is not None:
-        if type(file_list) is not list:
-            raise Exception("file_ids parameter must be a list")
-        if query_id is not None and query_dict is not None:
-            raise Exception(
-                "You can only specify one of file_list, query_id, or query_dict per function call"
-            )
-    if query_id is not None:
-        if type(query_id) is not list:
-            raise Exception("query_id parameter must be a list")
-        if len(query_id) > 1:
-            raise Exception(
-                "You can only specify a single query_id per function call")
-        if file_list is not None or query_dict is not None:
-            raise Exception(
-                "You can only specify one of file_list, query_id, or query_dict per function call"
-            )
-    if query_dict is not None:
-        if type(query_dict) is not dict:
-            raise Exception("query_dict parameter must be a dictionary")
-        for d in query_dict.keys():
-            if type(query_dict[d]) is not list:
-                raise Exception("query dictionary values must be of type list")
-        if file_list is not None or query_id is not None:
-            raise Exception(
-                "You can only specify one of file_list, query_id, or query_dict per function call"
-            )
-    if file_list is None and query_id is None and query_dict is None:
-        raise Exception(
-            "One of file_ids, query_dict, or query_id must be non-null")
-    return True
 
 
 def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
