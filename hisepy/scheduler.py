@@ -8,7 +8,6 @@ import time
 
 import hisepy.common_utils as cu
 from hisepy.auth import hise_server, get_bearer_token_header, IDEInstance
-from hisepy.reader import download_files
 from hisepy.common_utils import current_notebook
 
 the_current_notebook = None
@@ -17,6 +16,43 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 derived_instance_flag_file = "/%s/.derivedinstance" % (
     CONFIG['IDE']['HOME_DIR'])
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
+
+
+def download_files(file_dict: dict):
+    """
+    Read the contents of a dictionary of non-result file ids into hise_file objects
+    These files will contain NULL descriptors (since they are not result files)
+
+    Parameters:
+        file_dict (dict): a dictionary of file_uuid: file_name
+
+    Returns:
+        a list of hise_file objects with empty descriptors
+
+    """
+    if type(file_dict) is not dict:
+        raise TypeError(
+            "You must pass a dictionary of file_uuid: file_name to download_files"
+        )
+
+    response = []
+    #use a dummy batch id for these files
+    download_cache = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], "downloadable")
+    for f_id in file_dict:
+        endpoint = "https://%s/%s/%s" % (
+            hise_server(), CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id)
+        hf = ru.hise_file(f_id)
+        try:
+            ru.cache_file(endpoint, file_dict[f_id], download_cache)
+            hf.status = True
+            hf.message = "OK"
+            hf.path = "%s/%s" % (download_cache, file_dict[f_id])
+        except Exception as e:
+            hf.status = False
+            hf.message = str(e)
+        response.append(hf)
+
+    return response
 
 
 def schedule_notebook(output_files=None,

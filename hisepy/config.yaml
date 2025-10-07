@@ -73,6 +73,7 @@ AMDS:
   AMDS_NAME : accountmanager
   PROJECT_PATH : accountmanager/project
   USER_PATH: accountmanager/userinfo
+  ACCOUNT_PATH : accountmanager/account
   
 # ledger file availabilities 
 BIO_SDK_FILE_AVAILABILITIES: 
