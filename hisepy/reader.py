@@ -306,7 +306,7 @@ def read_files(file_list: list[str] | None = None,
             return response
     except Exception as e:
         raise RuntimeError(
-            "Failed to reshape file descriptors as data.frame: {e}")
+            f"Failed to reshape file descriptors as data.frame: {e}")
 
 
 @with_default_logging

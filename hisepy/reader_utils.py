@@ -200,8 +200,8 @@ def cache_and_convert_file_data(file_data: dict, do_cache: bool = True):
     file_name = f_desc["name"].split("/")[-1]
     this_filetype = cu.get_filetype(file_name)
     if do_cache:
-        ru.cache_file(file_data["url"], file_name,
-                      '{}/{}'.format(CONFIG['IDE']['HOME_DIR'], file_dir))
+        cache_file(file_data["url"], file_name,
+                   '{}/{}'.format(CONFIG['IDE']['HOME_DIR'], file_dir))
         this_file_values = hf.convert_data_values(
             '{}/{}'.format(file_dir, file_name), this_filetype)
     return hise_file(file_id=f_desc["id"],
@@ -277,7 +277,7 @@ def gen_read_samples_subjects_query(ids_list: list = None,
     """
     if query_dict is not None:
         # modify user's query and convert to mongo query language
-        mg_instance = ru.MongoQuery(query_dict)
+        mg_instance = MongoQuery(query_dict)
         query = mg_instance.query_dict_to_mongo_query(
             mg_instance.add_prefix_to_query())
 
