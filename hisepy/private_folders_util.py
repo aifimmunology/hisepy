@@ -20,7 +20,7 @@ def do_post_file_to_private_folder(folder_name: str, file_path: str):
     Returns: 
         Response object
     '''
-    if not isinstance(folder_name, list):
+    if not isinstance(folder_name, str):
         raise TypeError('folder_name must be of type str')
     if not isinstance(file_path, str):
         raise TypeError('file_name must be of type str')

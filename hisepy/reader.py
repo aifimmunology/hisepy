@@ -55,7 +55,6 @@ def cache_files(file_ids: list[str] | None = None,
     dl_paths: List[str] = []
     fail_files: List[str] = []
     ide_name = IDEInstance().podName
-    print("GOT RESPONSE")
     for idx, f in enumerate(resp_obj):
         try:
             if "error" in f:
