@@ -253,7 +253,7 @@ def read_files(file_list: list[str] | None = None,
             if cu.is_legacy_ide():
                 fobj = ru.cache_and_convert_file_data(f)
                 log_dir = CONFIG["IDE"]["HOME_DIR"]
-                download_filepath = fobj.file_path
+                download_filepath = fobj.path
             else:
                 # download data to user's ide
                 parsed_dl = cu.parse_hise_response(
@@ -329,9 +329,6 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
         hp.read_samples(sample_ids=['e82714e3-d0c9-46a1-9ea6-62a34cba3265'])
 
     """
-    if (sample_ids is None) == (query_dict is None):
-        raise TypeError(
-            "Specify either `sample_ids` or `query_dict`, but not both.")
 
     # validate user params
     ru.validate_samples_subjects_params(sample_ids, query_dict)

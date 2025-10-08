@@ -9,6 +9,7 @@ import time
 import hisepy.common_utils as cu
 from hisepy.auth import hise_server, get_bearer_token_header, IDEInstance
 from hisepy.common_utils import current_notebook
+import hisepy.reader_utils as ru
 
 the_current_notebook = None
 _here = os.path.abspath(os.path.dirname(__file__))

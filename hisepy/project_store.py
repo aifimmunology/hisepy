@@ -84,8 +84,8 @@ def list_files_in_project_store(store_name: str) -> pd.DataFrame:
 
 @with_default_logging
 def download_from_project_store_v1(store_name: str,
-                                   file_name: str = None,
-                                   subdir: str = None):
+                                   file_name: str | None = None,
+                                   subdir: str | None = None):
     """
     Downloads a given file onto a user's IDE. The filepath pattern is as follows:
     '~/store_name/file_name'.
@@ -172,8 +172,8 @@ def download_from_project_store_v1(store_name: str,
 
 @with_default_logging
 def download_from_project_store(store_name: str,
-                                file_name: str = None,
-                                subdir: str = None) -> bool:
+                                file_name: str | None = None,
+                                subdir: str | None = None) -> bool:
     """
     Downloads a given file onto a user's IDE
 
