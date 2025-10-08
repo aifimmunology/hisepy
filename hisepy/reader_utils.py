@@ -303,7 +303,7 @@ def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
         hise_file)
     if (this_file_id != file_id):
         tmp_hise_file = copy.deepcopy(hise_file)
-        log_downloaded_files(file_id, None, ide_dir, this_file_id, None)
+        cu.log_downloaded_files(file_id, None, ide_dir, this_file_id, None)
     return
 
 
@@ -522,16 +522,15 @@ def validate_samples_subjects_params(ids_list: list = None,
     """
     Validates user's query parameters for POST request to ledger
     """
+    if (ids_list is None) == (query_dict is None):
+        raise TypeError(
+            "Specify either `ids_list` or `query_dict`, but not both.")
     if ids_list is not None:
         if type(ids_list) is not list:
             raise ValueError("ids must be in a list")
-        if query_dict:
-            raise ValueError("You must only use 1 parameter")
     elif query_dict is not None:
         if type(query_dict) is not dict:
             raise ValueError("query_dict must be of type dict")
-        if ids_list:
-            raise ValueError("You must only use 1 parameter")
     return True
 
 
