@@ -563,7 +563,7 @@ def prompt_user_custom(msg: str = None):
     if msg is None:
         raise ValueError("Must provide a contextual message")
     print(msg)
-    user_input = input('Please enter your response \{key:val\}: ')
+    user_input = input('Please enter your response {key:val}: ')
     while user_input == '':
         print('Input cannot be empty. Please try again.')
         user_input = input('Please enter your response: ')
