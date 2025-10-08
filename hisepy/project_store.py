@@ -46,7 +46,7 @@ def list_project_stores() -> list:
 
 
 @with_default_logging
-def list_files_in_project_store(store_name: str):
+def list_files_in_project_store(store_name: str) -> pd.DataFrame:
     """
     Returns information about what files are present in a given project store
 
@@ -175,8 +175,7 @@ def download_from_project_store(store_name: str,
                                 file_name: str = None,
                                 subdir: str = None) -> bool:
     """
-    Downloads a given file onto a user's IDE. The filepath pattern is as follows:
-    '~/store_name/file_name'.
+    Downloads a given file onto a user's IDE
 
     Parameters:
         store_name (str): name of project store
@@ -266,6 +265,14 @@ def promote_file_in_project_store(store_name: str, file_name: str) -> bool:
     Returns:
         True if function call was a success
     """
+
+    # validate input parameters
+    if not isinstance(store_name, str):
+        raise ValueError("`store_name` must be a string.")
+    if file_name is not None and not isinstance(file_name, str):
+        raise ValueError("`file_name` must be a string if provided.")
+    if not store_name.strip():
+        raise ValueError("`store_name` cannot be empty.")
     return project_store_file_action(store_name, file_name,
                                      CONFIG['PROJECT_STORE']['PROMOTION_TAG'])
 
@@ -283,6 +290,13 @@ def undo_promote_in_project_store(store_name: str, file_name: str) -> bool:
     Returns:
         True if function call was a success
     """
+    # validate input parameters
+    if not isinstance(store_name, str):
+        raise ValueError("`store_name` must be a string.")
+    if file_name is not None and not isinstance(file_name, str):
+        raise ValueError("`file_name` must be a string if provided.")
+    if not store_name.strip():
+        raise ValueError("`store_name` cannot be empty.")
     return project_store_file_action(store_name, file_name,
                                      CONFIG['PROJECT_STORE']['AVAILABLE_TAG'])
 
@@ -299,6 +313,13 @@ def delete_file_in_project_store(store_name: str, file_name: str) -> bool:
     Returns:
         True if function call was a success
     """
+    # validate input parameters
+    if not isinstance(store_name, str):
+        raise ValueError("`store_name` must be a string.")
+    if file_name is not None and not isinstance(file_name, str):
+        raise ValueError("`file_name` must be a string if provided.")
+    if not store_name.strip():
+        raise ValueError("`store_name` cannot be empty.")
     return project_store_file_action(store_name, file_name,
                                      CONFIG['PROJECT_STORE']['DELETED_TAG'])
 
@@ -316,6 +337,13 @@ def undo_delete_in_project_store(store_name: str, file_name: str) -> bool:
     Returns:
         True if function call was a success
     """
+    # validate input parameters
+    if not isinstance(store_name, str):
+        raise ValueError("`store_name` must be a string.")
+    if file_name is not None and not isinstance(file_name, str):
+        raise ValueError("`file_name` must be a string if provided.")
+    if not store_name.strip():
+        raise ValueError("`store_name` cannot be empty.")
     return project_store_file_action(store_name, file_name,
                                      CONFIG['PROJECT_STORE']['AVAILABLE_TAG'])
 
