@@ -17,6 +17,7 @@ import hisepy.lookup as hl
 import hisepy.reader_utils as ru
 from hisepy.auth import get_bearer_token_header, hise_server, debug, HiseUser
 from hisepy.logging import with_default_logging, logger
+from hisepy.upload_utils import valid_upload_stores
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
