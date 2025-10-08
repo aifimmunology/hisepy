@@ -6,7 +6,7 @@ import requests
 import shutil
 
 import hisepy.common_utils as cu
-import hisepy.private_folder_util as pfu
+import hisepy.private_folders_util as pfu
 from hisepy.upload import gen_upload_body
 from hisepy.auth import get_bearer_token_header, ide_instance_guid
 from hisepy.logging import with_default_logging, logger

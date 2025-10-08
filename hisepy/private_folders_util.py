@@ -1,3 +1,14 @@
+import pathlib
+import os
+import requests
+from hisepy.auth import get_bearer_token_header, ide_instance_guid
+import hisepy.common_utils as cu
+
+# load config for global variables and endpoints
+_here = os.path.abspath(os.path.dirname(__file__))
+CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+
+
 def do_post_file_to_private_folder(folder_name: str, file_path: str):
     '''
     Uploads a file to a private folder.
@@ -60,7 +71,9 @@ def do_post_file_to_private_folder_v2(folder_name: str,
                     f'file_name {f} character length cannot exceed 1024')
         files = list_of_files
 
-    qargs = {'instanceGuid': ide_instance_guid(), 'destination': destination}
+    qargs = {'instanceGuid': ide_instance_guid()}
+    if destination is not None:
+        qargs['destination'] = destination
     url = cu.hise_url('ide_management',
                       'upload_user_folder_path',
                       resource="%s/files" % folder_name,
