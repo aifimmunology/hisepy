@@ -49,6 +49,7 @@ STORES:
   ENV_STORE: /home/workspace/environment
   AUDIENCE_FILE: /home/workspace/environment/.audience
   TEMP_STORE: /home/workspace/temp
+  SDK_STORE: /home/workspace/sdk
 
   
 PROJECT_FOLDER: 

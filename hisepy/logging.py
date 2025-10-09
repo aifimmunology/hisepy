@@ -8,8 +8,7 @@ import yaml
 import inspect
 from dataclasses import dataclass, field
 import hisepy.common_utils as cu
-from hisepy.upload import get_default_project
-from hisepy.auth import ide_instance_guid, HiseUser, instance_account_guid
+from hisepy.auth import ide_instance_guid, IDEInstance, HiseUser, instance_account_guid
 from typing import Any, Callable, Optional, Dict, Tuple
 
 # Logging Configuration
@@ -59,7 +58,7 @@ class LogEntry:
     success: bool = True
     organization: str = field(default_factory=cu.get_organization)
     account: str = field(default_factory=instance_account_guid)
-    project: str = field(default_factory=get_default_project)
+    project: str = field(default_factory=IDEInstance().get_default_project)
     environment_name: str = field(default_factory=cu.get_environment_name)
     time_elapsed: float = None
     message: str = ""

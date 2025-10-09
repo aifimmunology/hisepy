@@ -22,6 +22,7 @@ import pathlib
 import copy
 import time
 import inspect
+import uuid
 import subprocess
 import zlib
 from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
@@ -634,6 +635,10 @@ def tardir(output_filename, source_dir):
     """ Utility function that will create a tar file for an entire directory and its children """
     with tarfile.open(output_filename, "w:gz") as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir))
+
+
+def uuid_string():
+    return uuid.uuid4().hex  # 32 hex characters
 
 
 def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
