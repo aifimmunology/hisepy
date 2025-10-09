@@ -193,14 +193,12 @@ def upload_files(files: list,
             cu.hise_url("ide_management", "upload_file_v3_path"))
     else:
         url = cu.hise_url("ide_management", "upload_file_v3_path")
-    
-    # append file and user param payload 
+
+    # append file and user param payload
     # submit request for upload workflow
     qargs.update(gen_upload_body(files, file_types))
     return cu.parse_hise_response(
-        requests.post(url,
-                      json=qargs,
-                      headers=get_bearer_token_header()))
+        requests.post(url, json=qargs, headers=get_bearer_token_header()))
 
 
 def retry_ide_commit(id: str):
@@ -263,7 +261,8 @@ def do_conda_export(to_directory: str = ""):
         to_directory = "{}".format(CONFIG["STORES"]["TEMP_STORE"])
 
     if not os.path.isdir(to_directory) and not auth.debug():
-        raise ValueError("directory {dir} is not a valid directory".format(dir=to_directory))
+        raise ValueError("directory {dir} is not a valid directory".format(
+            dir=to_directory))
 
     conda_export_dest = os.path.join(to_directory, "environment.yml")
 
@@ -296,8 +295,11 @@ def select_study_space(proj):
                                  [d["name"] for d in options], True)
     return options[idx]["id"]
 
+
 def select_input_samples():
-    provided_samples = cu.prompt_for_input("Please provide input of comma separated sample ids for the files being uploaded: ")
+    provided_samples = cu.prompt_for_input(
+        "Please provide input of comma separated sample ids for the files being uploaded: "
+    )
     # Check for error in user input
     if provided_samples == None:
         raise ValueError("input interrupted by user")
@@ -310,12 +312,14 @@ def select_input_samples():
     sampleIds = [s.strip() for s in provided_samples.split(",")]
     return sampleIds
 
+
 def get_study_space(id):
     """ Returns list of studies a user has access to """
     return cu.parse_hise_response(
         requests.request("GET",
                          cu.hise_url("tracer", "study_space_path", id),
                          headers=get_bearer_token_header()))
+
 
 def move_file_to_output_staging(file: str,
                                 project: str,
@@ -615,18 +619,19 @@ class DashAppImg:
             tar.add(self.work_dir, arcname="")
         return True
 
-    def get_manifest_files(self): 
+    def get_manifest_files(self):
         """ Given a list, returns indencies of entries that have .zarr file extension """
-        def __is_zarr(filename): 
-            # check if filename contains .zarr extension 
+
+        def __is_zarr(filename):
+            # check if filename contains .zarr extension
             if ".zarr" in filename:
                 return True
             return False
-        
+
         # loop through list and track which files/directories are of type .zarr
         manifest_files = []
-        for f in list(self.filepaths) + list(self.directories): 
-            # parse file name 
+        for f in list(self.filepaths) + list(self.directories):
+            # parse file name
             filename = os.path.basename(f)
             if __is_zarr(filename):
                 manifest_files += [f]
@@ -641,9 +646,14 @@ class DashAppImg:
 
         print("POST hydration/source/studyspace/file for hero image:")
         print(img_resp)
-        
+
         manifest_files = self.get_manifest_files()
-        app_file_list = manifest_files + ['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)]
+        input_files = list(
+            set(manifest_files + list(self.filepaths) +
+                list(self.directories)))
+        app_file_list = input_files + [
+            '{wd}/dash_app.tar.gz'.format(wd=self.work_dir)
+        ]
         upload_resp = upload_files(
             files=app_file_list,
             study_space_id=self.study_space_id,
@@ -656,20 +666,26 @@ class DashAppImg:
 
         print("POST ide-nextgen/file for dash app tarball:")
         print(upload_resp)
-        
+
         homedir = IDE_HOME_DIR if cu.is_legacy_ide(
         ) else CONFIG['IDE']['HOME_DIR_V2']
 
-        # we'll always at least have 1 entry in app_file_list. 
-        # if a zarr is being uploaded, add that to the datasource, which will be the first entry of the list 
-        dash_flow_payload = { 
-            "dataSource": app_file_list[0], # TODO: extend to work with lists...? 
-            "dataFile": upload_resp['FileIds'][0], # TODO: extend..? 
+        # we'll always at least have 1 entry in app_file_list.
+        # if a zarr is being uploaded, add that to the datamountpath and datasources
+        dash_flow_payload = {
+            "dataSourceFiles":
+            upload_resp['FileIds'][:-1],  # all files, except for the tarball
             "images": [self.hero_image]
         }
-        dash_workflow_url = hise_url("ide_management", "dash_workflow", resource=upload_resp['TraceId'])
+        if len(manifest_files) > 0:
+            dash_flow_payload['dataMountPath'] = app_file_list[0]
+        dash_workflow_url = hise_url("ide_management",
+                                     "dash_workflow",
+                                     resource=upload_resp['TraceId'])
         workflow_resp = parse_hise_response(
-            requests.post(dash_workflow_url, json=dash_flow_payload, headers=get_bearer_token_header()))
+            requests.post(dash_workflow_url,
+                          json=dash_flow_payload,
+                          headers=get_bearer_token_header()))
         print("POST ide-nextgen/visualization/dash/workflow:")
         return workflow_resp
 
