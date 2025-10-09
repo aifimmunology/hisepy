@@ -7,9 +7,10 @@ import requests
 import time
 
 import hisepy.common_utils as cu
+import hisepy.reader_utils as ru
 from hisepy.auth import hise_server, get_bearer_token_header, IDEInstance
 from hisepy.common_utils import current_notebook
-import hisepy.reader_utils as ru
+from hisepy.logging import with_default_logging, logger
 
 the_current_notebook = None
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -56,6 +57,7 @@ def download_files(file_dict: dict):
     return response
 
 
+@with_default_logging
 def schedule_notebook(output_files=None,
                       input_data=None,
                       platform=None,
@@ -220,6 +222,7 @@ def prompt_for_platform(platform, output_files, nb_file):
     return len(resp) > 0 and resp.lower()[0] == "y"
 
 
+@with_default_logging
 def get_notebook_job(job_id=None):
     """
     Get the instance of a particular notebook job.
@@ -241,6 +244,7 @@ def get_notebook_job(job_id=None):
     return notebook_job(id=job_id)
 
 
+@with_default_logging
 def clear_notebook_job():
     """
     Clear the record of most recent job. This will not delete the job or have any effect on its status. Using this
@@ -254,6 +258,7 @@ def clear_notebook_job():
         print("No job record found")
 
 
+@with_default_logging
 class notebook_job:
     """
     A class representing a notebook job.

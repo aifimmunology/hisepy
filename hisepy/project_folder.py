@@ -15,12 +15,14 @@ from google.cloud import storage
 import hisepy.common_utils as cu
 from hisepy.auth import hise_server, get_bearer_token_header
 from hisepy.reader_utils import hise_file
+from hisepy.logging import with_default_logging, logger
 
 # load config for global variables and endpoints
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
+@with_default_logging
 def list_project_folders():
     """
     Lists all project folders a user has access to
@@ -44,6 +46,7 @@ def list_project_folders():
     return project_list
 
 
+@with_default_logging
 def list_files_in_project_folder(folder_name):
     """
     Returns information about what files are present in a given project folder
@@ -112,6 +115,7 @@ def log_project_folder_download(file_id: str):
     return
 
 
+@with_default_logging
 def download_from_project_folder(folder_name, file_name='', subdir=''):
     """
     Downloads a given file onto a user's IDE. The filepath pattern is as follows:

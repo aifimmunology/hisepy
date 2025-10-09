@@ -1,5 +1,4 @@
-from .formatter import (hise_file_to_df, subject_to_df, sample_to_df,
-                        _dict_to_df)
+from .formatter import (hise_file_to_df, subject_to_df, sample_to_df)
 from .lookup import (lookup_queryable_fields, lookup_unique_entries)
 from .project_store import (list_project_stores, list_files_in_project_store,
                             download_from_project_store,

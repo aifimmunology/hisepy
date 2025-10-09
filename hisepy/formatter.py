@@ -11,7 +11,7 @@ import os
 import h5py
 import pandas as pd
 import json
-
+from hisepy.logging import with_default_logging, logger
 import hisepy.common_utils as cu
 
 # setting global config
@@ -123,6 +123,7 @@ def reshape_custom_metadata(custom_metadata, add_prefix=True):
     return base_df
 
 
+@with_default_logging
 def subject_to_df(list_subject_out):
     subject_df = reshape_custom_metadata(list_subject_out[0])
     if len(list_subject_out) > 1:
@@ -196,6 +197,7 @@ def reshape_survey_results_to_df(survey_obj):
     return surv_df
 
 
+@with_default_logging
 def sample_to_df(list_of_sample_obj):
     """
     Given a list of outputs from readSamples(), returns the same data but in a dictionary of data.frames format
@@ -315,6 +317,7 @@ def reshape_descriptors(this_desc):
     return dict_df
 
 
+@with_default_logging
 def hise_file_to_df(list_of_hise_files):
     """
     Given a list of hise_file objects, return a dictionary containing a data.frame of descriptors, and a data.frame of lab results
