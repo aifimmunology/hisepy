@@ -847,9 +847,9 @@ def save_dash_app(app_filepath: str,
 
     # move everything to a temporary dir while creating/preserving source
     # directories
-    app_files = dobj.filepaths.union({dobj.app_filepath})
-    app_files = app_files.union(dobj.directories)
-    create_temp_directory_files(app_files, tmpdirname)
+    #app_files = dobj.filepaths.union({dobj.app_filepath})
+    #app_files = app_files.union(dobj.directories)
+    create_temp_directory_files([dobj.app_filepath], tmpdirname)
 
     # create .txt files that contains user's imported libraries
     dobj.create_req_txt()
