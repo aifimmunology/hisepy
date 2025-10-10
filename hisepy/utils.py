@@ -165,7 +165,7 @@ def set_memory_limit(max_size_gb: int) -> None:
     Parameters: 
         max_size (int) : memory limit (in GB) for a kernel/process.
     '''
-    if max_size_gb < 0:
+    if max_size_gb <= 0:
         raise ValueError("Memory limit must be greater than 0")
     if not isinstance(max_size_gb, int):
         raise TypeError("Memory limit must be an integer")
