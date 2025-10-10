@@ -6,7 +6,7 @@ import pathlib
 import uuid
 import time
 import math
-from hisepy.auth import get_bearer_token_header, hise_server
+from hisepy.auth import get_bearer_token_header, hise_server, debug
 import hisepy.lookup as hl
 import hisepy.common_utils as cu
 import hisepy.formatter as hf
