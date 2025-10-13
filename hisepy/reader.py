@@ -181,6 +181,15 @@ def get_file_descriptors(query_dict: dict = None):
 
 
 @with_default_logging
+def get_files_for_query(query_id: str):
+    """ Returns a list of file_ids pertaining to a HISE query_id """
+    resp = parse_hise_response(
+        requests.post(hise_url("hydration", "query_search_path", query_id),
+                      headers=get_bearer_token_header()))
+    return list(map(lambda x: x['file']['id'], resp))
+
+
+@with_default_logging
 def read_files(file_list: list[str] | None = None,
                query_id: list[str] | None = None,
                query_dict: dict[str, any] | None = None,
