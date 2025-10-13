@@ -234,12 +234,12 @@ def retry_ide_commit(id: str):
             cu.hise_url("ide_management",
                         "upload_file_v3_path",
                         id,
-                        args={"condaEnvironmentFile": do_conda_export()}))
+                        args={"condaEnvironmentFile": hpu.do_conda_export()}))
     else:
         url = cu.hise_url("ide_management",
                           "upload_file_v3_path",
                           id,
-                          args={"condaEnvironmentFile": do_conda_export()})
+                          args={"condaEnvironmentFile": hpu.do_conda_export()})
     return cu.parse_hise_response(requests.put(url))
 
 
