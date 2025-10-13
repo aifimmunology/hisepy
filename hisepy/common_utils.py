@@ -621,6 +621,38 @@ def replica_files_used(input_file_ids: list, ide_dir: str = None):
         return replica_ids
 
 
+def safe_remove(path: str, warn: bool = True) -> None:
+    """
+    Safely remove a file if it exists.
+
+    Parameters:
+        path (str): Path to the file to remove.
+        warn (bool): If True, log a warning when a file cannot be removed.
+
+    Notes:
+        - Ignores missing files.
+        - Logs and continues on permission or I/O errors.
+        - Never raises an exception to callers.
+    """
+    if not path:
+        if warn:
+            logger.debug("safe_remove called with empty path.")
+        return
+
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+            logger.debug(f"Removed temporary file: {path}")
+        else:
+            logger.debug(f"safe_remove skipped (not found): {path}")
+    except PermissionError as e:
+        if warn:
+            logger.warning(f"Permission denied while removing {path}: {e}")
+    except OSError as e:
+        if warn:
+            logger.warning(f"Failed to remove {path}: {e}")
+
+
 def string_contains_whitespaces(file_str):
     """ returns True if a string contains whitespaces"""
 
@@ -639,53 +671,6 @@ def tardir(output_filename, source_dir):
 
 def uuid_string():
     return uuid.uuid4().hex  # 32 hex characters
-
-
-def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
-                              ide_dir):
-    """ Checks that files associated with a result have
-        been seen in a user's IDE
-    """
-    if input_file_ids is not None:
-        assert type(input_file_ids) is list
-    if input_sample_ids is not None:
-        assert type(input_sample_ids) is list
-
-    cache_file_path = '{h}/{c}'.format(h=ide_dir,
-                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
-
-    if (not os.path.exists(cache_file_path)):
-        raise FileNotFoundError(
-            "No files have been downloaded into this IDE. You cannot upload results without utilizing any HISE input data."
-        )
-
-    cache_df = pyreadr.read_r(cache_file_path)[None]
-
-    # loop through those ids and check they have been downloaded at some point
-    invalid_file_ids = []
-    mismatch_download_sources = dict()
-    notebook_dir = os.getcwd()
-    for f in input_file_ids:
-        if (f not in cache_df['fileId'].unique()) and (
-                f not in cache_df['replicaFileId'].unique()):
-            invalid_file_ids += [f]
-
-    invalid_sample_ids = []
-    for s in input_sample_ids:
-        if (s not in cache_df['sampleId'].unique()) and (
-                s not in cache_df['replicaSampleId'].unique()):
-            invalid_sample_ids += [s]
-
-    if len(invalid_file_ids) > 0:
-        raise AssertionError(
-            "The following file Ids were not downloaded in this IDE. You cannot reference a file in a result without downloading it first. {}"
-            .format(invalid_file_ids))
-    if len(invalid_sample_ids) > 0:
-        raise AssertionError(
-            "The following sample Ids were not downloaded in this IDE. You cannot refernce a file in a result without downloading it first. {}"
-            .format(invalid_sample_ids))
-
-    return
 
 
 def verify_file_count(dir, expected_num_files):
