@@ -1,11 +1,14 @@
 import os
 import pyreadr
+import subprocess
 from hisepy.utils import conda_env_builds
-from hisepy.auth import IDEInstance
+from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
+import hisepy.common_utils as cu
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
+no_study_default = "no study"
 permanent_store = "permanent"
 project_store = "project"
 valid_upload_stores = [permanent_store, project_store]
@@ -15,6 +18,8 @@ def build_upload_payload(files, file_types, title, store, destination, project,
                          study_space_id, input_file_ids, input_sample_ids,
                          home_dir, inst):
     """Builds the structured payload for upload."""
+    if file_types is None:
+        file_types = []
     qargs = {
         "title": title,
         "fileType": [],
@@ -117,16 +122,13 @@ def do_conda_export(to_directory: str = ""):
 
 
 def ensure_conda_env_ready(do_check: bool):
-    global upload_files_conda_env_checked
     if not do_check or debug():
         return
-    if not upload_files_conda_env_checked:
-        upload_files_conda_env_checked = True
-        if not conda_env_builds():
-            raise RuntimeError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+    if not conda_env_builds():
+        raise RuntimeError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
 
 
-def gen_upload_body(files, filetypes):
+def gen_upload_body(files, filetypes=[]):
     body = {"files": []}
     for i, f in enumerate(files):
         if not os.path.exists(f):

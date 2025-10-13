@@ -636,21 +636,21 @@ def safe_remove(path: str, warn: bool = True) -> None:
     """
     if not path:
         if warn:
-            logger.debug("safe_remove called with empty path.")
+            print("safe_remove called with empty path.")
         return
 
     try:
         if os.path.exists(path):
             os.remove(path)
-            logger.debug(f"Removed temporary file: {path}")
+            print(f"Removed temporary file: {path}")
         else:
-            logger.debug(f"safe_remove skipped (not found): {path}")
+            print(f"safe_remove skipped (not found): {path}")
     except PermissionError as e:
         if warn:
-            logger.warning(f"Permission denied while removing {path}: {e}")
+            print(f"Permission denied while removing {path}: {e}")
     except OSError as e:
         if warn:
-            logger.warning(f"Failed to remove {path}: {e}")
+            print(f"Failed to remove {path}: {e}")
 
 
 def string_contains_whitespaces(file_str):
