@@ -7,6 +7,7 @@ import tempfile
 import re
 import uuid
 import urllib
+import plotly
 import plotly.graph_objects as go
 import requests
 
@@ -19,9 +20,6 @@ from hisepy.utils import conda_env_builds
 from hisepy.logging import with_default_logging, logger
 
 dataframe_file_type = "Visualization-dataframe"
-freezer_ignore_endpoints = {"shutdown": None}
-
-no_study_default = "no study"
 upload_files_conda_env_checked = False
 save_dash_conda_env_checked = False
 save_visualization_conda_env_checked = False
@@ -153,7 +151,7 @@ class DashAppImg:
             title=self.title,
             input_file_ids=self.input_file_ids,
             input_sample_ids=self.input_sample_ids,
-            store=permanent_store,
+            store=hpu.permanent_store,
             do_prompt=False,
             do_conda_build_check=self.do_conda_build_check,
         )
@@ -187,97 +185,6 @@ def get_default_store():
 @with_default_logging
 def get_default_project():
     return IDEInstance().get_default_project()
-
-
-@with_default_logging
-def upload_files(files: list,
-                 study_space_id: str = None,
-                 project: str | None = None,
-                 title: str | None = None,
-                 input_file_ids: list[str] | None = None,
-                 input_sample_ids: list[str] | None = None,
-                 file_types: list[str] | None = None,
-                 store: str | None = None,
-                 destination: str = "",
-                 do_prompt: bool = True,
-                 do_conda_build_check=True):
-    """
-    Uploads files to a store and records their provenance in HISE, but V3
-
-    Parameters:
-        files (list): absolute filepath of file to be uploaded
-        study_space_id (str): ID that pertains to a study in the collaboration space (optional)
-        project (str): project short name (required if study space is not specified, defaults to the ide's default setting
-        title (str): 10+ character title for upload result
-        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
-        input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
-        file_types (str): filetype of uploaded files
-        store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
-        destination (str): Destination folder for the files
-        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
-    Returns:
-        dictionary with keys ["trace_id", "files"]
-    Example:
-        hp.upload_files(files=['/home/jupyter/upload_file.csv'],
-                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                        title='a upload title',
-                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
-    """
-
-    # validations
-    hpu.validate_upload_context()
-    hpu.validate_upload_parameters(
-        files=files,
-        file_types=file_types,
-        destination=destination,
-        store=store,
-        project=project,
-        study_space_id=study_space_id,
-        do_prompt=do_prompt,
-    )
-
-    hpu.ensure_conda_env_ready(do_conda_build_check)
-
-    # setup
-    inst = IDEInstance()
-    home_dir, file_log_dir = hpu.get_workspace_dirs()
-    study_space_id, project, input_sample_ids = hpu.resolve_upload_context(
-        study_space_id, project, input_sample_ids, do_prompt)
-
-    if ide_is_from_guest_account():
-        input_file_ids = cu.replica_files_used(input_file_ids or [],
-                                               file_log_dir)
-    hpu.validate_upload_input_ids(input_file_ids, input_sample_ids,
-                                  CONFIG['IDE']['HOME_DIR2'])
-    hpu.validate_upload_data(files, study_space_id, project, title,
-                             file_log_dir)
-
-    # build payload
-    qargs = hpu.build_upload_payload(
-        files=files,
-        file_types=file_types,
-        title=title,
-        store=store or get_default_store(),
-        destination=destination,
-        project=project,
-        study_space_id=study_space_id,
-        input_file_ids=input_file_ids or [],
-        input_sample_ids=input_sample_ids or [],
-        home_dir=home_dir,
-        inst=inst,
-    )
-
-    # upload thy files
-    url = hpu.get_upload_url()
-    try:
-        resp = requests.post(url,
-                             json=qargs,
-                             headers=get_bearer_token_header())
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        raise RuntimeError(f"Upload request failed: {e}") from e
-
-    return cu.parse_hise_response(resp)
 
 
 @with_default_logging
@@ -383,12 +290,6 @@ def save_dash_app(
     if not cu.is_valid_upload_kernel():
         raise RuntimeError(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
 
-    global save_dash_conda_env_checked
-    if not save_dash_conda_env_checked:
-        if do_conda_build_check and not conda_env_builds():
-            raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
-        save_dash_conda_env_checked = True
-
     hpu.validate_app_path(app_filepath)
     hpu.validate_files(additional_files)
     hpu.validate_hero_image(image)
@@ -398,6 +299,13 @@ def save_dash_app(
     if not auth.debug():
         hpu.validate_upload_input_ids(input_file_ids, input_sample_ids,
                                       log_dir)
+
+    # validate environment can build
+    global save_dash_conda_env_checked
+    if not save_dash_conda_env_checked:
+        if do_conda_build_check and not conda_env_builds():
+            raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+        save_dash_conda_env_checked = True
 
     home_dir_prefix = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
     ) else IDE_HOME_DIR
@@ -448,7 +356,7 @@ def save_dash_app(
 
 
 @with_default_logging
-def save_visualization(pl_obj: plotly.Figure,
+def save_visualization(pl_obj: plotly.graph_objs.Figure,
                        study_space_id: str | None = None,
                        project: str | None = None,
                        title: str | None = None,
@@ -500,15 +408,15 @@ def save_visualization(pl_obj: plotly.Figure,
     # save figure image
     pl_obj.write_image(tmp_img_file)
 
+    # validate upload ids
+    hpu.validate_upload_input_ids(input_file_ids, input_sample_ids, log_dir)
+
     # conda environment validation
     global save_visualization_conda_env_checked
     if not auth.debug() and not save_visualization_conda_env_checked:
         if do_conda_build_check and not conda_env_builds():
             raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
         save_visualization_conda_env_checked = True
-
-    # validate upload ids
-    hpu.validate_upload_input_ids(input_file_ids, input_sample_ids, log_dir)
 
     # save static image
     args = {}
@@ -540,7 +448,7 @@ def save_visualization(pl_obj: plotly.Figure,
         input_file_ids=input_file_ids,
         input_sample_ids=input_sample_ids,
         file_types=[dataframe_file_type],
-        store=permanent_store,
+        store=hpu.permanent_store,
         destination=destination,
         do_prompt=False,
         do_conda_build_check=do_conda_build_check,
@@ -622,3 +530,97 @@ def set_default_project(project=None):
 @with_default_logging
 def set_default_store(store=None):
     return IDEInstance().set_default_store(store)
+
+
+@with_default_logging
+def upload_files(files: list,
+                 study_space_id: str = None,
+                 project: str | None = None,
+                 title: str | None = None,
+                 input_file_ids: list[str] | None = None,
+                 input_sample_ids: list[str] | None = None,
+                 file_types: list[str] | None = None,
+                 store: str | None = None,
+                 destination: str = "",
+                 do_prompt: bool = True,
+                 do_conda_build_check=True):
+    """
+    Uploads files to a store and records their provenance in HISE, but V3
+
+    Parameters:
+        files (list): absolute filepath of file to be uploaded
+        study_space_id (str): ID that pertains to a study in the collaboration space (optional)
+        project (str): project short name (required if study space is not specified, defaults to the ide's default setting
+        title (str): 10+ character title for upload result
+        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
+        input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
+        file_types (str): filetype of uploaded files
+        store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
+        destination (str): Destination folder for the files
+        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
+    Returns:
+        dictionary with keys ["trace_id", "files"]
+    Example:
+        hp.upload_files(files=['/home/jupyter/upload_file.csv'],
+                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                        title='a upload title',
+                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
+    """
+
+    # validations
+    hpu.validate_upload_context()
+    hpu.validate_upload_parameters(
+        files=files,
+        file_types=file_types,
+        destination=destination,
+        store=store,
+        project=project,
+        study_space_id=study_space_id,
+        do_prompt=do_prompt,
+    )
+
+    global upload_files_conda_env_checked
+    if not upload_files_conda_env_checked:
+        hpu.ensure_conda_env_ready(do_conda_build_check)
+        upload_files_conda_env_checked = True
+
+    # setup
+    inst = IDEInstance()
+    home_dir, file_log_dir = hpu.get_workspace_dirs()
+    study_space_id, project, input_sample_ids = hpu.resolve_upload_context(
+        study_space_id, project, input_sample_ids, do_prompt)
+
+    if ide_is_from_guest_account():
+        input_file_ids = cu.replica_files_used(input_file_ids or [],
+                                               file_log_dir)
+    hpu.validate_upload_input_ids(input_file_ids, input_sample_ids,
+                                  file_log_dir)
+    hpu.validate_upload_data(files, study_space_id, project, title,
+                             file_log_dir)
+
+    # build payload
+    qargs = hpu.build_upload_payload(
+        files=files,
+        file_types=file_types,
+        title=title,
+        store=store or get_default_store(),
+        destination=destination,
+        project=project,
+        study_space_id=study_space_id,
+        input_file_ids=input_file_ids or [],
+        input_sample_ids=input_sample_ids or [],
+        home_dir=home_dir,
+        inst=inst,
+    )
+
+    # upload thy files
+    url = hpu.get_upload_url()
+    try:
+        resp = requests.post(url,
+                             json=qargs,
+                             headers=get_bearer_token_header())
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise RuntimeError(f"Upload request failed: {e}") from e
+
+    return cu.parse_hise_response(resp)

@@ -4,13 +4,14 @@ import requests
 import tempfile
 import tarfile
 import shutil
+import pandas as pd
 import pathlib as pl
 import hisepy.common_utils as cu
 import hisepy.upload as cup
 import hisepy.auth as auth
 from hisepy.auth import get_bearer_token_header, IDEInstance, debug
 from hisepy.utils import conda_env_builds
-import pandas as pd
+from hisepy.logging import with_default_logging, logger
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -19,6 +20,7 @@ any_project_urn = "urn:hise:project:any"
 save_abstraction_conda_env_checked = False
 
 
+@with_default_logging
 def get_result_files(to_df=True):
     """ 
     Returns available result files for the user's current account/projects.
@@ -36,11 +38,14 @@ def get_result_files(to_df=True):
     resp = cu.parse_hise_response(
         requests.get(cu.hise_url("ledger", "result_file_search_path"),
                      headers=get_bearer_token_header()))
-    if to_df:
-        result_df = result_json_to_df(resp)
-        return result_df[keep_cols]
-    else:
-        return resp
+    try:
+        if to_df:
+            result_df = result_json_to_df(resp)
+            return result_df[keep_cols]
+        else:
+            return resp
+    except Exception as e:
+        raise Exception(f"failed to retrieve result files: {e}")
 
 
 def result_json_to_df(json_obj):
@@ -79,6 +84,7 @@ def user_prompt_select_result(rf_df: pd.DataFrame, filetype):
     return rf_df.loc[int(user_input), 'id']
 
 
+@with_default_logging
 def result_filetype_to_guid(filetype: str, proj_guid):
     ''' 
     Given a ResultFile.fileType, return the corresponding resultFile.ID
@@ -89,7 +95,8 @@ def result_filetype_to_guid(filetype: str, proj_guid):
 
     # check that the result file exists for the chosen project, or if the project is set to "urn:hise:project:any"
     results_in_proj_df = agg_df.loc[
-        agg_df['projectGuid'].isin([proj_guid, any_project_urn]), ]
+        agg_df['projectGuid'].isin([proj_guid, any_project_urn]),
+    ]
     if filetype not in results_in_proj_df[['fileType']].values:
         raise ValueError(
             "%s is not a valid resultFile name for project guid, %s. The following is a list of valid resultFile names for this project: %s"
@@ -97,8 +104,8 @@ def result_filetype_to_guid(filetype: str, proj_guid):
     else:
         # now filter on ResultFile.fileType
         desired_result = results_in_proj_df.loc[
-            results_in_proj_df['fileType'].eq(filetype), ].reset_index(
-                drop=True)
+            results_in_proj_df['fileType'].eq(filetype),
+        ].reset_index(drop=True)
 
     # handle potential name collisions
     if len(desired_result) > 1:
@@ -339,18 +346,20 @@ def add_dir_to_additional_files(additional_files, additional_dirs):
     return additional_files
 
 
-def save_abstraction(app_filepath: str = None,
-                     additional_files: list = None,
-                     additional_dirs: list = None,
-                     title: str = None,
-                     description: str = None,
-                     project: str = None,
-                     data_contract_id: str = None,
-                     result_file_types: list = None,
-                     is_sample_metadata_app: bool = None,
-                     is_subject_metadata_app: bool = None,
-                     image: str = None, # optional
-                     do_conda_build_check: bool =True):
+@with_default_logging
+def save_abstraction(
+        app_filepath: str = None,
+        additional_files: list = None,
+        additional_dirs: list = None,
+        title: str = None,
+        description: str = None,
+        project: str = None,
+        data_contract_id: str = None,
+        result_file_types: list = None,
+        is_sample_metadata_app: bool = None,
+        is_subject_metadata_app: bool = None,
+        image: str = None,  # optional
+        do_conda_build_check: bool = True):
     """ 
     Save an abstraction to current user's account.
     
@@ -374,7 +383,7 @@ def save_abstraction(app_filepath: str = None,
     # check that the users' default conda environment builds
     # if ran subsequently, and conda env builds successfully, skip this check
     global save_abstraction_conda_env_checked
-    if not save_abstraction_conda_env_checked: 
+    if not save_abstraction_conda_env_checked:
         if (not do_conda_build_check) or (debug()):
             pass
         elif do_conda_build_check and (not conda_env_builds()):
@@ -434,5 +443,5 @@ def save_abstraction(app_filepath: str = None,
                 "AbstractionId": resp["AbstractionId"]
             }
         else:
-            print("canceling save abstraction call")
+            logger.info("canceling save abstraction call")
             return

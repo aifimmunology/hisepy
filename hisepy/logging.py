@@ -93,6 +93,17 @@ if not any(isinstance(h, ErrorHandler) for h in logger.handlers):
     logger.addHandler(ErrorHandler())
 
 
+def safe_serialize(obj):
+    """Convert non-serializable objects (e.g. Plotly, torch, numpy) into readable placeholders."""
+    try:
+        json.dumps(obj)
+        return obj
+    except (TypeError, ValueError):
+        if hasattr(obj, "__class__"):
+            return f"<non-serializable: {obj.__class__.__name__}>"
+        return str(obj)
+
+
 def with_logging(func: Callable[..., Any],
                  logger: logging.Logger) -> Callable[..., Any]:
     """Decorate a function with logging and write structured YAML info including success/failure."""
@@ -104,10 +115,13 @@ def with_logging(func: Callable[..., Any],
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
+        # safely log args
+        parameters = {k: safe_serialize(v) for k, v in bound.arguments.items()}
+
         # add args/kwargs anytime logging is invoked
         adapter = logging.LoggerAdapter(
             logger, {
-                "parameters": dict(bound.arguments),
+                "parameters": parameters,
                 "method_name": func.__name__,
                 "time_elapsed": time.time() - start_time
             })
@@ -139,7 +153,7 @@ def with_logging(func: Callable[..., Any],
 
             time_elapsed = time.time() - start_time
             data = LogEntry(method_name=func.__name__,
-                            parameters=dict(bound.arguments),
+                            parameters=parameters,
                             success=success,
                             message=str(msg),
                             time_elapsed=time_elapsed,
