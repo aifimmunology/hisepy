@@ -205,7 +205,7 @@ def update_sdk_version():
         hreq.hise_post(install_url, data=json.dumps(payload))
 
         # Wait for SDK to appear locally
-        sdk_dir = Path(f"{CONFIG['STORES']['SDK_STORE']}/hisepy_{version_tag}")
+        sdk_dir = Path(CONFIG['STORES']['SDK_STORE']) / f"hisepy_{version_tag}"
         logger.info(
             f"Waiting for SDK directory {sdk_dir} to become available...")
         wait_for_sdk(sdk_dir, timeout=SDK_POLL_TIMEOUT)

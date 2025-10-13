@@ -98,7 +98,7 @@ def do_conda_export(to_directory: str = ""):
     if to_directory == "":
         to_directory = "{}".format(CONFIG["STORES"]["TEMP_STORE"])
 
-    if not os.path.isdir(to_directory) and not auth.debug():
+    if not os.path.isdir(to_directory) and not debug():
         raise ValueError("directory {dir} is not a valid directory".format(
             dir=to_directory))
 
