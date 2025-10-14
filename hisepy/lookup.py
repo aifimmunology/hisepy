@@ -144,3 +144,18 @@ def lookup_unique_entries(field: str) -> list:
 
     except Exception as e:
         raise RuntimeError(f"Error in lookup_unique_entries: {e}") from e
+
+
+def list_queryable_fields():
+    ''' Returns a list of fields user can use to create a query 
+    '''
+    df = lookup_queryable_fields()
+    df = df.loc[
+        (~df['field_type'].isin(['emr', 'lab'])
+         & ~df['field'].isin(['cohort'])),
+    ]
+    id_fields = [
+        '{}.id'.format(i)
+        for i in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
+    ]
+    return df['field'].unique().tolist() + id_fields
