@@ -208,13 +208,10 @@ def resolve_upload_context(study_space_id, project, input_sample_ids,
 
 def select_input_samples():
     provided_samples = cu.prompt_for_input(
-        "Please provide input of comma separated sample ids for the files being uploaded ("
-        " for none): ")
-    # Check for error in user input
-    if provided_samples == None:
-        raise ValueError("input interrupted by user")
+        "Please provide input of comma separated sample ids for the files being uploaded: "
+    )
     # Check for empty input
-    if provided_samples == "":
+    if provided_samples is None or provided_samples == "":
         return []
     # replace qutoes and split by commas
     if '"' in provided_samples:
