@@ -301,10 +301,7 @@ def select_input_samples():
         "Please provide input of comma separated sample ids for the files being uploaded: "
     )
     # Check for error in user input
-    if provided_samples == None:
-        raise ValueError("input interrupted by user")
-    # Check for empty input
-    if provided_samples == "":
+    if provided_samples is None or provided_samples == "":
         return []
     # replace qutoes and split by commas
     if '"' in provided_samples:
@@ -546,21 +543,21 @@ class DashAppImg:
     """ Class representing a Dash App Object """
     dash_app_name = 'app.py'
 
-    def __init__(
-        self,
-        app_filepath: str,
-        additional_files: list,
-        additional_dirs: list,
-        hero_image: str,
-        study_space_id: str,
-        input_file_ids: list,
-        work_dir: str,
-        title: str,
-        do_conda_build_check: bool,
-        requirements: str = None,
-        description: str = None,
-        input_sample_ids=None,
-    ):
+    def __init__(self,
+                 app_filepath: str,
+                 additional_files: list,
+                 additional_dirs: list,
+                 hero_image: str,
+                 study_space_id: str,
+                 input_file_ids: list,
+                 work_dir: str,
+                 title: str,
+                 do_conda_build_check: bool,
+                 requirements: str = None,
+                 description: str = None,
+                 input_sample_ids=None,
+                 data_mount_path: str = None,
+                 data_source_file_ids: list[str] = None):
 
         if input_sample_ids is None:
             input_sample_ids = []
@@ -578,6 +575,8 @@ class DashAppImg:
         self.description = description
         self.work_dir = work_dir
         self.do_conda_build_check = do_conda_build_check
+        self.data_mount_path = data_mount_path
+        self.data_source_file_ids = data_source_file_ids
 
     def create_req_txt(self):
         if self.requirements is None:
@@ -647,11 +646,9 @@ class DashAppImg:
         print("POST hydration/source/studyspace/file for hero image:")
         print(img_resp)
 
-        manifest_files = self.get_manifest_files()
-        input_files = list(
-            set(manifest_files + list(self.filepaths) +
-                list(self.directories)))
-        app_file_list = input_files + [
+        # upload data_mount_sources along with tarball
+        app_file_list = [
+            self.data_mount_path,
             '{wd}/dash_app.tar.gz'.format(wd=self.work_dir)
         ]
         upload_resp = upload_files(
@@ -673,12 +670,12 @@ class DashAppImg:
         # we'll always at least have 1 entry in app_file_list.
         # if a zarr is being uploaded, add that to the datamountpath and datasources
         dash_flow_payload = {
-            "dataSourceFiles":
-            upload_resp['FileIds'][:-1],  # all files, except for the tarball
+            "dataSourceFiles": upload_resp['FileIds'][:-1] +
+            self.data_source_file_ids,  # all files, except for the tarball
             "images": [self.hero_image]
         }
-        if len(manifest_files) > 0:
-            dash_flow_payload['dataMountPath'] = app_file_list[0]
+        if self.data_mount_path:
+            dash_flow_payload['dataMountPath'] = self.data_mount_path
         dash_workflow_url = hise_url("ide_management",
                                      "dash_workflow",
                                      resource=upload_resp['TraceId'])
@@ -766,7 +763,9 @@ def save_dash_app(app_filepath: str,
                   image: str = None,
                   requirements: str = None,
                   input_sample_ids: list = None,
-                  do_conda_build_check=True):
+                  do_conda_build_check=True,
+                  data_mount_path: str = None,
+                  data_source_file_ids: list[str] = None):
     """
     Given a Dash app consisting of an entry point named `app.py` and a list of supporting files, upload and deploy that
     app to HISE as a visualization in the given study space.
@@ -774,14 +773,18 @@ def save_dash_app(app_filepath: str,
     Parameters:
         app_filepath (str): path to file named app.py that serves your Dash app
             (i.e., ends with `app.run_server(host='0.0.0.0')`)
-        additional_files (list): list of additional files used by your app (e.g., data files, custom CSS).
+        additional_files (list): list of additional files used by your app (e.g., custom CSS).
             Only files under /home/jupyter can be included.
+        additional_dirs (list): list of additional directories for your app. 
+            Directories specified are for configs, or additional scripts, not input data.
         input_file_ids (list): list of HISE file UUIDs that this app visualizes
         study_space_id (str): UUID of study space to save app to
         title (str): a 10+ character title for the app
         description (str): description of app being uploaded
         image (str): png thumbnail image for app in study space
         input_sample_ids (list): list of samples UUIDs that this app visualizes
+        data_mount_path (str): path of directory where input datasets should be read from 
+        data_source_file_ids list[str] : file IDs in HISE of input data to a dash app 
     Returns:
         Response from server
     Example:
@@ -841,14 +844,16 @@ def save_dash_app(app_filepath: str,
                       requirements=requirements,
                       input_sample_ids=input_sample_ids,
                       work_dir=tmpdirname,
-                      do_conda_build_check=False)
+                      do_conda_build_check=False,
+                      data_mount_path=data_mount_path,
+                      data_source_file_ids=data_source_file_ids)
 
     # Insert UI widget code here:
 
     # move everything to a temporary dir while creating/preserving source
     # directories
-    #app_files = dobj.filepaths.union({dobj.app_filepath})
-    #app_files = app_files.union(dobj.directories)
+    app_files = dobj.filepaths.union({dobj.app_filepath})
+    app_files = app_files.union(dobj.directories)
     create_temp_directory_files([dobj.app_filepath], tmpdirname)
 
     # create .txt files that contains user's imported libraries
