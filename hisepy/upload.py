@@ -667,11 +667,8 @@ class DashAppImg:
         homedir = IDE_HOME_DIR if cu.is_legacy_ide(
         ) else CONFIG['IDE']['HOME_DIR_V2']
 
-        # we'll always at least have 1 entry in app_file_list.
-        # if a zarr is being uploaded, add that to the datamountpath and datasources
         dash_flow_payload = {
-            "dataSourceFiles": upload_resp['FileIds'][:-1] +
-            self.data_source_file_ids,  # all files, except for the tarball
+            "dataSourceFiles": self.data_source_file_ids,
             "images": [self.hero_image]
         }
         if self.data_mount_path:
