@@ -94,6 +94,12 @@ def convert_list_to_df(df, list_val, col_name):
     return df
 
 
+"""
+def drop_file_descriptor_duplicates(df):
+    ddl2 = lab.sort_values(by=['revisionNumber','sampleKitGuid'], ascending=False).drop_duplicates(subset=['sampleKitGuid'], keep='first')
+"""
+
+
 def reshape_custom_metadata(custom_metadata, add_prefix=True):
     """Takes a json payload and reshapes to a DataFrame object."""
     rows = {}  # collect scalar-like values
@@ -308,6 +314,12 @@ def reshape_descriptors(this_desc):
 
     # Remaining descriptors
     dict_df["descriptors"] = reshape_custom_metadata(this_desc)
+
+    # attach sample.id to all data.frames
+    surv_df['sample.id'] = dict_df['descriptors']['sample.id']
+    lab_df['sample.id'] = dict_df['descriptors']['sample.id']
+
+    # create key of data.frames for all other fields
     dict_df["labResults"] = lab_df
     dict_df["specimens"] = spec_df
     dict_df["survey"] = surv_df
