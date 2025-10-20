@@ -618,24 +618,6 @@ class DashAppImg:
             tar.add(self.work_dir, arcname="")
         return True
 
-    def get_manifest_files(self):
-        """ Given a list, returns indencies of entries that have .zarr file extension """
-
-        def __is_zarr(filename):
-            # check if filename contains .zarr extension
-            if ".zarr" in filename:
-                return True
-            return False
-
-        # loop through list and track which files/directories are of type .zarr
-        manifest_files = []
-        for f in list(self.filepaths) + list(self.directories):
-            # parse file name
-            filename = os.path.basename(f)
-            if __is_zarr(filename):
-                manifest_files += [f]
-        return manifest_files
-
     def export_dash_image(self):
         """ Uploads, saves and deploys Dash app """
 
@@ -646,11 +628,10 @@ class DashAppImg:
         print("POST hydration/source/studyspace/file for hero image:")
         print(img_resp)
 
-        # upload data_mount_sources along with tarball
-        app_file_list = [
-            self.data_mount_path,
-            '{wd}/dash_app.tar.gz'.format(wd=self.work_dir)
-        ]
+        # upload tarball -
+        # the tarball should contain any files/directories specified
+        # within additional_files/additional_dirs params
+        app_file_list = ['{wd}/dash_app.tar.gz'.format(wd=self.work_dir)]
         upload_resp = upload_files(
             files=app_file_list,
             study_space_id=self.study_space_id,
@@ -667,12 +648,21 @@ class DashAppImg:
         homedir = IDE_HOME_DIR if cu.is_legacy_ide(
         ) else CONFIG['IDE']['HOME_DIR_V2']
 
-        dash_flow_payload = {
-            "dataSourceFiles": self.data_source_file_ids,
-            "images": [self.hero_image]
-        }
+        # if the user specifies HISE fileIDs, or a data mount path -
+        # add that info to the workflow, as it's not a part of the above uploadFiles call
+        dash_flow_payload = {"images": [self.hero_image]}
+
+        # this will be the path where we mount all of the data
         if self.data_mount_path:
             dash_flow_payload['dataMountPath'] = self.data_mount_path
+
+        # for the case where a user wants to pull in files that are already in HISE
+        if self.data_source_file_ids:
+            dash_flow_payload["dataSourceFiles"] = self.data_source_file_ids
+
+        # submit workflow
+        # this endpoint will be smart enough to pull relevant files that were
+        # uploaded when users specify additional_files/additional_dirs
         dash_workflow_url = hise_url("ide_management",
                                      "dash_workflow",
                                      resource=upload_resp['TraceId'])
