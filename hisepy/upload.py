@@ -582,7 +582,21 @@ class DashAppImg:
             IDEInstance().environment['condaEnvName'])
 
     def create_req_txt(self):
-        if self.requirements is None:
+        if 'requirements.in' == self.requirements:
+            subprocess.run([
+                "bash", "-c", f"source /opt/conda/etc/profile.d/conda.sh && "
+                f"conda activate {self.conda_pack_env_path} && "
+                f"pip-compile --no-annotate --no-header --quiet --strip-extras "
+                f"--output-file={self.work_dir}/{os.path.dirname(self.app_filepath)}/requirements.txt "
+                f"{self.requirements}"
+            ],
+                           check=True)
+        elif "requirements.txt" == self.requirements:
+            print(
+                "you have passed in you're on requirements.txt file. this file will be used for your application."
+            )
+            pass
+        else:
             subprocess.run([
                 'pipreqs', '--savepath', '{wd}/{app}/requirements.in'.format(
                     wd=self.work_dir, app=os.path.dirname(self.app_filepath)),
@@ -594,15 +608,6 @@ class DashAppImg:
                 'pip-compile', '--no-annotate', '--no-header', '--quiet',
                 '--strip-extras', '{wd}/{app}/requirements.in'.format(
                     wd=self.work_dir, app=os.path.dirname(self.app_filepath))
-            ],
-                           check=True)
-        else:
-            subprocess.run([
-                "bash", "-c", f"source /opt/conda/etc/profile.d/conda.sh && "
-                f"conda activate {self.conda_pack_env_path} && "
-                f"pip-compile --no-annotate --no-header --quiet --strip-extras "
-                f"--output-file={self.work_dir}/{os.path.dirname(self.app_filepath)}/requirements.txt "
-                f"{self.requirements}"
             ],
                            check=True)
 
