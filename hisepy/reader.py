@@ -271,7 +271,6 @@ def get_file_descriptors(query_dict: dict = None):
     }
     i = 0
     for this_desc in obj:
-        print(i)
         try:
             reshaped = hf.reshape_descriptors(this_desc)
             for key in collectors:

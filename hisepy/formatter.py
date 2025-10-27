@@ -170,107 +170,101 @@ def reshape_list_metadata_to_df(spec_obj):
 
 def reshape_survey_results_to_df(survey_obj):
     """
-    Given a list of survey results, returns a data.frame object
-
-        Parameters:
-            survey_obj : dict
-                dictionary fof survey results
-
-        Returns:
-            surv_df : pd.dataframe
-                pandas data.frame
+    Converts a survey result dictionary into a flattened DataFrame, even when
+    some fields contain multiple values.
     """
-    # reshape survey answers - take each dict entry and convert to a data.frame
-    ans_df = convert_dict_to_df(pd.DataFrame(), survey_obj['answers'],
+    if survey_obj is None:
+        return pd.DataFrame()
+
+    # convert answers section first
+    ans_df = convert_dict_to_df(pd.DataFrame(), survey_obj.get('answers', {}),
                                 'answers')
-    if survey_obj is not None:
-        survey_obj.update((k, [v]) for k, v in survey_obj.items()
-                          if type(survey_obj[k]) is not list)
-        this_surv_df = convert_dict_to_df(pd.DataFrame(),
-                                          survey_obj,
-                                          '',
-                                          add_prefix=False)
-        del this_surv_df['answers']
-    surv_df = pd.concat([this_surv_df, ans_df],
-                        axis=1)  # add answers to survey df
+
+    # normalize the rest of the survey fields
+    meta_dict = {k: v for k, v in survey_obj.items() if k != 'answers'}
+
+    # make all entries lists of equal length
+    # find max length among all list-type values
+    max_len = max(
+        (len(v) if isinstance(v, list) else 1) for v in meta_dict.values())
+
+    normalized = {}
+    for k, v in meta_dict.items():
+        if isinstance(v, list):
+            # if shorter than max_len, pad with None
+            normalized[k] = v + [None] * (max_len - len(v))
+        else:
+            # repeat scalar to match max_len
+            normalized[k] = [v] * max_len
+
+    meta_df = pd.DataFrame(normalized)
+
+    # combine metadata with answers
+    surv_df = pd.concat([meta_df, ans_df.reset_index(drop=True)], axis=1)
+
     return surv_df
 
 
 def sample_to_df(list_of_sample_obj):
     """
-    Given a list of outputs from readSamples(), returns the same data but in a dictionary of data.frames format
-
-        Parameters:
-            list_of_sample_obj : list
-                list of dictionaries for each sampleID
-        Returns:
-            sample_df_dict : dictionary
-                dictionary with keys ['metadata','specimens'] where each key is mapped to a data.frame
-
+    Given a list of outputs from readSamples(), returns the same data but in a dictionary of DataFrames format.
+    Each sample’s projectGuid is propagated to all its corresponding records.
     """
-    sample_df_dict = {}
-    if len(list_of_sample_obj) == 0:
+
+    if not list_of_sample_obj:
         return pd.DataFrame()
-    if 'specimens' in list_of_sample_obj[0].keys():
-        spec_df = reshape_list_metadata_to_df(
-            list_of_sample_obj[0]['specimens'])
-        list_of_sample_obj[0].pop(
-            'specimens')  # remove so we don't reshape it again
 
-    surv_df = pd.DataFrame()
-    if 'survey' in list_of_sample_obj[0].keys():
+    # Collect all per-sample frames
+    all_specimens = []
+    all_surveys = []
+    all_labs = []
+    all_metadata = []
 
-        # we have a list of dictionaries, so we need to reshape each dictionary to a data.frame
-        for i in range(0, len(list_of_sample_obj[0]['survey'])):
-            this_dict = list_of_sample_obj[0]['survey'][i]
-            this_surv_df = reshape_survey_results_to_df(this_dict)
-            surv_df = pd.concat([surv_df, this_surv_df], ignore_index=True)
-        list_of_sample_obj[0].pop(
-            'survey')  # remove so we don't reshape it again
-    lab_df = pd.DataFrame()
-    if 'lab' in list_of_sample_obj[0].keys(
-    ) and list_of_sample_obj[0]['hasLabResults'] is True:
-        lab_df = reshape_custom_metadata(list_of_sample_obj[0]['lab'], False)
-        list_of_sample_obj[0].pop('lab')  # remove so we don't reshape it again
-    sample_df = reshape_custom_metadata(list_of_sample_obj[0])
+    for sample in list_of_sample_obj:
+        # extract projectGuid from this sample’s metadata
+        base_df = reshape_custom_metadata({
+            k: v
+            for k, v in sample.items()
+            if k not in ['specimens', 'survey', 'lab']
+        })
+        project_guid = (base_df["projectGuid"].iat[0]
+                        if "projectGuid" in base_df and not base_df.empty else
+                        None)
 
-    if len(list_of_sample_obj) > 1:
-        # loop and append
-        this_surv_df = pd.DataFrame()
-        for i in range(1, len(list_of_sample_obj)):
-            # reshape specimens, survey, and labResults first, if they exist
-            if 'specimens' in list_of_sample_obj[i].keys():
-                this_spec_df = reshape_list_metadata_to_df(
-                    list_of_sample_obj[i]['specimens'])
-                list_of_sample_obj[i].pop(
-                    'specimens')  # remove so we don't reshape it again
-                spec_df = pd.concat([
-                    spec_df.reset_index(drop=True),
-                    this_spec_df.reset_index(drop=True)
-                ],
-                                    ignore_index=True)
-            if 'survey' in list_of_sample_obj[i].keys():
-                for j in range(0, len(list_of_sample_obj[i]['survey'])):
-                    this_surv_df = reshape_survey_results_to_df(
-                        list_of_sample_obj[i]['survey'][j])
-                    surv_df = pd.concat([surv_df, this_surv_df],
-                                        ignore_index=True)
-                list_of_sample_obj[i].pop(
-                    'survey')  # remove so we don't reshape it again
-            if 'lab' in list_of_sample_obj[i].keys(
-            ) and list_of_sample_obj[i]['hasLabResults'] is True:
-                this_lab_df = reshape_custom_metadata(
-                    list_of_sample_obj[i]['lab'], False)
-                list_of_sample_obj[i].pop(
-                    'lab')  # remove so we don't reshape it again`
-                lab_df = pd.concat([lab_df, this_lab_df])
-            # reshape the rest of metadata
-            this_sample_df = reshape_custom_metadata(list_of_sample_obj[i])
-            sample_df = pd.concat([sample_df, this_sample_df])
-    sample_df_dict['metadata'] = sample_df
-    sample_df_dict['specimens'] = spec_df
-    sample_df_dict['survey'] = surv_df
-    sample_df_dict['labResults'] = lab_df
+        # specimens
+        if "specimens" in sample:
+            spec_df = reshape_list_metadata_to_df(sample["specimens"])
+            spec_df = spec_df.assign(projectGuid=project_guid)
+            all_specimens.append(spec_df)
+
+        # survey
+        if "survey" in sample:
+            for surv in sample["survey"]:
+                surv_df = reshape_survey_results_to_df(surv)
+                surv_df = surv_df.assign(projectGuid=project_guid)
+                all_surveys.append(surv_df)
+
+        # lab
+        if sample.get("hasLabResults") and "lab" in sample:
+            lab_df = reshape_custom_metadata(sample["lab"], False)
+            lab_df = lab_df.assign(projectGuid=project_guid)
+            all_labs.append(lab_df)
+
+        # metadata
+        all_metadata.append(base_df)
+
+    # combine all results
+    def concat_frames(frames):
+        return pd.concat(frames,
+                         ignore_index=True) if frames else pd.DataFrame()
+
+    sample_df_dict = {
+        "metadata": concat_frames(all_metadata),
+        "specimens": concat_frames(all_specimens),
+        "survey": concat_frames(all_surveys),
+        "labResults": concat_frames(all_labs),
+    }
+
     return sample_df_dict
 
 
@@ -307,10 +301,21 @@ def reshape_descriptors(this_desc):
         this_desc = {k: v for k, v in this_desc.items() if k != "survey"}
 
     # Remaining descriptors
-    dict_df["descriptors"] = reshape_custom_metadata(this_desc)
-    dict_df["labResults"] = lab_df
-    dict_df["specimens"] = spec_df
-    dict_df["survey"] = surv_df
+    dict_df = {
+        "descriptors": reshape_custom_metadata(this_desc),
+        "labResults": lab_df,
+        "specimens": spec_df,
+        "survey": surv_df,
+    }
+
+    # Extract projectGuid once
+    this_proj_guid = dict_df["descriptors"]["projectGuid"].iat[0]
+
+    # Attach projectGuid to all relevant DataFrames at once
+    for key in ("labResults", "specimens", "survey"):
+        df = dict_df[key]
+        # Assign using assign() to create a new DataFrame
+        dict_df[key] = df.assign(projectGuid=this_proj_guid)
 
     return dict_df
 
