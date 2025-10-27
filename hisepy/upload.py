@@ -582,7 +582,7 @@ class DashAppImg:
             IDEInstance().environment['condaEnvName'])
 
     def create_req_txt(self):
-        if 'requirements.in' == self.requirements:
+        if 'requirements.in' == os.path.basename(self.requirements):
             subprocess.run([
                 "bash", "-c", f"source /opt/conda/etc/profile.d/conda.sh && "
                 f"conda activate {self.conda_pack_env_path} && "
@@ -591,7 +591,7 @@ class DashAppImg:
                 f"{self.requirements}"
             ],
                            check=True)
-        elif "requirements.txt" == self.requirements:
+        elif "requirements.txt" == os.path.basename(self.requirements):
             print(
                 "you have passed in you're on requirements.txt file. this file will be used for your application."
             )
