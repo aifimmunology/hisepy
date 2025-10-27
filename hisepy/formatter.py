@@ -227,8 +227,9 @@ def sample_to_df(list_of_sample_obj):
             for k, v in sample.items()
             if k not in ['specimens', 'survey', 'lab']
         })
-        project_guid = base_df["projectGuid"].iat[
-            0] if "projectGuid" in base_df else None
+        project_guid = (base_df["projectGuid"].iat[0]
+                        if "projectGuid" in base_df and not base_df.empty else
+                        None)
 
         # specimens
         if "specimens" in sample:
@@ -302,14 +303,13 @@ def reshape_descriptors(this_desc):
     # Remaining descriptors
     dict_df = {
         "descriptors": reshape_custom_metadata(this_desc),
-        "labResults": lab_df.copy(),
-        "specimens": spec_df.copy(),
-        "survey": surv_df.copy(),
+        "labResults": lab_df,
+        "specimens": spec_df,
+        "survey": surv_df,
     }
 
     # Extract projectGuid once
-    this_proj_guid = dict_df["descriptors"]["projectGuid"].iat[
-        0]  # faster than .item()
+    this_proj_guid = dict_df["descriptors"]["projectGuid"].iat[0]
 
     # Attach projectGuid to all relevant DataFrames at once
     for key in ("labResults", "specimens", "survey"):
