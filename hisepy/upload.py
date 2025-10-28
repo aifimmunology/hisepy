@@ -592,10 +592,10 @@ class DashAppImg:
             ],
                            check=True)
         elif "requirements.txt" == os.path.basename(self.requirements):
-            print(
-                "you have passed in you're on requirements.txt file. this file will be used for your application."
-            )
-            pass
+            # save file to directory of app_filepath
+            shutil.copy(
+                self.requirements,
+                f"{self.work_dir}/{os.path.dirname(self.app_filepath)}")
         else:
             subprocess.run([
                 'pipreqs', '--savepath', '{wd}/{app}/requirements.in'.format(
