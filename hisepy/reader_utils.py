@@ -15,6 +15,7 @@ _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
+@with_default_logging
 class hise_file:
     """ A class representing a hise_file.
 
