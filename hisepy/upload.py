@@ -36,21 +36,21 @@ class DashAppImg:
 
     DASH_ENTRY_FILENAME = "app.py"
 
-    def __init__(
-        self,
-        app_filepath: str,
-        additional_files: list[str],
-        additional_dirs: list[str],
-        hero_image: str,
-        study_space_id: str,
-        input_file_ids: list[str],
-        work_dir: str,
-        title: str,
-        do_conda_build_check: bool,
-        requirements: str | None = None,
-        description: str | None = None,
-        input_sample_ids: list[str] | None = None,
-    ):
+    def __init__(self,
+                 app_filepath: str,
+                 additional_files: list[str],
+                 additional_dirs: list[str],
+                 hero_image: str,
+                 study_space_id: str,
+                 input_file_ids: list[str],
+                 work_dir: str,
+                 title: str,
+                 do_conda_build_check: bool,
+                 requirements: str | None = None,
+                 description: str | None = None,
+                 input_sample_ids: list[str] | None = None,
+                 data_mount_path: str | None = None,
+                 data_source_file_ids: list[str] | None = None):
         self.app_filepath = os.path.abspath(app_filepath)
         self.filepaths = {os.path.abspath(f) for f in additional_files or []}
         self.directories = {os.path.abspath(d) for d in additional_dirs or []}
@@ -64,6 +64,8 @@ class DashAppImg:
         self.description = description
         self.work_dir = work_dir
         self.do_conda_build_check = do_conda_build_check
+        self.data_mount_path = data_mount_path
+        self.data_source_file_ids = data_source_file_ids
 
     def create_requirements_file(self) -> None:
         """Generate or compile a requirements.txt file for the Dash app."""
@@ -72,7 +74,22 @@ class DashAppImg:
         req_txt_path = f"{self.work_dir}/{app_dir}/requirements.txt"
 
         try:
-            if not self.requirements:
+            if 'requirements.in' == os.path.basename(self.requirements):
+                subprocess.run([
+                    "bash", "-c",
+                    f"source /opt/conda/etc/profile.d/conda.sh && "
+                    f"conda activate {self.conda_pack_env_path} && "
+                    f"pip-compile --no-annotate --no-header --quiet --strip-extras "
+                    f"--output-file={self.work_dir}/{os.path.dirname(self.app_filepath)}/requirements.txt "
+                    f"{self.requirements}"
+                ],
+                               check=True)
+            elif "requirements.txt" == os.path.basename(self.requirements):
+                # save file to directory of app_filepath
+                shutil.copy(
+                    self.requirements,
+                    f"{self.work_dir}/{os.path.dirname(self.app_filepath)}")
+            else:
                 logger.debug("Generating requirements.in using pipreqs...")
                 subprocess.run(
                     ["pipreqs", "--savepath", req_in_path, self.work_dir],
@@ -83,18 +100,6 @@ class DashAppImg:
                     [
                         "pip-compile", "--no-annotate", "--no-header",
                         "--quiet", "--strip-extras", req_in_path
-                    ],
-                    check=True,
-                )
-            else:
-                logger.debug(
-                    "Compiling provided requirements file into requirements.txt..."
-                )
-                subprocess.run(
-                    [
-                        "pip-compile", "--no-annotate", "--no-header",
-                        "--quiet", "--strip-extras",
-                        f"--output-file={req_txt_path}", self.requirements
                     ],
                     check=True,
                 )
@@ -122,15 +127,6 @@ class DashAppImg:
             tar.add(self.work_dir, arcname="")
         return tarfile_path
 
-    def get_manifest_files(self) -> list[str]:
-        """Return all files and directories that include '.zarr' in their names."""
-        manifest = [
-            path for path in list(self.filepaths) + list(self.directories)
-            if ".zarr" in os.path.basename(path)
-        ]
-        logger.debug("Manifest files (.zarr): %s", manifest)
-        return manifest
-
     def export(self) -> dict:
         """Upload and deploy the Dash app as a visualization."""
         logger.info("Uploading hero image...")
@@ -139,14 +135,11 @@ class DashAppImg:
             logger.warning("Error uploading image: %s", img_resp["error"])
 
         logger.debug("Hero image response: %s", img_resp)
-
-        manifest_files = self.get_manifest_files()
         tarball_path = os.path.join(self.work_dir, "dash_app.tar.gz")
-        app_files = manifest_files + [tarball_path]
 
         logger.info("Uploading Dash app bundle and dependencies...")
         upload_resp = upload_files(
-            files=app_files,
+            files=tarball_path,
             study_space_id=self.study_space_id,
             title=self.title,
             input_file_ids=self.input_file_ids,
@@ -158,10 +151,16 @@ class DashAppImg:
         logger.debug("Upload response: %s", upload_resp)
 
         dash_flow_payload = {
-            "dataSource": app_files[0],
-            "dataFile": upload_resp["FileIds"][0],
             "images": [self.hero_image],
         }
+
+        # this will be the path where we mount all of the data
+        if self.data_mount_path:
+            dash_flow_payload['dataMountPath'] = self.data_mount_path
+
+        # for the case where a user wants to pull in files that are already in HISE
+        if self.data_source_file_ids:
+            dash_flow_payload["dataSourceFiles"] = self.data_source_file_ids
 
         dash_workflow_url = hise_url("ide_management",
                                      "dash_workflow",
@@ -244,19 +243,19 @@ def retry_ide_commit(id: str):
 
 
 @with_default_logging
-def save_dash_app(
-    app_filepath: str,
-    additional_files: list[str],
-    additional_dirs: list[str],
-    input_file_ids: list[str],
-    study_space_id: str,
-    title: str,
-    description: str | None = None,
-    image: str | None = None,
-    requirements: str | None = None,
-    input_sample_ids: list[str] | None = None,
-    do_conda_build_check: bool = True,
-) -> dict:
+def save_dash_app(app_filepath: str,
+                  additional_files: list[str],
+                  additional_dirs: list[str],
+                  input_file_ids: list[str],
+                  study_space_id: str,
+                  title: str,
+                  description: str | None = None,
+                  image: str | None = None,
+                  requirements: str | None = None,
+                  input_sample_ids: list[str] | None = None,
+                  do_conda_build_check: bool = True,
+                  data_mount_path: str | None = None,
+                  data_source_file_ids: list[str] | None = None) -> dict:
     """
     Given a Dash app consisting of an entry point named `app.py` and a list of supporting files, upload and deploy that
     app to HISE as a visualization in the given study space.
@@ -264,14 +263,18 @@ def save_dash_app(
     Parameters:
         app_filepath (str): path to file named app.py that serves your Dash app
             (i.e., ends with `app.run_server(host='0.0.0.0')`)
-        additional_files (list): list of additional files used by your app (e.g., data files, custom CSS).
+        additional_files (list): list of additional files used by your app (e.g., custom CSS).
             Only files under /home/jupyter can be included.
+        additional_dirs (list): list of additional directories for your app. 
+            Directories specified are for configs, or additional scripts, not input data.
         input_file_ids (list): list of HISE file UUIDs that this app visualizes
         study_space_id (str): UUID of study space to save app to
         title (str): a 10+ character title for the app
         description (str): description of app being uploaded
         image (str): png thumbnail image for app in study space
         input_sample_ids (list): list of samples UUIDs that this app visualizes
+        data_mount_path (str): path of directory where input datasets should be read from 
+        data_source_file_ids list[str] : file IDs in HISE of input data to a dash app 
     Returns:
         Response from server
     Example:
@@ -316,20 +319,20 @@ def save_dash_app(
                 tmpdirname)
 
     try:
-        dash_app = DashAppImg(
-            app_filepath=app_filepath,
-            additional_files=additional_files,
-            additional_dirs=additional_dirs,
-            hero_image=image,
-            study_space_id=study_space_id,
-            input_file_ids=input_file_ids,
-            title=title,
-            description=description,
-            requirements=requirements,
-            input_sample_ids=input_sample_ids,
-            work_dir=tmpdirname,
-            do_conda_build_check=False,
-        )
+        dash_app = DashAppImg(app_filepath=app_filepath,
+                              additional_files=additional_files,
+                              additional_dirs=additional_dirs,
+                              hero_image=image,
+                              study_space_id=study_space_id,
+                              input_file_ids=input_file_ids,
+                              title=title,
+                              description=description,
+                              requirements=requirements,
+                              input_sample_ids=input_sample_ids,
+                              work_dir=tmpdirname,
+                              do_conda_build_check=False,
+                              data_mount_path=data_mount_path,
+                              data_source_file_ids=data_source_file_ids)
 
         # Copy files and prepare build context
         all_files = dash_app.filepaths.union({dash_app.app_filepath
