@@ -10,6 +10,7 @@ from hisepy.auth import get_bearer_token_header, hise_server, debug
 import hisepy.lookup as hl
 import hisepy.common_utils as cu
 import hisepy.formatter as hf
+from hisepy.logging import with_default_logging, logger
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))

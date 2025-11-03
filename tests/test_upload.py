@@ -14,7 +14,8 @@ sys.path.insert(0, '../')
 import hisepy.upload as hpu
 import hisepy.common_utils as cu
 from hisepy.auth import ide_instance_guid, instance_account_guid, IDEInstance
-from hisepy.upload import get_study_space
+from hisepy.upload import get_study_spaces
+from hisepy.upload_utils import get_conda_env_name, do_conda_export, validate_upload_input_ids, validate_upload_data, gen_upload_body
 
 _here = os.path.abspath(os.path.dirname(hpu.__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -146,9 +147,8 @@ class TestUploader():
             "name": "test study",
             "shortName": "testing"
         }
-        with patch('hisepy.upload.get_study_space',
-                   return_value=mock_study):
-            assert hpu.get_study_space(
+        with patch('hisepy.upload.get_study_spaces', return_value=mock_study):
+            assert hpu.get_study_spaces(
                 "84dfd43c-e034-4ae8-8a50-25ecbce6fe24") == mock_study
 
     @patch('subprocess.run')
@@ -156,9 +156,9 @@ class TestUploader():
         # Simulate successful export
         mock_subprocess_run.return_value = 0
 
-        with patch('hisepy.upload.get_conda_env_name',
+        with patch('hisepy.upload_utils.get_conda_env_name',
                    return_value="test_env") as gce:
-            export_path = hpu.do_conda_export()
+            export_path = do_conda_export()
 
             expected_env_dir = f"{CONFIG['STORES']['ENV_STORE']}/{gce()}"
             expected_command = f"conda env export -p {expected_env_dir} > {CONFIG['STORES']['TEMP_STORE']}/environment.yml"
@@ -230,24 +230,25 @@ class TestUploader():
             hpu.check_project_against_study_space("mock_project",
                                                    "bad_study_id")
     """
+
     def test_validate_upload_input_ids(self):
 
         # create cache log file wiht some sample and file ids
         cache_file = f"{self.wd}/{CONFIG['IDE']['CACHE_LOG_NAME']}"
         cache_df = pd.DataFrame({
             "fileId": ["f1", "f2"],
-            'replicaFileId' : ['fr1', 'fr2'],
+            'replicaFileId': ['fr1', 'fr2'],
             "sampleId": ["s1", "s2"],
-            'replicaSampleId' : ['sr1', 'sr2']
+            'replicaSampleId': ['sr1', 'sr2']
         })
         pyreadr.write_rds(cache_file, cache_df)
-        assert cu.validate_upload_input_ids(['f1', 'f2'], ['s1', 's2'],
-                                            self.wd) is None
+        assert validate_upload_input_ids(['f1', 'f2'], ['s1', 's2'],
+                                         self.wd) is None
 
         # Test error for missing file id
-        with pytest.raises(AssertionError), \
+        with pytest.raises(ValueError), \
             patch('hisepy.auth.debug', return_value=1):
-            cu.validate_upload_input_ids(['abc'], ['s1', 's2'], self.wd)
+            validate_upload_input_ids(['abc'], ['s1', 's2'], self.wd)
 
     def test_validate_upload_data(self):
         # create a temporary file
@@ -255,25 +256,25 @@ class TestUploader():
         os.system(f"touch {file_path}")
 
         # test successful validation
-        assert hpu.validate_upload_data(files=[file_path],
-                                        study_space_id='study123',
-                                        project='proj',
-                                        title='a cool title',
-                                        input_file_ids=['f1', 'f2']) is None
+        assert validate_upload_data(files=[file_path],
+                                    study_space_id='study123',
+                                    project='proj',
+                                    title='a cool title',
+                                    input_file_ids=['f1', 'f2']) is None
 
         # test error for missing file
         with pytest.raises(ValueError):
-            hpu.validate_upload_data(files=[file_path],
-                                     study_space_id='study123',
-                                     project='proj',
-                                     title='a cool title',
-                                     input_file_ids=[])
+            validate_upload_data(files=[file_path],
+                                 study_space_id='study123',
+                                 project='proj',
+                                 title='a cool title',
+                                 input_file_ids=[])
 
-            hpu.validate_upload_data(files=[file_path],
-                                     study_space_id=None,
-                                     project=None,
-                                     title='a cool title',
-                                     input_file_ids=['f1', 'f2'])
+            validate_upload_data(files=[file_path],
+                                 study_space_id=None,
+                                 project=None,
+                                 title='a cool title',
+                                 input_file_ids=['f1', 'f2'])
 
         # clean up test file
         os.system(f"rm {file_path}")
@@ -283,7 +284,7 @@ class TestUploader():
         os.system(f"touch {self.wd}/file1.txt")
         os.system(f"touch {self.wd}/file2.txt")
 
-        assert hpu.gen_upload_body(
+        assert gen_upload_body(
             [f"{self.wd}/file1.txt", f"{self.wd}/file2.txt"],
             ["txt", "txt"]) == {
                 "files": [{

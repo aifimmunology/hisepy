@@ -26,6 +26,7 @@ valid_upload_stores = [permanent_store, project_store]
 defaultLocalAccountGuid = "10f58583-1cdf-4f18-8de4-dc1ca94783e2"
 DEFAULT_STORE_KEY = "default_store"
 IDE_DEFAULT_TAG = "IDE_DEFAULT"
+TEST_IDE_GUID = 'ide123'
 
 
 class HiseUser:
@@ -118,7 +119,10 @@ class IDEInstance:
 
 
 def ide_instance_guid():
-    iguid = os.getenv("IDE_INSTANCE_GUID")
+    if not debug():
+        iguid = os.getenv("IDE_INSTANCE_GUID")
+    else:
+        iguid = TEST_IDE_GUID
     if iguid is None:
         raise Exception(
             "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"

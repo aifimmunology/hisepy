@@ -206,7 +206,6 @@ def reshape_survey_results_to_df(survey_obj):
     return surv_df
 
 
-@with_default_logging
 def sample_to_df(list_of_sample_obj):
     """
     Given a list of outputs from readSamples(), returns the same data but in a dictionary of DataFrames format.
