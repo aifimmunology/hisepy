@@ -25,7 +25,7 @@ import inspect
 import uuid
 import subprocess
 import zlib
-from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
+from hisepy.auth import debug, defaultLocalAccountGuid, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -39,6 +39,7 @@ def read_yaml(file_path):
 CONFIG = read_yaml('{}/config.yaml'.format(_here))
 num_printed_notebooks = 3  # number of options user gets when a save call is invoked
 the_current_notebook = None
+TEST_VERSION = 'VTEST'
 
 
 def convert_notebook_to_python(notebook_path, output_path=None):
@@ -235,7 +236,7 @@ def get_projects(to_df: bool = True):
 
 def get_sdk_version():
     url = hise_url("ide_management", "sdk_version", 'python')
-    version_tag = hise_get(url)
+    version_tag = hise_get(url) if not debug() else TEST_VERSION
     return version_tag
 
 

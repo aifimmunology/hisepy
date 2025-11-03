@@ -8,7 +8,7 @@ import yaml
 import inspect
 from dataclasses import dataclass, field
 import hisepy.common_utils as cu
-from hisepy.auth import ide_instance_guid, IDEInstance, HiseUser, instance_account_guid
+from hisepy.auth import ide_instance_guid, IDEInstance, HiseUser, instance_account_guid, debug, TEST_IDE_GUID
 from typing import Any, Callable, Optional, Dict, Tuple
 
 # Logging Configuration
@@ -50,7 +50,8 @@ logger = logging.getLogger(__name__)
 class LogEntry:
     timestamp: str = field(
         default_factory=lambda: time.strftime("%Y-%m-%d %H:%M:%S"))
-    user: str = field(default_factory=lambda: HiseUser().email)
+    user: str = field(default_factory=lambda: HiseUser().email
+                      ) if not debug else "testuser@alleninstitute.org"
     method_name: str = ""
     ide: str = field(default_factory=ide_instance_guid)
     sdk_version: str = field(default_factory=cu.get_sdk_version)
@@ -58,7 +59,8 @@ class LogEntry:
     success: bool = True
     organization: str = field(default_factory=cu.get_organization)
     account: str = field(default_factory=instance_account_guid)
-    project: str = field(default_factory=IDEInstance().get_default_project)
+    project: str = field(default_factory=IDEInstance().get_default_project
+                         ) if not debug() else TEST_IDE_GUID
     environment_name: str = field(default_factory=cu.get_environment_name)
     time_elapsed: float = None
     message: str = ""
