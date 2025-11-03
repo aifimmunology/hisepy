@@ -50,7 +50,7 @@ def lookup_queryable_fields(field_type='all') -> pd.DataFrame:
         url = f"https://{hise_server()}/{CONFIG['LEDGER'][f'{collection.upper()}_SEARCH_PATH']}?field_names=true"
 
         try:
-            fields = hreq.hise_post(url)
+            fields = hreq.hise_post(url, data=json.dumps({"Filter": {}}))
         except Exception as e:
             raise SystemError(
                 f"Failed to retrieve field names for collection '{collection}': {e}"
