@@ -43,7 +43,9 @@ def lookup_queryable_fields(field_type='all'):
         url = 'https://{ser}/{led}?field_names=true'.format(
             ser=hise_server(),
             led=CONFIG['LEDGER']['{}_SEARCH_PATH'.format(cf.upper())])
-        resp = requests.post(url, headers=get_bearer_token_header())
+        resp = requests.post(url,
+                             data=json.dumps({"Filter": {}}),
+                             headers=get_bearer_token_header())
         fields = json.loads(resp.text)
 
         # filter to just the collection type user requested
@@ -60,7 +62,8 @@ def lookup_queryable_fields(field_type='all'):
         # remove cohort, if file_type != cohort
         # also fix the field_type for cohort_Guid
         fields_df = fields_df.loc[
-            ~(fields_df['field'].isin(['cohort', 'sampleGuid'])), ]
+            ~(fields_df['field'].isin(['cohort', 'sampleGuid'])),
+        ]
         fields_df.loc[fields_df['field'].eq('cohortGuid'),
                       'field_type'] = 'cohort'
         all_fields_df = pd.concat([all_fields_df, fields_df],
@@ -81,9 +84,10 @@ def lookup_queryable_fields(field_type='all'):
     if field_type == 'all':
         return all_fields_df.drop_duplicates()
     else:
-        return all_fields_df.loc[(
-            (all_fields_df['field_type'].eq(field_type)) |
-            (all_fields_df['field_type'].eq('cohort'))), ].drop_duplicates()
+        return all_fields_df.loc[
+            ((all_fields_df['field_type'].eq(field_type)) |
+             (all_fields_df['field_type'].eq('cohort'))),
+        ].drop_duplicates()
 
 
 def lookup_unique_entries(field):
@@ -107,7 +111,9 @@ def lookup_unique_entries(field):
         all_field_df['field'].unique())
 
     # subset to user's field of interest
-    user_df = all_field_df.loc[all_field_df['field'] == field, ]
+    user_df = all_field_df.loc[
+        all_field_df['field'] == field,
+    ]
     field_type = user_df['field_type'].values[0]
 
     # create query and POST request
@@ -141,8 +147,10 @@ def list_queryable_fields():
     ''' Returns a list of fields user can use to create a query 
     '''
     df = lookup_queryable_fields()
-    df = df.loc[(~df['field_type'].isin(['emr', 'lab'])
-                 & ~df['field'].isin(['cohort'])), ]
+    df = df.loc[
+        (~df['field_type'].isin(['emr', 'lab'])
+         & ~df['field'].isin(['cohort'])),
+    ]
     id_fields = [
         '{}.id'.format(i)
         for i in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
