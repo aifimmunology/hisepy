@@ -602,7 +602,8 @@ def upload_files(files: list,
                              file_log_dir)
 
     # build payload
-    with tempfile.TemporaryDirectory(prefix="conda_env_export_") as tmpdir:
+    with tempfile.TemporaryDirectory(dir='/home/workspace',
+                                     prefix="conda_env_export_") as tmpdir:
         qargs = hpu.build_upload_payload(
             files=files,
             file_types=file_types,
@@ -617,7 +618,7 @@ def upload_files(files: list,
             inst=inst,
         )
         if not cu.is_legacy_ide():
-            qargs["condaEnvironmentFile"] = do_conda_export(tmpdir)
+            qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
 
         # upload thy files
         url = hpu.get_upload_url()

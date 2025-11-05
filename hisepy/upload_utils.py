@@ -1,9 +1,12 @@
 import os
 import pyreadr
 import subprocess
+from pathlib import Path
+import yaml
 from hisepy.utils import conda_env_builds
 from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
 import hisepy.common_utils as cu
+from hisepy.upload import get_study_spaces, get_default_project
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -48,7 +51,7 @@ def check_project_against_study_space(project, study_space_id):
     elif study_space_id is None or study_space_id is no_study_default:
         return
 
-    pguid = project_shortname_to_guid(project)
+    pguid = cu.project_shortname_to_guid(project)
     ss = get_study_space(study_space_id)
     if "projectGuid" not in ss:
         raise ValueError("%s was not a valid study space" % study_space_id)
@@ -115,7 +118,7 @@ def do_conda_export(to_directory: str = ""):
         raise SystemError(f"Unable to export conda env: {result.stderr}")
 
     # check that the environment file isn't empty
-    if ~has_packages_in_env_file(conda_export_dest) and not debug():
+    if not has_packages_in_env_file(conda_export_dest):
         raise ValueError(
             "Environment file is empty, please ensure that the conda environment is active and not empty."
         )
@@ -258,7 +261,7 @@ def select_input_samples():
 def select_study_space(proj):
     pguid = None
     if proj is not None:
-        pguid = project_shortname_to_guid(proj)
+        pguid = cu.project_shortname_to_guid(proj)
     options = [{"name": no_study_default, "id": no_study_default}]
     for sp in get_study_spaces():
         if pguid is None or sp["projectGuid"] == pguid:
