@@ -602,28 +602,31 @@ def upload_files(files: list,
                              file_log_dir)
 
     # build payload
-    qargs = hpu.build_upload_payload(
-        files=files,
-        file_types=file_types,
-        title=title,
-        store=store or get_default_store(),
-        destination=destination,
-        project=project,
-        study_space_id=study_space_id,
-        input_file_ids=input_file_ids or [],
-        input_sample_ids=input_sample_ids or [],
-        home_dir=home_dir,
-        inst=inst,
-    )
+    with tempfile.TemporaryDirectory(prefix="conda_env_export_") as tmpdir:
+        qargs = hpu.build_upload_payload(
+            files=files,
+            file_types=file_types,
+            title=title,
+            store=store or get_default_store(),
+            destination=destination,
+            project=project,
+            study_space_id=study_space_id,
+            input_file_ids=input_file_ids or [],
+            input_sample_ids=input_sample_ids or [],
+            home_dir=home_dir,
+            inst=inst,
+        )
+        if not cu.is_legacy_ide():
+            qargs["condaEnvironmentFile"] = do_conda_export(tmpdir)
 
-    # upload thy files
-    url = hpu.get_upload_url()
-    try:
-        resp = requests.post(url,
-                             json=qargs,
-                             headers=get_bearer_token_header())
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        raise RuntimeError(f"Upload request failed: {e}") from e
+        # upload thy files
+        url = hpu.get_upload_url()
+        try:
+            resp = requests.post(url,
+                                 json=qargs,
+                                 headers=get_bearer_token_header())
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Upload request failed: {e}") from e
 
-    return cu.parse_hise_response(resp)
+        return cu.parse_hise_response(resp)
