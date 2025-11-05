@@ -35,9 +35,6 @@ def build_upload_payload(files, file_types, title, store, destination, project,
         "homedir": home_dir,
     }
 
-    if not cu.is_legacy_ide():
-        qargs["condaEnvironmentFile"] = do_conda_export()
-
     if study_space_id and study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
 
@@ -107,13 +104,18 @@ def do_conda_export(to_directory: str = ""):
     # export to scratch and move to to staging store
     env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
                              get_conda_env_name())
-    subprocess.run("conda env export -p {env} > {conda_export_dest}".format(
-        env=env_dir, conda_export_dest=conda_export_dest),
-                   shell=True)
+    result = subprocess.run(
+        ["conda", "env", "export", "-p",
+         str(env_dir)],
+        stdout=open(conda_export_dest, "w"),
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise SystemError(f"Unable to export conda env: {result.stderr}")
 
     # check that the environment file isn't empty
-    if (get_size_in_megabytes([conda_export_dest], False)
-            == 0) and not debug():
+    if ~has_packages_in_env_file(conda_export_dest) and not debug():
         raise ValueError(
             "Environment file is empty, please ensure that the conda environment is active and not empty."
         )
@@ -181,6 +183,39 @@ def get_workspace_dirs():
     if cu.is_legacy_ide():
         return CONFIG["IDE"]["HOME_DIR"], CONFIG["IDE"]["HOME_DIR"]
     return CONFIG["IDE"]["HOME_DIR_V2"], CONFIG["STORES"]["TEMP_STORE"]
+
+
+def has_packages_in_env_file(env_file_path: str) -> bool:
+    """
+    Returns True if the environment.yml file contains at least one package
+    in the 'dependencies' section.
+    """
+    env_file = Path(env_file_path)
+    if not env_file.exists():
+        return False
+
+    with env_file.open("r") as f:
+        try:
+            data = yaml.safe_load(f)
+        except yaml.YAMLError:
+            return False  # invalid YAML
+
+    if not isinstance(data, dict):
+        return False
+
+    deps = data.get("dependencies", [])
+    if not deps:
+        return False
+
+    # deps can contain dicts for pip packages; check length
+    for dep in deps:
+        if isinstance(dep, str):
+            return True
+        elif isinstance(dep, dict) and dep.get("pip"):
+            if dep["pip"]:
+                return True
+
+    return False
 
 
 def resolve_upload_context(study_space_id, project, input_sample_ids,
