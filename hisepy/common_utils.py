@@ -208,6 +208,14 @@ def get_organization():
                       headers=get_bearer_token_header(),
                       data=json.dumps({"filter": query_dict})))
 
+    # sanity check that we received data
+    if length(account_info) == 0:
+        raise SystemError("Failed to retrieve organization")
+    elif length(account_info) > 1:
+        raise SystemError(
+            "Account misconfigured: 1:m mapping between account and organization"
+        )
+
     # get org guid
     return account_info[0]['organization']['guid']
 
