@@ -2,23 +2,162 @@
 useful utility methods for HISE IDE users 
 '''
 
-import os 
-import time 
+import os
+import time
 import json
 import requests
-from resource import  RLIMIT_AS, getrlimit, setrlimit 
-import hisepy.common_utils as cu
-from hisepy.instances import IDEInstance
-from hisepy.auth import ide_instance_guid, get_bearer_token_header
 import shutil
 import subprocess
 import psutil
+import uuid
+import tempfile
+from resource import RLIMIT_AS, getrlimit, setrlimit
+from pathlib import Path
+import hisepy.common_utils as cu
+import hisepy.hise_requests as hreq
+from hisepy.instances import IDEInstance
+from hisepy.auth import ide_instance_guid, get_bearer_token_header
+from hisepy.logging import with_default_logging, logger
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
-def set_memory_limit(max_size_gb : int): 
+SDK_POLL_INTERVAL = 5  # seconds
+SDK_POLL_TIMEOUT = 180  # seconds (3 minutes)
+
+
+def build_and_install_sdk(sdk_dir: Path) -> None:
+    """Build and install the SDK package from the given directory."""
+    if not sdk_dir.exists():
+        raise FileNotFoundError(f"SDK directory not found: {sdk_dir}")
+
+    cmds = [["python", "setup.py", "build"], ["pip", "install", "."]]
+
+    for cmd in cmds:
+        subprocess.run(cmd,
+                       cwd=sdk_dir,
+                       check=True,
+                       text=True,
+                       capture_output=True)
+
+
+@with_default_logging
+def conda_env_builds(path_to_conda_env: str | None = None) -> bool:
+    """
+    Validates and builds a conda environment, returning True if successful.
+
+    Parameters:
+        path_to_conda_env (str, optional): Path to the conda environment to test.
+    """
+    logger.info("Starting conda environment build validation...")
+
+    # resolve or validate environment path
+    if path_to_conda_env:
+        if not isinstance(path_to_conda_env, str):
+            raise TypeError("Path to conda env must be a string.")
+        env_path = Path(path_to_conda_env)
+        if not env_path.exists():
+            raise ValueError(f"Path does not exist: {path_to_conda_env}")
+    else:
+        modality_name = IDEInstance().environment['condaEnvName']
+        env_path = Path(CONFIG['STORES']['ENV_STORE']) / modality_name
+
+    temp_dir = tempfile.TemporaryDirectory(prefix="conda_env_test_")
+    tmp_path = Path(temp_dir.name)
+
+    conda_export_path = tmp_path / f"environment.yml"
+    tmp_env_path = tmp_path / f"env_{cu.uuid_string()}"
+    packed_env_path = tmp_path / f"packed_{cu.uuid_string()}.tar.gz"
+
+    try:
+        # export the environment
+        logger.info(f"Exporting conda environment from {env_path}...")
+        subprocess.run(
+            [
+                "conda", "env", "export", "-p",
+                str(env_path), "-f",
+                str(conda_export_path)
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+        # remove hisepy dependency (if present)
+        logger.info(
+            "Removing hisepy references from exported environment file...")
+        subprocess.run(
+            ["sed", "-i", "/hisepy==*/d",
+             str(conda_export_path)],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+        # create temp conda environment
+        logger.info(
+            f"Creating temporary conda environment at {tmp_env_path}...")
+        subprocess.run(
+            [
+                "conda", "env", "create", "-f",
+                str(conda_export_path), "-p",
+                str(tmp_env_path)
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+        # verify conda-pack exists
+        conda_pack_bin = env_path / "bin" / "conda-pack"
+        if not conda_pack_bin.exists():
+            raise FileNotFoundError(f"conda-pack not found in {env_path}. "
+                                    "Please install it before proceeding.")
+
+        # run conda-pack
+        logger.info(f"Packing conda environment to {packed_env_path}...")
+        subprocess.run(
+            [
+                "conda", "run", "-p",
+                str(env_path), "conda-pack", "-p",
+                str(tmp_env_path), "-o",
+                str(packed_env_path)
+            ],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+        logger.info("Conda environment built and packed successfully.")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            f"Subprocess failed: {e.cmd}\nstdout: {e.stdout}\nstderr: {e.stderr}"
+        )
+        return False
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+        return False
+    finally:
+        # Automatic cleanup by TemporaryDirectory
+        temp_dir.cleanup()
+
+
+@with_default_logging
+def get_memory_usage() -> float:
+    """Gets current memory usage (in MB)."""
+    try:
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        return mem_info.rss / (1024**3)  # in GB
+    except Exception as e:
+        raise Exception(f"failed to get memory usage: {e}")
+
+
+@with_default_logging
+def set_memory_limit(max_size_gb: int) -> None:
     ''' 
     Caps memory for a kernel/process. Call this method at the top of your notebook or script.
     If the current kernel reaches the limit, an error message will be raised, preventing OOM scenarios.
@@ -26,137 +165,80 @@ def set_memory_limit(max_size_gb : int):
     Parameters: 
         max_size (int) : memory limit (in GB) for a kernel/process.
     '''
-    assert max_size_gb > 0, "Memory limit must be greater than 0"
-    assert type(max_size_gb) == int, "Memory limit must be an integer"
-    
-    maxsize = max_size_gb *  (1024 ** 3) # in GB 
-    soft, hard = getrlimit(RLIMIT_AS)    
-    setrlimit(RLIMIT_AS, 
-              (maxsize, hard))
-    print("Memory limit set to ", max_size_gb, "GB")
-    return 
+    if max_size_gb <= 0:
+        raise ValueError("Memory limit must be greater than 0")
+    if not isinstance(max_size_gb, int):
+        raise TypeError("Memory limit must be an integer")
+
+    try:
+        maxsize = max_size_gb * (1024**3)  # in GB
+        soft, hard = getrlimit(RLIMIT_AS)
+        setrlimit(RLIMIT_AS, (maxsize, hard))
+        print(f"Memory limit set to {max_size_gb} GB")
+        return
+    except Exception as e:
+        raise Exception(f"failed to set memory limit: {e}")
+    return
 
 
-def get_memory_usage():
-    """Gets current memory usage (in MB)."""
-    process = psutil.Process(os.getpid())
-    mem_info = process.memory_info()
-    return mem_info.rss / (1024 ** 3) # in GB 
-
-
-def conda_env_builds(path_to_conda_env: str = None) -> bool:
-    '''
-    Returns True if conda env can build successfully, False otherwise.
-
-    Parameters: 
-        path_to_conda_env (optional) (str) : path to the conda env. 
-
-    Returns:
-        bool : True if conda env can build successfully, otherwise False.
-    '''
-    print("checking if conda environment can compile...")
-    if path_to_conda_env is not None: 
-        assert type(path_to_conda_env) == str, "Path to conda env must be a string"
-        assert os.path.exists(path_to_conda_env), "Path to conda env does not exist"
-
-    # use default conda env if none is provided
-    if path_to_conda_env is None:
-        modality_name = IDEInstance().environment['condaEnvName']
-        path_to_conda_env = os.path.join(CONFIG['STORES']['ENV_STORE'], modality_name)
-        
-    # export conda env to temp directory 
-    conda_export_dest = os.path.join(CONFIG['STORES']['TEMP_STORE'], 'temp_env.yml') 
-    process = subprocess.run("conda env export -p {src} > {dst}".format(src=path_to_conda_env, dst=conda_export_dest),
-                                 shell=True, capture_output=True)
-    if process.returncode != 0:
-        raise SystemError('Unable to export conda env: {}'.format(path_to_conda_env))
-    
-    # remove hisepy from exported yaml file, if it exists 
-    process = subprocess.run("sed -i '/hisepy==*/d' {}".format(conda_export_dest),
-                                 shell=True, capture_output=True)
-    if process.returncode != 0:
-        raise SystemError('Unable to remove hisepy from exported conda env: {}'.format(conda_export_dest))
-    
-    # attempt to create the env
-    tmp_env_path = os.path.join(CONFIG['STORES']['TEMP_STORE'], 'tmp_env')
-    pack_out_path = '{}/{}'.format(
-        CONFIG['STORES']['TEMP_STORE'], 
-        CONFIG['TEMP_FILES']['CONDA_PACK_TMP_FILE'])
-    print ("creating temp conda environment...")
-    if os.path.exists(tmp_env_path):
-        shutil.rmtree(tmp_env_path)
-    process = subprocess.run('conda env create -f {dst} -p {env_dst}'.format(dst=conda_export_dest, env_dst=tmp_env_path), 
-                shell=True, capture_output=True)
-    if process.returncode != 0:
-        os.remove(conda_export_dest)
-        print("Error while creating conda environment: {}".format(process.stderr.decode()))
-        return False
-    
-    print("temp conda environment created successfully, now packing...")
-
-    # check that conda-pack exists in path_to_conda_env 
-    conda_pack_bin = os.path.join(path_to_conda_env, 'bin', 'conda-pack')
-    if not os.path.exists(conda_pack_bin):
-        print("conda-pack not found in conda environment. Please install conda-pack in the conda environment: {}".format(path_to_conda_env))
-        os.remove(conda_export_dest)
-        return False
-    
-    pack_process = subprocess.run(
-    ["conda", "run", "-p", path_to_conda_env, "conda-pack", "-p", tmp_env_path, "-o", pack_out_path],
-    stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL,  # hide progress bar
-    check=True)
-    if pack_process.returncode != 0:
-        os.remove(conda_export_dest)
-        # print error message
-        print("Error while building conda environment: {}".format(pack_process.stderr.decode()))
-        return False
-
-    # clean up everything that was done 
-    # delete exported yaml file 
-    os.remove(conda_export_dest)
-    os.remove(pack_out_path)
-
-    # delete tmp env directory
-    shutil.rmtree(tmp_env_path)
-
-    return True 
-
+@with_default_logging
 def update_sdk_version():
     """
     This will download the latest version of the SDK to /home/workspace/sdk, and if successful, 
     will update that version into the current activated conda environment. A restart of the kernel or terminal 
     is required for the changes to take effect.
     """
-    # get latest sdk version 
-    url = cu.hise_url("ide_management", "sdk_version", 'python')
-    version_tag = cu.hise_get(url)
+    try:
+        # Fetch latest version tag
+        version_url = cu.hise_url("ide_management", "sdk_version", "python")
+        version_tag = hreq.hise_get(version_url)
+        if not version_tag:
+            raise RuntimeError("No SDK version returned from server.")
+        logger.info(f"Latest SDK version found: {version_tag}")
 
-    # download sdk version to /home/workspace/sdk
-    url = cu.hise_url("ide_management", "install_sdk", ide_instance_guid())   
+        # Request SDK installation from remote service
+        install_url = cu.hise_url("ide_management", "install_sdk",
+                                  ide_instance_guid())
+        payload = {"hisePyTag": version_tag}
+        logger.info(
+            f"Requesting SDK installation for version {version_tag}...")
+        hreq.hise_post(install_url, data=json.dumps(payload))
 
-    payload = {
-        "hisePyTag":version_tag,
-    } 
-    response = requests.request("POST",
-                                url,
-                                data=json.dumps(payload),
-                                headers=get_bearer_token_header())
-    if response.status_code != 200:
-        raise SystemError('Unable to download SDK version {}: {}'.format(version_tag, response.text))
-        return
-    else: 
-        # wait for SDK to show up in /home/workspace/sdk, then execute terminal commands to build and install
-        while not os.path.exists('/home/workspace/sdk/hisepy_{}'.format(version_tag)):
-            print("Waiting for SDK version {} to be available...".format(version_tag))
-            time.sleep(5)
-        
-        print("SDK version {} installed successfully. Executing terminal commands to update activated conda environment".format(version_tag))
-        
-        # install the SDK for the user 
-        process = subprocess.run("cd /home/workspace/sdk/hisepy_{sdk} && python setup.py build && pip install .".format(sdk=version_tag),
-                    shell=True, capture_output=True)
-        if process.returncode != 0:
-            raise SystemError('Unable to install SDK version {}: {}'.format(version_tag, process.stderr.decode()))
-        print("SDK version {} installed successfully".format(version_tag))
-        return 
+        # Wait for SDK to appear locally
+        sdk_dir = Path(CONFIG['STORES']['SDK_STORE']) / f"hisepy_{version_tag}"
+        logger.info(
+            f"Waiting for SDK directory {sdk_dir} to become available...")
+        wait_for_sdk(sdk_dir, timeout=SDK_POLL_TIMEOUT)
+
+        # Build and install the SDK
+        logger.info(
+            f"Installing SDK version {version_tag} into active environment...")
+        build_and_install_sdk(sdk_dir)
+
+        logger.info(f"✅ SDK version {version_tag} installed successfully.")
+        return version_tag
+
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            f"Command failed: {' '.join(e.cmd)}\nstdout:\n{e.stdout}\nstderr:\n{e.stderr}"
+        )
+        raise RuntimeError(
+            f"SDK installation failed for version {version_tag}") from e
+    except TimeoutError as e:
+        logger.error(str(e))
+        raise
+    except Exception as e:
+        logger.exception(f"Unexpected error during SDK update: {e}")
+        raise
+
+
+def wait_for_sdk(sdk_dir: Path, timeout: int = SDK_POLL_TIMEOUT) -> None:
+    """Wait until the SDK directory appears or raise TimeoutError."""
+    start = time.time()
+    while not sdk_dir.exists():
+        if time.time() - start > timeout:
+            raise TimeoutError(
+                f"SDK directory did not appear within {timeout} seconds: {sdk_dir}"
+            )
+        logger.info(f"Waiting for SDK at {sdk_dir}...")
+        time.sleep(SDK_POLL_INTERVAL)

@@ -49,6 +49,7 @@ STORES:
   ENV_STORE: /home/workspace/environment
   AUDIENCE_FILE: /home/workspace/environment/.audience
   TEMP_STORE: /home/workspace/temp
+  SDK_STORE: /home/workspace/sdk
 
   
 PROJECT_FOLDER: 
@@ -73,6 +74,7 @@ AMDS:
   AMDS_NAME : accountmanager
   PROJECT_PATH : accountmanager/project
   USER_PATH: accountmanager/userinfo
+  ACCOUNT_PATH : accountmanager/account
   
 # ledger file availabilities 
 BIO_SDK_FILE_AVAILABILITIES: 

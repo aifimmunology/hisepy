@@ -7,9 +7,10 @@ import requests
 import time
 
 import hisepy.common_utils as cu
+import hisepy.reader_utils as ru
 from hisepy.auth import hise_server, get_bearer_token_header, IDEInstance
-from hisepy.reader import download_files
 from hisepy.common_utils import current_notebook
+from hisepy.logging import with_default_logging, logger
 
 the_current_notebook = None
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -19,6 +20,44 @@ derived_instance_flag_file = "/%s/.derivedinstance" % (
 job_record_file = "/%s/.notebookschedulerjobid" % (CONFIG['IDE']['HOME_DIR'])
 
 
+def download_files(file_dict: dict):
+    """
+    Read the contents of a dictionary of non-result file ids into hise_file objects
+    These files will contain NULL descriptors (since they are not result files)
+
+    Parameters:
+        file_dict (dict): a dictionary of file_uuid: file_name
+
+    Returns:
+        a list of hise_file objects with empty descriptors
+
+    """
+    if type(file_dict) is not dict:
+        raise TypeError(
+            "You must pass a dictionary of file_uuid: file_name to download_files"
+        )
+
+    response = []
+    #use a dummy batch id for these files
+    download_cache = "%s/%s" % (CONFIG['IDE']['CACHE_DIR'], "downloadable")
+    for f_id in file_dict:
+        endpoint = "https://%s/%s/%s" % (
+            hise_server(), CONFIG['HYDRATION']['DOWNLOAD_PATH'], f_id)
+        hf = ru.hise_file(f_id)
+        try:
+            ru.cache_file(endpoint, file_dict[f_id], download_cache)
+            hf.status = True
+            hf.message = "OK"
+            hf.path = "%s/%s" % (download_cache, file_dict[f_id])
+        except Exception as e:
+            hf.status = False
+            hf.message = str(e)
+        response.append(hf)
+
+    return response
+
+
+@with_default_logging
 def schedule_notebook(output_files=None,
                       input_data=None,
                       platform=None,
@@ -183,6 +222,7 @@ def prompt_for_platform(platform, output_files, nb_file):
     return len(resp) > 0 and resp.lower()[0] == "y"
 
 
+@with_default_logging
 def get_notebook_job(job_id=None):
     """
     Get the instance of a particular notebook job.
@@ -204,6 +244,7 @@ def get_notebook_job(job_id=None):
     return notebook_job(id=job_id)
 
 
+@with_default_logging
 def clear_notebook_job():
     """
     Clear the record of most recent job. This will not delete the job or have any effect on its status. Using this
@@ -217,6 +258,7 @@ def clear_notebook_job():
         print("No job record found")
 
 
+@with_default_logging
 class notebook_job:
     """
     A class representing a notebook job.
