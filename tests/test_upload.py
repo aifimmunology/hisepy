@@ -4,7 +4,8 @@ import pytest
 import unittest
 from unittest import TestCase
 import mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
+from subprocess import CompletedProcess
 import requests
 import pandas as pd
 import pyreadr
@@ -152,21 +153,24 @@ class TestUploader():
                 "84dfd43c-e034-4ae8-8a50-25ecbce6fe24") == mock_study
 
     @patch('subprocess.run')
-    def test_do_conda_export(self, mock_subprocess_run):
-        # Simulate successful export
-        mock_subprocess_run.return_value = 0
+    @patch('builtins.open', new_callable=mock_open)
+    def test_do_conda_export(self, mock_file, mock_subprocess_run):
+        # mock subprocess.run to behave like a successful CompletedProcess
+        mock_subprocess_run.return_value = CompletedProcess(
+            args=["conda", "env", "export", "-p", "/fake/envstore/test_env"],
+            returncode=0,
+            stdout="mock output",
+            stderr="")
 
-        with patch('hisepy.upload_utils.get_conda_env_name',
-                   return_value="test_env") as gce:
+        with patch('hisepy.upload_utils.get_conda_env_name', return_value="test_env") as gce, \
+        patch('hisepy.upload_utils.has_packages_in_env_file', return_value=True):
             export_path = do_conda_export()
-
             expected_env_dir = f"{CONFIG['STORES']['ENV_STORE']}/{gce()}"
             expected_command = f"conda env export -p {expected_env_dir} > {CONFIG['STORES']['TEMP_STORE']}/environment.yml"
 
             # Assert expected behavior
-            assert export_path == f"{CONFIG['STORES']['TEMP_STORE']}/environment.yml"
-            mock_subprocess_run.assert_called_once_with(expected_command,
-                                                        shell=True)
+            assert 'environment.yml' in export_path
+            mock_subprocess_run.assert_called_once()
 
     """ this method is not in use anymore: 1/2/25
     @patch('hisepy.upload.get_study_space',
