@@ -209,9 +209,9 @@ def get_organization():
                       data=json.dumps({"filter": query_dict})))
 
     # sanity check that we received data
-    if length(account_info) == 0:
+    if len(account_info) == 0:
         raise SystemError("Failed to retrieve organization")
-    elif length(account_info) > 1:
+    elif len(account_info) > 1:
         raise SystemError(
             "Account misconfigured: 1:m mapping between account and organization"
         )
