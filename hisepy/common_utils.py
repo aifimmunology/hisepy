@@ -21,9 +21,11 @@ import json
 import pathlib
 import copy
 import time
+import inspect
+import uuid
 import subprocess
 import zlib
-from hisepy.auth import debug, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server
+from hisepy.auth import debug, defaultLocalAccountGuid, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -37,6 +39,7 @@ def read_yaml(file_path):
 CONFIG = read_yaml('{}/config.yaml'.format(_here))
 num_printed_notebooks = 3  # number of options user gets when a save call is invoked
 the_current_notebook = None
+TEST_VERSION = 'VTEST'
 
 
 def convert_notebook_to_python(notebook_path, output_path=None):
@@ -142,34 +145,6 @@ def debug_config_value(heading: str, key: str):
     return os.getenv("HISEPY_%s_%s" % (heading.upper(), key.upper()))
 
 
-def download_response_content(resp, dest):
-    # check status
-    if resp.status_code != 200:
-        raise SystemError(
-            "%s request to %s returned with status %d. %s" %
-            (resp.request.method, resp.url, resp.status_code, resp.text))
-
-    # separate filename and path
-    dest_list = dest.split('/')
-    this_file_name = dest_list[-1]
-    dest_list.pop()
-    this_path = '/'.join(dest_list)
-    if '.' not in this_file_name:
-        raise SystemError("Unable to parse out fileName, %s" %
-                          (this_file_name))
-
-    # create directory if it doesn't exist; download
-    pathlib.Path(this_path).mkdir(parents=True, exist_ok=True)
-    if not os.path.isdir(this_path):
-        raise SystemError("unable to create path, %s" % (this_path))
-
-    with open(dest, 'wb') as f:
-        for chunk in resp.iter_content(CONFIG['IDE']['DOWNLOAD_CHUNK_SIZE']):
-            f.write(chunk)
-    print('file successfully downloaded: {}'.format(dest))
-    return
-
-
 def find_files(directory, filenames):
     """ Given a directory, find all files in a given list """
     files_list = []
@@ -179,6 +154,14 @@ def find_files(directory, filenames):
             if f in filenames
         ]
     return files_list
+
+
+def get_environment_name():
+    # get instance obj from tracer
+    inst = IDEInstance()
+
+    # parse out modality info from instance obj
+    return inst.environment['condaEnvName']
 
 
 def get_filetype(this_filename):
@@ -199,6 +182,12 @@ def get_from_config(heading: str, key: str):
     raise ValueError("config value %s:%s not found" % (heading, key))
 
 
+def get_func_params():
+    frame = inspect.currentframe()
+    args_info = inspect.getargvalues(frame)
+    return args_info.locals
+
+
 def get_ide(ide_instance_guid):
     endpoint = "https://{s}/{de}/{ig}".format(s=hise_server(),
                                               de=CONFIG['TRACER']['IDE_PATH'],
@@ -206,6 +195,29 @@ def get_ide(ide_instance_guid):
     resp = parse_hise_response(
         requests.request("GET", endpoint, headers=get_bearer_token_header()))
     return resp
+
+
+def get_organization():
+
+    # get account from amds
+    acct_guid = instance_account_guid()
+    query_dict = {'guid': acct_guid}
+    url = hise_url('amds', 'account_path', 'filter')
+    account_info = parse_hise_response(
+        requests.post(url,
+                      headers=get_bearer_token_header(),
+                      data=json.dumps({"filter": query_dict})))
+
+    # sanity check that we received data
+    if len(account_info) == 0:
+        raise SystemError("Failed to retrieve organization")
+    elif len(account_info) > 1:
+        raise SystemError(
+            "Account misconfigured: 1:m mapping between account and organization"
+        )
+
+    # get org guid
+    return account_info[0]['organization']['guid']
 
 
 def get_projects(to_df: bool = True):
@@ -228,6 +240,12 @@ def get_projects(to_df: bool = True):
         return proj_df
 
     return resp
+
+
+def get_sdk_version():
+    url = hise_url("ide_management", "sdk_version", 'python')
+    version_tag = hise_get(url) if not debug() else TEST_VERSION
+    return version_tag
 
 
 def is_legacy_ide():
@@ -307,22 +325,6 @@ def list_all_filepaths(directory):
             filepath = os.path.join(root, filename)
             filepaths.append(filepath)
     return filepaths
-
-def parse_file_id_from_hise_file(hise_file):
-    """
-    Takes a hise_file object and returns the file_id
-
-    Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object
-    Returns:
-        a string file_id
-    """
-    # descriptors can have > 1 entry if filetype == Olink
-    if type(hise_file['descriptors']) is list:
-        this_file_id = hise_file['descriptors'][0]['file']['id']
-    elif type(hise_file['descriptors']) is dict:
-        this_file_id = hise_file['descriptors']['file']['id']
-    return this_file_id
 
 
 def parse_sample_id_from_hise_file(hise_file):
@@ -500,42 +502,6 @@ def log_downloaded_files(file_id: str,
     return
 
 
-def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
-    """
-    Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged
-
-    Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object
-        file_id (str): original file_id that's passed in to read_files() or cache_files()
-    """
-    this_file_id, this_file_name, _ = parse_file_descriptor_from_hise_file(
-        hise_file)
-    if (this_file_id != file_id):
-        tmp_hise_file = copy.deepcopy(hise_file)
-        log_downloaded_files(file_id, None, ide_dir, this_file_id, None)
-    return
-
-
-def parse_file_descriptor_from_hise_file(hise_file):
-    """
-    Takes a hise_file object and returns its file_id, file_name and the descriptor object
-
-    Parameters:
-        hise_file (hise_file): hisepy.reader.hise_file object
-    Returns:
-        a tuple (file_id, file_name, descriptor object)
-    """
-    if type(hise_file['descriptors']) is list:
-        this_file_id = hise_file['descriptors'][0]['file']['id']
-        this_file_name = hise_file['descriptors'][0]['file']['name']
-        this_desc = hise_file['descriptors'][0]
-    elif type(hise_file['descriptors']) is dict:
-        this_file_id = hise_file['descriptors']['file']['id']
-        this_file_name = hise_file['descriptors']['file']['name']
-        this_desc = hise_file['descriptors']
-    return this_file_id, this_file_name, this_desc
-
-
 def parse_hise_response(resp):
     obj = None
     try:
@@ -601,12 +567,13 @@ def prompt_for_input(msg: str = None):
         user_input = None
     return user_input
 
+
 def prompt_user_custom(msg: str = None):
     """ Prompts end users and asks for custom input """
     if msg is None:
         raise ValueError("Must provide a contextual message")
     print(msg)
-    user_input = input(r'Please enter your response \{key:val\}: ')
+    user_input = input('Please enter your response {key:val}: ')
     while user_input == '':
         print('Input cannot be empty. Please try again.')
         user_input = input('Please enter your response: ')
@@ -663,6 +630,38 @@ def replica_files_used(input_file_ids: list, ide_dir: str = None):
         return replica_ids
 
 
+def safe_remove(path: str, warn: bool = True) -> None:
+    """
+    Safely remove a file if it exists.
+
+    Parameters:
+        path (str): Path to the file to remove.
+        warn (bool): If True, log a warning when a file cannot be removed.
+
+    Notes:
+        - Ignores missing files.
+        - Logs and continues on permission or I/O errors.
+        - Never raises an exception to callers.
+    """
+    if not path:
+        if warn:
+            print("safe_remove called with empty path.")
+        return
+
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+            print(f"Removed temporary file: {path}")
+        else:
+            print(f"safe_remove skipped (not found): {path}")
+    except PermissionError as e:
+        if warn:
+            print(f"Permission denied while removing {path}: {e}")
+    except OSError as e:
+        if warn:
+            print(f"Failed to remove {path}: {e}")
+
+
 def string_contains_whitespaces(file_str):
     """ returns True if a string contains whitespaces"""
 
@@ -679,87 +678,8 @@ def tardir(output_filename, source_dir):
         tar.add(source_dir, arcname=os.path.basename(source_dir))
 
 
-def validate_download_params(file_list: list, query_id: list,
-                             query_dict: dict):
-    # verify input parameters are sane
-    if file_list is not None:
-        if type(file_list) is not list:
-            raise Exception("file_ids parameter must be a list")
-        if query_id is not None and query_dict is not None:
-            raise Exception(
-                "You can only specify one of file_list, query_id, or query_dict per function call"
-            )
-    if query_id is not None:
-        if type(query_id) is not list:
-            raise Exception("query_id parameter must be a list")
-        if len(query_id) > 1:
-            raise Exception(
-                "You can only specify a single query_id per function call")
-        if file_list is not None or query_dict is not None:
-            raise Exception(
-                "You can only specify one of file_list, query_id, or query_dict per function call"
-            )
-    if query_dict is not None:
-        if type(query_dict) is not dict:
-            raise Exception("query_dict parameter must be a dictionary")
-        for d in query_dict.keys():
-            if type(query_dict[d]) is not list:
-                raise Exception("query dictionary values must be of type list")
-        if file_list is not None or query_id is not None:
-            raise Exception(
-                "You can only specify one of file_list, query_id, or query_dict per function call"
-            )
-    if file_list is None and query_id is None and query_dict is None:
-        raise Exception(
-            "One of file_ids, query_dict, or query_id must be non-null")
-    return True
-
-
-def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
-                              ide_dir):
-    """ Checks that files associated with a result have
-        been seen in a user's IDE
-    """
-    if input_file_ids is not None:
-        assert type(input_file_ids) is list
-    if input_sample_ids is not None:
-        assert type(input_sample_ids) is list
-
-    cache_file_path = '{h}/{c}'.format(h=ide_dir,
-                                       c=CONFIG['IDE']['CACHE_LOG_NAME'])
-
-    if (not os.path.exists(cache_file_path)):
-        raise FileNotFoundError(
-            "No files have been downloaded into this IDE. You cannot upload results without utilizing any HISE input data."
-        )
-
-    cache_df = pyreadr.read_r(cache_file_path)[None]
-
-    # loop through those ids and check they have been downloaded at some point
-    invalid_file_ids = []
-    mismatch_download_sources = dict()
-    notebook_dir = os.getcwd()
-    for f in input_file_ids:
-        if (f not in cache_df['fileId'].unique()) and (
-                f not in cache_df['replicaFileId'].unique()):
-            invalid_file_ids += [f]
-
-    invalid_sample_ids = []
-    for s in input_sample_ids:
-        if (s not in cache_df['sampleId'].unique()) and (
-                s not in cache_df['replicaSampleId'].unique()):
-            invalid_sample_ids += [s]
-
-    if len(invalid_file_ids) > 0:
-        raise AssertionError(
-            "The following file Ids were not downloaded in this IDE. You cannot reference a file in a result without downloading it first. {}"
-            .format(invalid_file_ids))
-    if len(invalid_sample_ids) > 0:
-        raise AssertionError(
-            "The following sample Ids were not downloaded in this IDE. You cannot refernce a file in a result without downloading it first. {}"
-            .format(invalid_sample_ids))
-
-    return
+def uuid_string():
+    return uuid.uuid4().hex  # 32 hex characters
 
 
 def verify_file_count(dir, expected_num_files):

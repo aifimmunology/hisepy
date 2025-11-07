@@ -12,31 +12,15 @@ import hisepy.formatter as fmt
 import hisepy.reader as hpr
 import hisepy.ray_transformer as rt
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
-from hisepy.upload import do_conda_export, get_conda_env_name, check_default_project, get_default_project
+from hisepy.upload import get_default_project
+from hisepy.upload_utils import do_conda_export, get_conda_env_name, check_default_project
+from hisepy.logging import with_default_logging, logger
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
-def validate_review_run_params(study_space_id: str, job_id: str, image_id: str,
-                               approve: bool, review_notes: str):
-    '''
-    '''
-    if job_id is None and image_id is None:
-        raise Exception("job_id, or image_id must be submitted")
-    if type(study_space_id) is not str:
-        raise Exception("study_space_id must be a string")
-    elif type(job_id) is not str:
-        raise Exception("job_id must be a string")
-    elif type(image_id) is not str:
-        raise Exception("image_id must be a string")
-    elif type(approve) is not bool:
-        raise Exception("approve must be a boolean")
-    elif type(review_notes) is not str:
-        raise Exception("review_notes must be a str")
-    return
-
-
+@with_default_logging
 def start_training_run(
     training_job_file_path: str,
     title: str,
@@ -109,7 +93,7 @@ def start_training_run(
         os.makedirs(training_job_temp_dir)
 
     # set destination project if not already set
-    if project is None: 
+    if project is None:
         project = get_default_project()
         print("Using default project: {}".format(project))
     check_default_project(project)
@@ -139,13 +123,14 @@ def start_training_run(
             user_response = cu.prompt_user(
                 CONFIG['PROMPTS']['RAY_INIT_EXISTS'])
             if not user_response:
-                raise Exception(
-                    "Training job submission cancelled by user")
+                raise Exception("Training job submission cancelled by user")
             else:
-                # prompt use 
-                cu.copy_files(job_obj.training_job_file_path, '{}/{}'.format(job_obj.work_dir, 
-                                                                           CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
-        else: 
+                # prompt use
+                cu.copy_files(
+                    job_obj.training_job_file_path, '{}/{}'.format(
+                        job_obj.work_dir,
+                        CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE']))
+        else:
             # conform to ray and save to temp directory
             job_obj.convert_training_job_file_to_ray()
     elif provider == 'beaker':
@@ -177,9 +162,10 @@ def start_training_run(
     return job_response
 
 
-def review_training_job_run(job_id : str, 
-                            study_space_id : str,
-                            review_notes : str = None):
+@with_default_logging
+def review_training_job_run(job_id: str,
+                            study_space_id: str,
+                            review_notes: str = None):
     ''' 
     Approve or reject a training job run:
 
@@ -196,8 +182,8 @@ def review_training_job_run(job_id : str,
         # reject a training job run
         hp.review_training_job_run(job_id='12345', study_space_id='67890', review_notes='Needs more work')
     '''
-    
-    # validate params 
+
+    # validate params
     if job_id is not None and type(job_id) is not str:
         raise Exception("job_id must be a string")
     if study_space_id is not None and type(study_space_id) is not str:
@@ -205,36 +191,40 @@ def review_training_job_run(job_id : str,
     if review_notes is not None and type(review_notes) is not str:
         raise Exception("review_notes must be a string")
 
-    # download outputs for review 
+    # download outputs for review
     review_args = {
         'jobID': job_id,
         'accountGuid': HiseUser().current_account_guid,
         'instanceGuid': ide_instance_guid(),
     }
-    dl_resp = cu.parse_hise_response(requests.post(cu.hise_url('hydration', 'review_job_output_path'),
-                                json=review_args,
-                                headers=get_bearer_token_header()))
+    dl_resp = cu.parse_hise_response(
+        requests.post(cu.hise_url('hydration', 'review_job_output_path'),
+                      json=review_args,
+                      headers=get_bearer_token_header()))
 
-    print("Training job output files downloaded to: {}".format(dl_resp['Path']))
+    print("Training job output files downloaded to: {}".format(
+        dl_resp['Path']))
 
     # prompt user to review the training job output
-    user_response = cu.prompt_yn(CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'].format(job_id) + 
-                                 "\nWould you like to approve this job?")
-    
-    jobj = TrainingJob(job_id=job_id, 
-                        review_notes=review_notes,
-                        approve=user_response,
-                        study_space_id=study_space_id)
+    user_response = cu.prompt_yn(
+        CONFIG['PROMPTS']['REVIEW_JOB_OUTPUT'].format(job_id) +
+        "\nWould you like to approve this job?")
+
+    jobj = TrainingJob(job_id=job_id,
+                       review_notes=review_notes,
+                       approve=user_response,
+                       study_space_id=study_space_id)
     return jobj.review_training_job()
 
 
-class TrainingJob: 
+class TrainingJob:
     """
     Class representing a training job
     
     Attributes: 
         id (str)
     """
+
     def __init__(
             self,
             provider: str = 'ray',
@@ -246,7 +236,8 @@ class TrainingJob:
             title: str = "",
             description: str = "",
             tags: list = [],
-            file_set_id: str = "",  # TODO: training job needs to work with this param after MVP presentation
+            file_set_id:
+        str = "",  # TODO: training job needs to work with this param after MVP presentation
             requirements_file_path: str = "",
             training_job_file_path: str = "",
             additional_dirs: list = [],
@@ -255,16 +246,15 @@ class TrainingJob:
             work_dir: str = "",
             job_id: str = "",
             review_notes: str = "",
-            approve : bool = None,
-            study_space_id : str = "",
+            approve: bool = None,
+            study_space_id: str = "",
             output_file_size: int = 5):
         self.__url = cu.hise_url('tracer', 'training_job')
         self.__ray_workflow_url = cu.hise_url('job_orchestrate',
                                               'ray_workflow')
         self.__beaker_workflow_url = cu.hise_url('job_orchestrate',
                                                  'beaker_workflow')
-        self.__review_job_url = cu.hise_url('job_orchestrate',
-                                            'review_job')
+        self.__review_job_url = cu.hise_url('job_orchestrate', 'review_job')
         # initialize attributes
         self.provider = provider
         self.package_manager = "conda" if use_conda else "pip"
@@ -286,7 +276,8 @@ class TrainingJob:
         self.review_notes = review_notes
         self.approve = approve
         self.study_space_id = study_space_id
-        self.artifacts_path = CONFIG['JOB_ORCHESTRATE']['ARTIFACTS_TEMP_FILEPATH'] # '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
+        self.artifacts_path = CONFIG['JOB_ORCHESTRATE'][
+            'ARTIFACTS_TEMP_FILEPATH']  # '/home/workspace/temp/artifacts.tar.gz' #'{wd}/artifacts.tar.gz'.format(wd=self.work_dir)
         self.output_file_size = output_file_size
 
         if job_id is not None:
@@ -324,12 +315,10 @@ class TrainingJob:
         # check for spaces in file paths
         if self.requirements_file_path is not None:
             if cu.string_contains_whitespaces(self.requirements_file_path):
-                raise Exception(
-                    "requirements_file_path cannot contain spaces")
+                raise Exception("requirements_file_path cannot contain spaces")
         if self.training_job_file_path is not None:
             if cu.string_contains_whitespaces(self.training_job_file_path):
-                raise Exception(
-                    "training_job_file_path cannot contain spaces")
+                raise Exception("training_job_file_path cannot contain spaces")
         if self.additional_dirs is not None:
             for d in self.additional_dirs:
                 if cu.string_contains_whitespaces(d):
@@ -373,28 +362,31 @@ class TrainingJob:
                 "training_job_file_path must be a .ipynb or .py file")
 
         # transform script to conform to Ray
-        converted_script = '{}/{}'.format(self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE'])
-        rt.transform_to_ray(python_script_to_convert, 
-                            converted_script, num_gpus=self.gpu_count, num_cpus=self.cpu_count)
-        
+        converted_script = '{}/{}'.format(
+            self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE'])
+        rt.transform_to_ray(python_script_to_convert,
+                            converted_script,
+                            num_gpus=self.gpu_count,
+                            num_cpus=self.cpu_count)
+
         # get list of ray remote targets
         ray_remote_targets = rt.get_ray_remote_targets(converted_script)
         target_names = [f[0] for f in ray_remote_targets]
-        
+
         while True:
             # Prompt user for methods to remove decorators from
             rm_target = cu.prompt_from_options(
                 "The following methods currently use Ray decorators: {}. "
-                "Please select the methods from which you want to remove the Ray decorators".format(target_names),
-                target_names + ["None"]
-            )
+                "Please select the methods from which you want to remove the Ray decorators"
+                .format(target_names), target_names + ["None"])
 
             if not rm_target or rm_target == "None":
                 # Exit loop if user chose no method
                 break
 
             # Remove ray decorators from the selected targets
-            rt.remove_ray_remote_decorator(converted_script, rm_target, converted_script)
+            rt.remove_ray_remote_decorator(converted_script, rm_target,
+                                           converted_script)
 
         # prompt user on transformation, asking if they want to edit ray decorators
         # if the user selected targets, edit the ray decorators of those targets
@@ -403,9 +395,8 @@ class TrainingJob:
         while True:
             edit_target = cu.prompt_from_options(
                 "The following methods currently use Ray decorators: {}. "
-                "Please select the methods whose Ray decorator parameters you want to edit".format(target_names),
-                target_names + ["None"]
-            )
+                "Please select the methods whose Ray decorator parameters you want to edit"
+                .format(target_names), target_names + ["None"])
 
             if not edit_target or edit_target == "None":
                 # Exit loop if user chose no method
@@ -415,10 +406,10 @@ class TrainingJob:
             edit_resp = rt.prompt_decorator_changes("")
 
             if edit_resp and len(edit_resp) > 0:
-                rt.modify_ray_remote_decorator(
-                    converted_script, edit_target, ast.literal_eval(edit_resp), converted_script
-                )
-        return 
+                rt.modify_ray_remote_decorator(converted_script, edit_target,
+                                               ast.literal_eval(edit_resp),
+                                               converted_script)
+        return
 
     def copy_scripts_and_dirs_to_temp(self):
 
@@ -572,18 +563,40 @@ class TrainingJob:
         }
         if self.image_id is not None:
             beaker_args['imageId'] = self.image_id
-        return cu.parse_hise_response(requests.post(self.__beaker_workflow_url,
-                            json=beaker_args,
-                            headers=get_bearer_token_header()))
+        return cu.parse_hise_response(
+            requests.post(self.__beaker_workflow_url,
+                          json=beaker_args,
+                          headers=get_bearer_token_header()))
 
     def review_training_job(self):
-        review_args = {'notes' : self.review_notes,
-                        'accountGuid': HiseUser().current_account_guid,
-                        'projectGuid': IDEInstance().destinationProjectGuid,
-                        'approve': self.approve,
-                        'jobID': self.job_id,
-                        'studySpaceGuid': self.study_space_id}
-        return cu.parse_hise_response(requests.post(self.__review_job_url,
-                                json=review_args,
-                                headers=get_bearer_token_header()))
+        review_args = {
+            'notes': self.review_notes,
+            'accountGuid': HiseUser().current_account_guid,
+            'projectGuid': IDEInstance().destinationProjectGuid,
+            'approve': self.approve,
+            'jobID': self.job_id,
+            'studySpaceGuid': self.study_space_id
+        }
+        return cu.parse_hise_response(
+            requests.post(self.__review_job_url,
+                          json=review_args,
+                          headers=get_bearer_token_header()))
 
+
+def validate_review_run_params(study_space_id: str, job_id: str, image_id: str,
+                               approve: bool, review_notes: str):
+    '''
+    '''
+    if job_id is None and image_id is None:
+        raise Exception("job_id, or image_id must be submitted")
+    if type(study_space_id) is not str:
+        raise Exception("study_space_id must be a string")
+    elif type(job_id) is not str:
+        raise Exception("job_id must be a string")
+    elif type(image_id) is not str:
+        raise Exception("image_id must be a string")
+    elif type(approve) is not bool:
+        raise Exception("approve must be a boolean")
+    elif type(review_notes) is not str:
+        raise Exception("review_notes must be a str")
+    return
