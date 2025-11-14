@@ -4,7 +4,6 @@
 .\#*
 
 build
-dist
 hisepy.egg-info
 __pycache__
 cache
