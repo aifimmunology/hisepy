@@ -1,4 +1,14 @@
 [package]
 name = "hisepy"
-version = "0.1.0"
-description = "HISE Python SDK"
+version = "0.3.0"
+preview = ["pixi-build"]
+
+[package.build]
+backend = "python"
+
+[package.build.script]
+install = ["pip install dist/hisepy-0.3.0-py3-none-any.whl"]
+
+[dependencies]
+python = ">=3.11"
+pip = "*"
