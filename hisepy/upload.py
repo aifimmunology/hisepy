@@ -546,7 +546,8 @@ def upload_files(files: list,
                  store: str | None = None,
                  destination: str = "",
                  do_prompt: bool = True,
-                 do_conda_build_check=True):
+                 do_conda_build_check=True,
+                 fast_mode : bool | None = None):
     """
     Uploads files to a store and records their provenance in HISE, but V3
 
@@ -620,6 +621,9 @@ def upload_files(files: list,
         if not cu.is_legacy_ide():
             qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
 
+        if fast_mode: 
+            qargs['fastMode'] = True
+
         # upload thy files
         url = hpu.get_upload_url()
         try:
@@ -631,3 +635,29 @@ def upload_files(files: list,
             raise RuntimeError(f"Upload request failed: {e}") from e
 
         return cu.parse_hise_response(resp)
+
+
+@with_default_logging
+def upload_files_fast_mode(files: list,
+                            study_space_id: str = None,
+                            project: str | None = None,
+                            title: str | None = None,
+                            input_file_ids: list[str] | None = None,
+                            input_sample_ids: list[str] | None = None,
+                            file_types: list[str] | None = None,
+                            store: str | None = None,
+                            destination: str = "",
+                            do_prompt: bool = True):
+    # validations 
+    upload_files(files=files,
+                study_space_id=study_space_id,
+                project=project,
+                title=title,
+                input_file_ids=input_file_ids,
+                input_sample_ids=input_sample_ids,
+                file_types=file_types,
+                store=store, 
+                destination=destination,
+                do_conda_build_check=False,
+                fast_mode=True)
+
