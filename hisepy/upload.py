@@ -10,6 +10,7 @@ import urllib
 import plotly
 import plotly.graph_objects as go
 import requests
+import contextvars
 
 import hisepy.common_utils as cu
 import hisepy.upload_utils as hpu
@@ -30,6 +31,8 @@ IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 UPLOAD_HARVEST_LOWER_BOUND = CONFIG['TOOLCHAIN'][
     'UPLOAD_HARVEST_LOWER_BOUND_MB']
 
+# context flag to determine if fast_mode was invoked from the dedicated method, or upload_files
+_upload_files_wrapped_flag = contextvars.ContextVar("upload_files_wrapped_flag", default=False)
 
 class DashAppImg:
     """Encapsulates a Dash app and its associated upload and deployment workflow."""
@@ -546,8 +549,8 @@ def upload_files(files: list,
                  store: str | None = None,
                  destination: str = "",
                  do_prompt: bool = True,
-                 do_conda_build_check=True,
-                 fast_mode : bool | None = None):
+                 do_conda_build_check: bool = True,
+                 use_fast_mode: bool | None = None):
     """
     Uploads files to a store and records their provenance in HISE, but V3
 
@@ -603,38 +606,41 @@ def upload_files(files: list,
                              file_log_dir)
 
     # build payload
-    with tempfile.TemporaryDirectory(dir='/home/workspace',
-                                     prefix="conda_env_export_") as tmpdir:
-        qargs = hpu.build_upload_payload(
-            files=files,
-            file_types=file_types,
-            title=title,
-            store=store or get_default_store(),
-            destination=destination,
-            project=project,
-            study_space_id=study_space_id,
-            input_file_ids=input_file_ids or [],
-            input_sample_ids=input_sample_ids or [],
-            home_dir=home_dir,
-            inst=inst,
-        )
-        if not cu.is_legacy_ide():
-            qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
+    tmpdir = tempfile.mkdtemp(dir='/home/workspace/temp', prefix="conda_env_export_")
+    qargs = hpu.build_upload_payload(
+        files=files,
+        file_types=file_types,
+        title=title,
+        store=store or get_default_store(),
+        destination=destination,
+        project=project,
+        study_space_id=study_space_id,
+        input_file_ids=input_file_ids or [],
+        input_sample_ids=input_sample_ids or [],
+        home_dir=home_dir,
+        inst=inst,
+    )
+    if not cu.is_legacy_ide():
+        qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
 
-        if fast_mode: 
-            qargs['fastMode'] = True
+    # only use fast_mode if the user made the call from upload_files_fast_mode
+    if use_fast_mode:
+        if _upload_files_wrapped_flag.get(): 
+            qargs['useFastMode'] = True
+        else:
+            raise ValueError("You are trying to use fast mode. Either set use_fast_mode to False and try again, or use the dedicated function, upload_files_fast_mode() instead.") 
+    
+    # upload thy files
+    url = hpu.get_upload_url()
+    try:
+        resp = requests.post(url,
+                             json=qargs,
+                             headers=get_bearer_token_header())
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise RuntimeError(f"Upload request failed: {e}") from e
 
-        # upload thy files
-        url = hpu.get_upload_url()
-        try:
-            resp = requests.post(url,
-                                 json=qargs,
-                                 headers=get_bearer_token_header())
-            resp.raise_for_status()
-        except requests.RequestException as e:
-            raise RuntimeError(f"Upload request failed: {e}") from e
-
-        return cu.parse_hise_response(resp)
+    return cu.parse_hise_response(resp)
 
 
 @with_default_logging
@@ -648,16 +654,25 @@ def upload_files_fast_mode(files: list,
                             store: str | None = None,
                             destination: str = "",
                             do_prompt: bool = True):
-    # validations 
-    upload_files(files=files,
-                study_space_id=study_space_id,
-                project=project,
-                title=title,
-                input_file_ids=input_file_ids,
-                input_sample_ids=input_sample_ids,
-                file_types=file_types,
-                store=store, 
-                destination=destination,
-                do_conda_build_check=False,
-                fast_mode=True)
+
+    # we're using the correct method to invoke fast_mode, so set the flag to true 
+    token = _upload_files_wrapped_flag.set(True)
+
+    # prompt and upload in fast mode 
+    try:
+        if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
+            return upload_files(files=files,
+                        study_space_id=study_space_id,
+                        project=project,
+                        title=title,
+                        input_file_ids=input_file_ids,
+                        input_sample_ids=input_sample_ids,
+                        file_types=file_types,
+                        store=store, 
+                        destination=destination,
+                        do_conda_build_check=False,
+                        use_fast_mode=True)
+    finally: 
+        # always reset 
+        _upload_files_wrapped_flag.reset(token)
 
