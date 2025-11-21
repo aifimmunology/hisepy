@@ -34,9 +34,14 @@ class ColorFormatter(logging.Formatter):
     RESET = "\033[0m"
 
     def format(self, record):
+        asctime = self.formatTime(record, self.datefmt)
         color = self.LEVEL_COLORS.get(record.levelno, "")
-        message = super().format(record)
-        return f"{color}{message}{self.RESET}"
+        
+        prefix = f"{color}{asctime} {record.levelname}{self.RESET}"
+
+        # replace only the start of the formatted string 
+        msg = f"[{record.name}:{record.lineno}] {record.module} {record.process} {record.thread} {record.getMessage()}"
+        return f"{prefix} {msg}"
 
 # The default logging level is set to 'INFO'
 logging.config.dictConfig({
@@ -44,15 +49,15 @@ logging.config.dictConfig({
     'disable_existing_loggers': False,
     'formatters': {
         'console': {
-            'format':
             '()': ColorFormatter, # color scheme according to LEVEL COLORS
-            '%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s',
+            'format': '%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s',
         },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'console',
+            'stream': 'ext://sys.stdout',  # Force stdout (no red background in JupyterLab)
         },
     },
     'loggers': {
