@@ -10,7 +10,6 @@ import urllib
 import plotly
 import plotly.graph_objects as go
 import requests
-import contextvars
 
 import hisepy.common_utils as cu
 import hisepy.upload_utils as hpu
@@ -31,8 +30,6 @@ IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
 UPLOAD_HARVEST_LOWER_BOUND = CONFIG['TOOLCHAIN'][
     'UPLOAD_HARVEST_LOWER_BOUND_MB']
 
-# context flag to determine if fast_mode was invoked from the dedicated method, or upload_files
-_upload_files_wrapped_flag = contextvars.ContextVar("upload_files_wrapped_flag", default=False)
 
 class DashAppImg:
     """Encapsulates a Dash app and its associated upload and deployment workflow."""
@@ -565,6 +562,8 @@ def upload_files(files: list,
         store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
         destination (str): Destination folder for the files
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
+        do_conda_build_check (bool): If true, create and build the active Conda environment.
+        use_fast_mode (bool): If true, speed up the upload flow by skipping the step that builds the IDE environment.
     Returns:
         dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
     Example:
@@ -625,10 +624,8 @@ def upload_files(files: list,
 
     # only use fast_mode if the user made the call from upload_files_fast_mode
     if use_fast_mode:
-        if _upload_files_wrapped_flag.get(): 
+        if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
             qargs['useFastMode'] = True
-        else:
-            raise ValueError("You are trying to use fast mode. Either set use_fast_mode to False and try again, or use the dedicated function, upload_files_fast_mode() instead.") 
     
     # upload thy files
     url = hpu.get_upload_url()
@@ -642,61 +639,4 @@ def upload_files(files: list,
 
     return cu.parse_hise_response(resp)
 
-
-@with_default_logging
-def upload_files_fast_mode(files: list,
-                            study_space_id: str = None,
-                            project: str | None = None,
-                            title: str | None = None,
-                            input_file_ids: list[str] | None = None,
-                            input_sample_ids: list[str] | None = None,
-                            file_types: list[str] | None = None,
-                            store: str | None = None,
-                            destination: str = "",
-                            do_prompt: bool = True):
-    """
-    Uploads files to a store and records their provenance in HISE, using fast mode. Fast mode speeds up the upload flow by skipping the environment build step.
-
-    Parameters:
-        files (list): absolute filepath of file to be uploaded
-        study_space_id (str): ID that pertains to a study in the collaboration space (optional)
-        project (str): project short name (required if study space is not specified, defaults to the ide's default setting
-        title (str): 10+ character title for upload result
-        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
-        input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
-        file_types (str): filetype of uploaded files
-        store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
-        destination (str): Destination folder for the files
-        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
-    Returns:
-        dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
-    Example:
-        hp.upload_files_fast_mode(files=['/home/jupyter/upload_file.csv'],
-                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                        title='a upload title',
-                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
-    """
-
-
-    # we're using the correct method to invoke fast_mode, so set the flag to true 
-    token = _upload_files_wrapped_flag.set(True)
-
-    # prompt and upload in fast mode 
-    try:
-        if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
-            return upload_files(files=files,
-                        study_space_id=study_space_id,
-                        project=project,
-                        title=title,
-                        input_file_ids=input_file_ids,
-                        input_sample_ids=input_sample_ids,
-                        file_types=file_types,
-                        store=store, 
-                        destination=destination,
-                        do_conda_build_check=False,
-                        use_fast_mode=True,
-                        do_prompt=do_prompt)
-    finally: 
-        # always reset 
-        _upload_files_wrapped_flag.reset(token)
 
