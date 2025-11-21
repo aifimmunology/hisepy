@@ -671,7 +671,8 @@ def upload_files_fast_mode(files: list,
                         store=store, 
                         destination=destination,
                         do_conda_build_check=False,
-                        use_fast_mode=True)
+                        use_fast_mode=True
+                        do_prompt=do_prompt)
     finally: 
         # always reset 
         _upload_files_wrapped_flag.reset(token)
