@@ -566,7 +566,7 @@ def upload_files(files: list,
         destination (str): Destination folder for the files
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
     Returns:
-        dictionary with keys ["trace_id", "files"]
+        dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
     Example:
         hp.upload_files(files=['/home/jupyter/upload_file.csv'],
                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
@@ -654,6 +654,29 @@ def upload_files_fast_mode(files: list,
                             store: str | None = None,
                             destination: str = "",
                             do_prompt: bool = True):
+    """
+    Uploads files to a store and records their provenance in HISE, using fast mode. Fast mode speeds up the upload flow by skipping the environment build step.
+
+    Parameters:
+        files (list): absolute filepath of file to be uploaded
+        study_space_id (str): ID that pertains to a study in the collaboration space (optional)
+        project (str): project short name (required if study space is not specified, defaults to the ide's default setting
+        title (str): 10+ character title for upload result
+        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
+        input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
+        file_types (str): filetype of uploaded files
+        store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
+        destination (str): Destination folder for the files
+        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
+    Returns:
+        dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
+    Example:
+        hp.upload_files_fast_mode(files=['/home/jupyter/upload_file.csv'],
+                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                        title='a upload title',
+                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
+    """
+
 
     # we're using the correct method to invoke fast_mode, so set the flag to true 
     token = _upload_files_wrapped_flag.set(True)
