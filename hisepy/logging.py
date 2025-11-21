@@ -17,6 +17,27 @@ LOGGING_CONFIG = None
 PROC_INFO = "/proc/1/fd/1"  # path for container stdout logs
 PROC_ERROR = "/proc/1/fd/2"  # path for container stderr logs
 
+
+LEVEL_COLORS = {
+    "INFO": "\033[32m",    # Green
+    "WARNING": "\033[33m", # Yellow
+    "ERROR": "\033[31m",   # Red
+}
+
+class ColorFormatter(logging.Formatter):
+    LEVEL_COLORS = {
+        logging.INFO: "\033[32m",      # Green
+        logging.WARNING: "\033[33m",   # Yellow
+        logging.ERROR: "\033[31m",     # Red
+        logging.CRITICAL: "\033[41m",  # Red background (optional)
+    }
+    RESET = "\033[0m"
+
+    def format(self, record):
+        color = self.LEVEL_COLORS.get(record.levelno, "")
+        message = super().format(record)
+        return f"{color}{message}{self.RESET}"
+
 # The default logging level is set to 'INFO'
 logging.config.dictConfig({
     'version': 1,
@@ -24,6 +45,7 @@ logging.config.dictConfig({
     'formatters': {
         'console': {
             'format':
+            '()': ColorFormatter, # color scheme according to LEVEL COLORS
             '%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s',
         },
     },
