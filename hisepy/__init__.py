@@ -17,7 +17,7 @@ from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
 from .upload import (save_static_image, save_visualization, load_visualization,
                      get_trace, get_study_spaces, save_dash_app,
                      set_default_store, set_default_project, get_default_store,
-                     get_default_project, upload_files, retry_ide_commit, upload_files_fast_mode)
+                     get_default_project, upload_files, retry_ide_commit)
 from .utils import (set_memory_limit, get_memory_usage, conda_env_builds,
                     update_sdk_version)
 from .abstraction import (save_abstraction, result_filetype_to_guid,
@@ -50,5 +50,5 @@ __all__ = [
     'get_result_files', 'get_study_spaces', 'get_trace', 'get_files_for_query',
     'save_dash_app', 'list_filesets', 'cache_filesets', 'save_abstraction',
     'set_default_store', 'set_default_project', 'get_default_store',
-    'get_default_project', 'set_memory_limit', 'get_memory_usage', 'upload_files_fast_mode'
+    'get_default_project', 'set_memory_limit', 'get_memory_usage'
 ]
