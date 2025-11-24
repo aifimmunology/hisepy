@@ -546,7 +546,8 @@ def upload_files(files: list,
                  store: str | None = None,
                  destination: str = "",
                  do_prompt: bool = True,
-                 do_conda_build_check=True):
+                 do_conda_build_check: bool = True,
+                 use_fast_mode: bool | None = None):
     """
     Uploads files to a store and records their provenance in HISE, but V3
 
@@ -561,8 +562,10 @@ def upload_files(files: list,
         store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
         destination (str): Destination folder for the files
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
+        do_conda_build_check (bool): If true, create and build the active Conda environment.
+        use_fast_mode (bool): If true, speed up the upload flow by skipping the step that builds the IDE environment.
     Returns:
-        dictionary with keys ["trace_id", "files"]
+        dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
     Example:
         hp.upload_files(files=['/home/jupyter/upload_file.csv'],
                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
@@ -602,32 +605,38 @@ def upload_files(files: list,
                              file_log_dir)
 
     # build payload
-    with tempfile.TemporaryDirectory(dir='/home/workspace',
-                                     prefix="conda_env_export_") as tmpdir:
-        qargs = hpu.build_upload_payload(
-            files=files,
-            file_types=file_types,
-            title=title,
-            store=store or get_default_store(),
-            destination=destination,
-            project=project,
-            study_space_id=study_space_id,
-            input_file_ids=input_file_ids or [],
-            input_sample_ids=input_sample_ids or [],
-            home_dir=home_dir,
-            inst=inst,
-        )
-        if not cu.is_legacy_ide():
-            qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
+    tmpdir = tempfile.mkdtemp(dir='/home/workspace/temp', prefix="conda_env_export_")
+    qargs = hpu.build_upload_payload(
+        files=files,
+        file_types=file_types,
+        title=title,
+        store=store or get_default_store(),
+        destination=destination,
+        project=project,
+        study_space_id=study_space_id,
+        input_file_ids=input_file_ids or [],
+        input_sample_ids=input_sample_ids or [],
+        home_dir=home_dir,
+        inst=inst,
+    )
+    if not cu.is_legacy_ide():
+        qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
 
-        # upload thy files
-        url = hpu.get_upload_url()
-        try:
-            resp = requests.post(url,
-                                 json=qargs,
-                                 headers=get_bearer_token_header())
-            resp.raise_for_status()
-        except requests.RequestException as e:
-            raise RuntimeError(f"Upload request failed: {e}") from e
+    # only use fast_mode if the user made the call from upload_files_fast_mode
+    if use_fast_mode:
+        if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
+            qargs['useFastMode'] = True
+    
+    # upload thy files
+    url = hpu.get_upload_url()
+    try:
+        resp = requests.post(url,
+                             json=qargs,
+                             headers=get_bearer_token_header())
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise RuntimeError(f"Upload request failed: {e}") from e
 
-        return cu.parse_hise_response(resp)
+    return cu.parse_hise_response(resp)
+
+

@@ -24,6 +24,7 @@ PROMPTS:
   REVIEW_JOB_OUTPUT: "Training job outputs have been downloaded to your IDE. Please review the outputs, and specify if you want to accept or reject the training job: {}. "
   SAVE_CUSTOM_CONDA_ENV: "You are about to save a custom Conda environment. This will save your current active environment"
   RAY_INIT_EXISTS: "A ray.init() call is detected within your training job script, and will be submitted without modification"
+  FAST_MODE_UPLOAD: "You are uploading in fast mode. This will skip checking that your environment can build, and will speed up the entire upload process. Do you want to continue?"
 
 # Authorization config
 AUTHORIZE: 
