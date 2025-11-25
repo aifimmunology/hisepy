@@ -187,12 +187,21 @@ def get_default_project():
 
 
 @with_default_logging
-def get_study_spaces():
-    """ Returns list of studies a user has access to """
-    return parse_hise_response(
+def get_study_spaces(to_df : bool =False):
+    """ 
+    Returns list of studies a user has access to 
+    
+    Parameters:
+        to_df (bool): return a data.frame object if set to True
+    """
+    resp = parse_hise_response(
         requests.request("GET",
                          hise_url("tracer", "study_space_path"),
                          headers=get_bearer_token_header()))
+    if to_df: 
+        return pd.DataFrame(resp)
+    else: 
+        return resp  
 
 
 @with_default_logging
