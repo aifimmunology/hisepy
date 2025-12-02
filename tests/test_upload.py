@@ -16,7 +16,7 @@ import hisepy.upload as hpu
 import hisepy.common_utils as cu
 from hisepy.auth import ide_instance_guid, instance_account_guid, IDEInstance
 from hisepy.upload import get_study_spaces
-from hisepy.upload_utils import get_conda_env_name, do_conda_export, validate_upload_input_ids, validate_upload_data, gen_upload_body
+from hisepy.upload_utils import get_ide_env_name, do_conda_export, validate_upload_input_ids, validate_upload_data, gen_upload_body
 
 _here = os.path.abspath(os.path.dirname(hpu.__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -137,7 +137,7 @@ class TestUploader():
         mock_response.environment = mock_data['environment']
         return mock_response
 
-    def test_get_conda_env_name(self, mock_ide):
+    def test_get_ide_env_name(self, mock_ide):
         assert mock_ide.environment['condaEnvName'] == "test_env"
 
     def test_get_study_space(self, mock_ide):
@@ -162,7 +162,7 @@ class TestUploader():
             stdout="mock output",
             stderr="")
 
-        with patch('hisepy.upload_utils.get_conda_env_name', return_value="test_env") as gce, \
+        with patch('hisepy.upload_utils.get_ide_env_name', return_value="test_env") as gce, \
         patch('hisepy.upload_utils.has_packages_in_env_file', return_value=True):
             export_path = do_conda_export()
             expected_env_dir = f"{CONFIG['STORES']['ENV_STORE']}/{gce()}"
