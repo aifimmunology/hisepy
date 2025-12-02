@@ -106,7 +106,7 @@ def do_conda_export(to_directory: str = ""):
 
     # export to scratch and move to to staging store
     env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
-                             get_conda_env_name())
+                             get_ide_env_name())
     result = subprocess.run(
         ["conda", "env", "export", "-p",
          str(env_dir)],
@@ -124,6 +124,32 @@ def do_conda_export(to_directory: str = ""):
         )
 
     return conda_export_dest
+
+def do_pixi_export(to_directory: str = ""): 
+    """
+    Exports the current Pixi environment to a file
+    """
+
+    if to_directory == "": 
+        to_directory = "{}".format(CONFIG['STORES']['TEMP_STORE'])
+
+    if not os.path.isdir(to_directory) and not debug(): 
+        raise ValueError("directory {dir} is not a valid directory".format(dir=to_directory))
+
+    pixi_export_dest = os.path.join(to_directory, "environment.tar")
+
+    # export to scratch and move to staging store 
+    env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'],
+            get_ide_env_name())
+    result = subprocess.run(
+        ["pixi-pack", "-o", pixi_export_dest, env_dir],
+        stdout=open(pixi_export_dest, "w"),
+        stderr=subprocess.PIPE,
+        text=True)
+    if result.returncode != 0: 
+        raise SystemError(f"Unable to export pixi environment: {result.stderr}")
+
+    return pixi_export_dest
 
 
 def ensure_conda_env_ready(do_check: bool):
@@ -143,7 +169,7 @@ def gen_upload_body(files, filetypes=[]):
     return body
 
 
-def get_conda_env_name():
+def get_ide_env_name():
     """
     Returns the name of the current conda environment
     """
