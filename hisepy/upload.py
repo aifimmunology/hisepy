@@ -581,6 +581,9 @@ def upload_files(files: list,
                         title='a upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
+    # override logEntry to denote fast_mode was used 
+    if use_fast_mode: 
+        logger.extra["_override"]['method_name'] = "upload_files_fast_mode"
 
     # validations
     hpu.validate_upload_context()
