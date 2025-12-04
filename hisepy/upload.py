@@ -583,6 +583,7 @@ def upload_files(files: list,
     """
     # override logEntry to denote fast_mode was used 
     if use_fast_mode: 
+        logger.info("user has chosen fast_mode for upload_files")
         logger.extra["_override"]['method_name'] = "upload_files_fast_mode"
 
     # validations
@@ -596,11 +597,6 @@ def upload_files(files: list,
         study_space_id=study_space_id,
         do_prompt=do_prompt,
     )
-
-    global upload_files_conda_env_checked
-    if not upload_files_conda_env_checked:
-        hpu.ensure_conda_env_ready(do_conda_build_check)
-        upload_files_conda_env_checked = True
 
     # setup
     inst = IDEInstance()
@@ -639,6 +635,11 @@ def upload_files(files: list,
         if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
             qargs['useFastMode'] = True
     
+    global upload_files_conda_env_checked
+    if not upload_files_conda_env_checked:
+        hpu.ensure_conda_env_ready(do_conda_build_check)
+        upload_files_conda_env_checked = True
+        
     # upload thy files
     url = hpu.get_upload_url()
     try:
