@@ -156,7 +156,7 @@ def with_logging(func: Callable[..., Any],
             })
 
         # allow runtime overrides 
-        adapter.extra[]"_override"] = {} 
+        adapter.extra["_override"] = {} 
 
         # temporarily replace global logger reference in the target module
         # (so logger.error(), logger.info() inside the function use the adapter)
