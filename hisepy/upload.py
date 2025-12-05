@@ -646,10 +646,8 @@ def upload_files(files: list,
         resp = requests.post(url,
                              json=qargs,
                              headers=get_bearer_token_header())
-        resp.raise_for_status()
+        return cu.parse_hise_response(resp)
     except requests.RequestException as e:
         raise RuntimeError(f"Upload request failed: {e}") from e
-
-    return cu.parse_hise_response(resp)
 
 
