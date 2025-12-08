@@ -158,6 +158,10 @@ def with_logging(func: Callable[..., Any],
         # allow runtime overrides 
         adapter.extra["_override"] = {} 
 
+        # ignore classes or objects without __globals__ 
+        if not hasattr(func, "__globals__"): 
+            return func(*args, **kwargs)
+
         # temporarily replace global logger reference in the target module
         # (so logger.error(), logger.info() inside the function use the adapter)
         original_logger = func.__globals__.get("logger", None)
