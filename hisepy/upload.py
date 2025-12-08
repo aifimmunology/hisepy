@@ -637,8 +637,9 @@ def upload_files(files: list,
     
     global upload_files_conda_env_checked
     if not upload_files_conda_env_checked:
-        hpu.ensure_conda_env_ready(do_conda_build_check)
-        upload_files_conda_env_checked = True
+        if not use_fast_mode: # check the conda environment if user isn't not running fast_mode
+            hpu.ensure_conda_env_ready(do_conda_build_check)
+            upload_files_conda_env_checked = True
         
     # upload thy files
     url = hpu.get_upload_url()
