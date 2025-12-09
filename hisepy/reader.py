@@ -44,11 +44,18 @@ def cache_files(file_ids: list[str] | None = None,
 
         # Determine how to get the response object
         if query_id:
+            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
+                logger.info("Cancelled cache_files call.")
+                return []
             resp_obj = ru.post_query(query_id=query_id[0])
         elif query_dict:
+            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "cache_files")):
+                logger.info("Cancelled cache_files call.")
+                return []
             resp_obj = ru.post_query(query_dict=query_dict)
         else:
             resp_obj = ru.post_query(file_list=file_ids)
+
     except Exception as e:
         raise Exception(f"Failed to fetch file descriptors: {e}")
 
@@ -216,13 +223,13 @@ def read_files(file_list: list[str] | None = None,
     try:
         ru.validate_download_params(file_list, query_id, query_dict)
         if query_id is not None:
-            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"]):
+            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "read_files")):
                 print("Cancelled read_files call.")
                 return []
             obj = ru.post_query(query_id=query_id[0])
 
         elif query_dict is not None:
-            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_DICT_READ"]):
+            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "read_files")):
                 print("Cancelled read_files call.")
                 return []
             obj = ru.post_query(query_dict=query_dict)
