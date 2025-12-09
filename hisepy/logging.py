@@ -78,7 +78,7 @@ class LogEntry:
     timestamp: str = field(
         default_factory=lambda: time.strftime("%Y-%m-%d %H:%M:%S"))
     user: str = field(default_factory=lambda: HiseUser().email
-                      ) if not debug else "testuser@alleninstitute.org"
+                      ) if not debug() else "testuser@alleninstitute.org"
     method_name: str = ""
     ide: str = field(default_factory=ide_instance_guid)
     sdk_version: str = field(default_factory=cu.get_sdk_version)
