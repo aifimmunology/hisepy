@@ -595,7 +595,7 @@ def upload_files(files: list,
     )
 
     global upload_files_conda_env_checked
-    if not upload_files_conda_env_checked:
+    if not upload_files_conda_env_checked and cu.get_ide_package_manager() == "conda":
         hpu.ensure_conda_env_ready(do_conda_build_check)
         upload_files_conda_env_checked = True
 
@@ -630,9 +630,8 @@ def upload_files(files: list,
     )
 
     # get conda pack to determine whether to use pixi or conda
-    # TODO: clean up 
-    package_manager = "pixi" # TODO: get from condaPack/Tracer 
-    qargs['packageManager'] = package_manager
+    package_manager = "pixi" 
+    qargs['packageManager'] = cu.get_ide_package_manager()
     if not cu.is_legacy_ide():
         if package_manager == "conda":
             qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
@@ -640,14 +639,12 @@ def upload_files(files: list,
             qargs["condaEnvironmentFile"] = hpu.do_pixi_export(tmpdir)
         else:
             raise SystemError(f"{package_manager} is not supported")
-    import pdb; pdb.set_trace()  
+    
     # only use fast_mode if the user made the call from upload_files_fast_mode
     if use_fast_mode:
         if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
             qargs['useFastMode'] = True
     
-
-
     # upload thy files
     url = hpu.get_upload_url()
     try:
