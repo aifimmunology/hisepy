@@ -78,7 +78,7 @@ class LogEntry:
     timestamp: str = field(
         default_factory=lambda: time.strftime("%Y-%m-%d %H:%M:%S"))
     user: str = field(default_factory=lambda: HiseUser().email
-                      ) if not debug else "testuser@alleninstitute.org"
+                      ) if not debug() else "testuser@alleninstitute.org"
     method_name: str = ""
     ide: str = field(default_factory=ide_instance_guid)
     sdk_version: str = field(default_factory=cu.get_sdk_version)
@@ -155,6 +155,13 @@ def with_logging(func: Callable[..., Any],
                 "time_elapsed": time.time() - start_time
             })
 
+        # allow runtime overrides 
+        adapter.extra["_override"] = {} 
+
+        # ignore classes or objects without __globals__ 
+        if not hasattr(func, "__globals__"): 
+            return func(*args, **kwargs)
+
         # temporarily replace global logger reference in the target module
         # (so logger.error(), logger.info() inside the function use the adapter)
         original_logger = func.__globals__.get("logger", None)
@@ -176,12 +183,13 @@ def with_logging(func: Callable[..., Any],
                           exc_info=True)
             raise
         finally:
-            # always restore the original logger
-            if original_logger is not None:
-                func.__globals__["logger"] = original_logger
+            # extract override fields
+            override = adapter.extra.get("_override", {})
+
+
 
             time_elapsed = time.time() - start_time
-            data = LogEntry(method_name=func.__name__,
+            data = LogEntry(method_name=override.get("method_name", func.__name__),
                             parameters=parameters,
                             success=success,
                             message=str(msg),
@@ -189,6 +197,10 @@ def with_logging(func: Callable[..., Any],
                             severity="info")
             with open(PROC_INFO, "a") as f:
                 f.write(json.dumps(data.as_dict()) + "\n")
+
+            # always restore the original logger
+            if original_logger is not None:
+                func.__globals__["logger"] = original_logger
 
             adapter.info(
                 f"Finished {func.__name__}, success={success}, time_elapsed={time_elapsed:.3f}s"
