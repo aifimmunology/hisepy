@@ -25,7 +25,7 @@ import inspect
 import uuid
 import subprocess
 import zlib
-from hisepy.auth import debug, defaultLocalAccountGuid, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
+from hisepy.auth import debug, defaultLocalAccountGuid, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid, ide_instance_guid
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -156,6 +156,17 @@ def find_files(directory, filenames):
     return files_list
 
 
+def get_conda_pack(conda_pack_id : str): 
+    endpoint = "https://{s}/{cp}/{id}".format(s=hise_server(),
+    cp= CONFIG['IDE_MANAGEMENT']['CONDA_PACK'],
+    id = conda_pack_id)
+
+    resp = parse_hise_response(
+        requests.request("GET", endpoint, headers=get_bearer_token_header()))
+    )
+    return resp
+
+
 def get_environment_name():
     # get instance obj from tracer
     inst = IDEInstance()
@@ -219,6 +230,16 @@ def get_organization():
     # get org guid
     return account_info[0]['organization']['guid']
 
+def get_ide_package_manager():
+    # get ide; condaPackID
+    ide = get_ide(ide_instance_guid())
+    conda_pack_guid = ide['condaPackId']
+
+    # get conda pack 
+    conda_pack = get_conda_pack(conda_pack_guid)
+
+    # return packageManager
+    return conda_pack['packageManager']
 
 def get_projects(to_df: bool = True):
     """
