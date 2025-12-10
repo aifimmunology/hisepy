@@ -378,11 +378,13 @@ def post_query(
             raise ValueError("No valid query parameters provided.")
 
         # submit GET request
-        qstr = "&".join(f"id={fid}" for fid in file_list)
-        endpoint = f"https://{hise_server()}/{CONFIG['HYDRATION']['FILE_SEARCH_PATH']}?{qstr}"
-        obj = cu.parse_hise_response(
-            requests.get(endpoint, headers=get_bearer_token_header()))
-
+        obj = []
+        for f in file_list: 
+            print("getting file descriptor for file: {}".format(f))
+            endpoint = f"https://{hise_server()}/{CONFIG['HYDRATION']['FILE_SEARCH_PATH']}?id={f}"
+            resp_obj = cu.parse_hise_response(requests.get(endpoint, headers=get_bearer_token_header()))
+            obj += resp_obj
+        
         if not isinstance(obj, list):
             raise TypeError(
                 f"Response is {type(obj).__name__}, expected list.")
