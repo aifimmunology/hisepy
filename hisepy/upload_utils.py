@@ -3,6 +3,7 @@ import pyreadr
 import subprocess
 from pathlib import Path
 import yaml
+import shutil
 from hisepy.utils import conda_env_builds
 from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
 import hisepy.common_utils as cu
@@ -136,19 +137,31 @@ def do_pixi_export(to_directory: str = ""):
     if not os.path.isdir(to_directory) and not debug(): 
         raise ValueError("directory {dir} is not a valid directory".format(dir=to_directory))
 
-    pixi_export_dest = os.path.join(to_directory, "environment.tar")
+    pixi_pack_dest = os.path.join(to_directory, "pixi-pack.tar")
 
-    # export to scratch and move to staging store 
+    # pack environment; copy manifests over 
     env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'],
             get_ide_env_name())
+    for filename in os.listdir(env_dir):
+        # Skip hidden files
+        if filename.startswith('.'):
+            continue
+        full_src = os.path.join(env_dir, filename)
+        if os.path.isfile(full_src):
+            shutil.copy(full_src, to_directory)
+        elif os.path.isdir(full_src):
+            shutil.copytree(full_src, os.path.join(to_directory, os.path.basename(full_src)), dirs_exist_ok=True)
     result = subprocess.run(
-        ["pixi-pack", "-o", pixi_export_dest, env_dir],
-        stdout=open(pixi_export_dest, "w"),
+        ["pixi-pack", "-o", pixi_pack_dest, env_dir],
+        stdout=open(pixi_pack_dest, "w"),
         stderr=subprocess.PIPE,
         text=True)
     if result.returncode != 0: 
         raise SystemError(f"Unable to export pixi environment: {result.stderr}")
 
+    # tar up everything 
+    pixi_export_dest = os.path.join(to_directory, 'environment.tar')
+    cu.tardir(pixi_export_dest, to_directory)
     return pixi_export_dest
 
 
