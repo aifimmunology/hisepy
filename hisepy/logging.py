@@ -84,7 +84,7 @@ class LogEntry:
     sdk_version: str = field(default_factory=cu.get_sdk_version)
     parameters: dict[str, any] = field(default_factory=dict)
     success: bool = True
-    organization: str = field(default_factory=cu.get_organization)
+    # organization: str = field(default_factory=cu.get_organization)
     account: str = field(default_factory=instance_account_guid)
     project: str = field(default_factory=IDEInstance().get_default_project
                          ) if not debug() else TEST_IDE_GUID
