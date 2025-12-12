@@ -139,7 +139,7 @@ class DashAppImg:
 
         logger.info("Uploading Dash app bundle and dependencies...")
         upload_resp = upload_files(
-            files=tarball_path,
+            files=[tarball_path],
             study_space_id=self.study_space_id,
             title=self.title,
             input_file_ids=self.input_file_ids,
