@@ -126,42 +126,27 @@ def do_conda_export(to_directory: str = ""):
 
     return conda_export_dest
 
-def do_pixi_export(to_directory: str = ""): 
+
+def do_pixi_export(to_directory): 
     """
     Exports the current Pixi environment to a file
     """
+    if to_directory == "":
+        to_directory = "{}".format(CONFIG["STORES"]["TEMP_STORE"])
 
-    if to_directory == "": 
-        to_directory = "{}".format(CONFIG['STORES']['TEMP_STORE'])
-
-    if not os.path.isdir(to_directory) and not debug(): 
-        raise ValueError("directory {dir} is not a valid directory".format(dir=to_directory))
-
-    pixi_pack_dest = os.path.join(to_directory, "pixi-pack.tar")
-
-    # pack environment; copy manifests over 
+    if not os.path.isdir(to_directory) and not debug():
+        raise ValueError("directory {dir} is not a valid directory".format(
+            dir=to_directory))
+        
+    # pack environment; copy manifests over to scratch
     env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'],
             get_ide_env_name())
-    for filename in os.listdir(env_dir):
-        # Skip hidden files
-        if filename.startswith('.'):
-            continue
-        full_src = os.path.join(env_dir, filename)
-        if os.path.isfile(full_src):
-            shutil.copy(full_src, to_directory)
-        elif os.path.isdir(full_src):
-            shutil.copytree(full_src, os.path.join(to_directory, os.path.basename(full_src)), dirs_exist_ok=True)
-    result = subprocess.run(
-        ["pixi-pack", "-o", pixi_pack_dest, env_dir],
-        stdout=open(pixi_pack_dest, "w"),
-        stderr=subprocess.PIPE,
-        text=True)
-    if result.returncode != 0: 
-        raise SystemError(f"Unable to export pixi environment: {result.stderr}")
+    if not os.path.isdir(env_dir) and not debug(): 
+        raise ValueError("directory {dir} is not a valid directory".format(dir=env_dir))
+    pixi_export_dest = os.path.join(to_directory, "pixi.toml")
+    pixi_manifest_src = os.path.join(env_dir, 'pixi.toml')
 
-    # tar up everything 
-    pixi_export_dest = os.path.join(to_directory, 'environment.tar')
-    cu.tardir(pixi_export_dest, to_directory)
+    shutil.copy(pixi_manifest_src, pixi_export_dest)
     return pixi_export_dest
 
 
