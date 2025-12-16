@@ -66,6 +66,7 @@ class DashAppImg:
         self.do_conda_build_check = do_conda_build_check
         self.data_mount_path = data_mount_path
         self.data_source_file_ids = data_source_file_ids
+        self.conda_pack_env_path = f"{CONFIG['STORES']['ENV_STORE']}/{hpu.get_conda_env_name()}"
 
     def create_requirements_file(self) -> None:
         """Generate or compile a requirements.txt file for the Dash app."""
@@ -356,15 +357,8 @@ def save_dash_app(app_filepath: str,
         resp = dash_app.export()
         logger.info("Dash app successfully uploaded and deployed.")
         return resp
-
-    finally:
-        cu.safe_remove(os.path.join(tmpdirname, "dash_app.tar.gz"))
-        cu.safe_remove(os.path.join(tmpdirname, "requirements.txt"))
-        cu.safe_remove(os.path.join(tmpdirname, "requirements.in"))
-        try:
-            shutil.rmtree(tmpdirname, ignore_errors=True)
-        except Exception as e:
-            logger.warning("Failed to clean up temp dir %s: %s", tmpdirname, e)
+    except: 
+        raise Exception("Failed to deploy dash app")
 
 
 @with_default_logging
