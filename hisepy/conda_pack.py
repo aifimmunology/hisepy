@@ -25,6 +25,62 @@ logger = logging.getLogger(__name__)
 
 
 @with_default_logging
+def save_custom_pixi_environment(env_name : str, description : str, 
+                                 languages : list[str]): 
+    """
+    Save a custom Pixi environment with additional metadata. 
+
+    Parameters: 
+        env_name (str): Name of the Pixi environment. This is the name that will show in the HISE UI.
+        description (str): Description of the environment. 
+        languages (list[str]): List of programming languages support by the environment.
+    Returns: 
+        dict: Response from the HISE API after saving the environment
+    """
+
+    # validate parameters 
+    validate_save_custom_env_params(env_name, description, languages)
+
+    # prompt user 
+    if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_ENV"].format("pixi"),
+                            sys.prefix):
+        raise RuntimeError(
+            "User cancelled saving the custom Pixi environment"
+        )
+    path_to_env = Path(sys.prefix)
+    logger.info(f"saving activate Pixi environment at {path_to_env}")
+
+    # verify packing is successful 
+    # TODO 
+
+    # export manifest file to temporary directory
+    with tempfile.TemporaryDirectory(prefix="env_export_") as tmpdir: 
+        tmpdir_path = Path(tmpdir)
+        toml_path = tmpdir_path / "pixi.toml"
+
+        # TODO: do I need to remove SDKs? 
+
+        # export pixi manifest
+        cu.copy_files(f"{path_to_env}/pixi.toml", toml_path)
+
+        # prep request
+        params = {
+            "name": env_name,
+            "description": description,
+            "language": languages,
+            "ownerEmail": HiseUser().email,
+            "packageManager": "pixi"
+        }
+
+        with open(toml_path, "rb") as f:
+            files = {"file": (toml_path.name, f, "application/octet-stream")}
+            url = cu.hise_url("ide_management", "save_custom_conda_env")
+            return hreq.hise_post(url, data=params, files=files)
+
+
+
+
+@with_default_logging
 def save_custom_conda_environment(env_name: str, description: str,
                                   languages: list[str]):
     """
@@ -37,7 +93,7 @@ def save_custom_conda_environment(env_name: str, description: str,
     Returns: 
         dict: Response from the HISE API after saving the environment.
     Example: 
-        >>> save_custom_conda_environment(
+        save_custom_conda_environment(
                 env_name="my_custom_env",
                 description="A custom conda environment for data science.",
                 languages=["python", "r"],
@@ -45,10 +101,10 @@ def save_custom_conda_environment(env_name: str, description: str,
     """
 
     # validate parameters
-    validate_conda_env_params(env_name, description, languages)
+    validate_save_custom_env_params(env_name, description, languages)
 
     # prompt user
-    if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_CONDA_ENV"],
+    if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_ENV"].format("conda"),
                           sys.prefix):
         raise RuntimeError(
             "User cancelled saving the custom conda environment.")
@@ -98,6 +154,7 @@ def save_custom_conda_environment(env_name: str, description: str,
             "description": description,
             "language": languages,
             "ownerEmail": HiseUser().email,
+            "packageManager": "conda"
         }
 
         with open(yaml_path, "rb") as f:
@@ -106,7 +163,7 @@ def save_custom_conda_environment(env_name: str, description: str,
             return hreq.hise_post(url, data=params, files=files)
 
 
-def validate_conda_env_params(env_name: str, description: str,
+def validate_save_custom_env_params(env_name: str, description: str,
                               languages: list[str]):
     """
     Validate parameters for saving a custom conda environment.
