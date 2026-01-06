@@ -174,6 +174,7 @@ class DashAppImg:
         )
         workflow_resp = parse_hise_response(resp)
         logger.debug("Workflow response: %s", workflow_resp)
+
         return workflow_resp
 
 
@@ -355,6 +356,7 @@ def save_dash_app(app_filepath: str,
         logger.info("Dash app packaged at: %s", tarball_path)
 
         resp = dash_app.export()
+        logger.extra["_override"]['workflow'] = resp['WorkflowId'] #attach workflow to log entry
         logger.info("Dash app successfully uploaded and deployed.")
         return resp
     except: 
@@ -638,10 +640,11 @@ def upload_files(files: list,
     # upload thy files
     url = hpu.get_upload_url()
     try:
-        resp = requests.post(url,
+        resp = cu.parse_hise_response(requests.post(url,
                              json=qargs,
-                             headers=get_bearer_token_header())
-        return cu.parse_hise_response(resp)
+                             headers=get_bearer_token_header()))
+        logger.extra["_override"]['workflow'] = resp['WorkflowId']
+        return resp
     except requests.RequestException as e:
         raise RuntimeError(f"Upload request failed: {e}") from e
 
