@@ -93,6 +93,7 @@ class LogEntry:
     message: str = ""
     severity: str = "info"
     language: str = "python"
+    workflow: str = ""
 
     def as_dict(self):
         return {**self.__dict__}
@@ -112,7 +113,8 @@ class ErrorHandler(logging.Handler):
                              message=record.getMessage(),
                              time_elapsed=getattr(record, "time_elapsed",
                                                   None),
-                             severity="error")
+                             severity="error",
+                            workflow=getattr(record, "workflow", ""))
         with open(PROC_ERROR, "a") as f:
             f.write(json.dumps(log_entry.as_dict()) + "\n")
 
@@ -194,7 +196,8 @@ def with_logging(func: Callable[..., Any],
                             success=success,
                             message=str(msg),
                             time_elapsed=time_elapsed,
-                            severity="info")
+                            severity="info",
+                            workflow=override.get("workflow", ""))
             with open(PROC_INFO, "a") as f:
                 f.write(json.dumps(data.as_dict()) + "\n")
 
