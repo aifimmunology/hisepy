@@ -2,6 +2,7 @@ import requests
 import os
 import sys
 import subprocess
+import shutil
 from pathlib import Path
 import hisepy.common_utils as cu
 import hisepy.hise_requests as hreq
@@ -20,37 +21,30 @@ from pathlib import Path
 import logging
 import requests
 from typing import List, Optional
+import tomllib
+import tomli_w
 
 logger = logging.getLogger(__name__)
 
-PIXI_ENV_DIR = f'{CONFIG['STORES']['ENV_STORE']}/{cu.get_environment_name()}'
+PIXI_ENV_DIR = Path(f"{CONFIG['STORES']['ENV_STORE']}/{cu.get_environment_name()")
 PIXI_TOML = PIXI_ENV_DIR / "pixi.toml"
+WHEEL_DIR = PIXI_ENV_DIR / "wheels"
 
-@with_default_logging
-def install_github_package_to_pixi_env(url : str, version_tag : str): 
+
+def build_github_repo(url : str, version_tag : str) -> Path: 
+    """ 
+        Clones a github repo and attempts to build and create a .whl file. 
+        If successful, it will copy it over to the IDE's Pixi environment
+
+        Parameters:
+            url (str): Github url of package
+            version_tag (str): tag or branch of Github repo 
+
+        Returns: 
+            Filepath of copied wheel file 
     """
-    Install a package from github to an existing pixi environment
-
-    Parameters: 
-        url (str): Github url of package
-        version_tag (str): tag or branch of Github repo
-    Returns: 
-        True if installation was successful. Error otherwise
-    Example: 
-        install_github_package_to_pixi_env(url = "https://github.com/aifimmunology/hisepy", version_tag = 'v1.0.0')
-    """
-
-    # validate params 
-    if not url.startswith("https://github.com/"):
-        raise ValueError("url must be a GitHub https URL")
-
-    if not version_tag:
-        raise ValueError("version_tag must be provided")
-
-    if not PIXI_TOML.exists():
-        raise FileNotFoundError(f"pixi.toml not found at {PIXI_TOML}")
     
-    # clone repo to scratch 
+    # clone repo to scratch, checkout tag, build it, and copy it over
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_dir = Path(tmpdir) / "repo"
 
@@ -88,15 +82,61 @@ def install_github_package_to_pixi_env(url : str, version_tag : str):
         wheel_path = wheels[0]
         dest_wheel = WHEEL_DIR / wheel_path.name
         shutil.copy2(wheel_path, dest_wheel)
+    return dest_wheel
 
-    # add pixi task to build from the whl
+
+@with_default_logging
+def install_github_package_to_pixi_env(url : str, version_tag : str): 
+    """
+    Install a package from github to an existing pixi environment
+
+    Parameters: 
+        url (str): Github url of package
+        version_tag (str): tag or branch of Github repo
+    Returns: 
+        True if installation was successful. Error otherwise
+    Example: 
+        install_github_package_to_pixi_env(url = "https://github.com/aifimmunology/hisepy", version_tag = 'v1.0.0')
+    """
+
+    # make wheel directory
+    WHEEL_DIR.mkdir(exist_ok=True)
+    
+    try:
+        # validate params 
+        validate_install_github_package_params(url, version_tag)
+
+        print("building github repo...") 
+        # clone repo to scratch, checkout tag, build it, and copy it over
+        built_wheel = build_github_repo(url, version_tag)
+
+        # add pixi task to build from the whl
+        # update if the task already exists
+        update_install_wheel_task(built_wheel)
+    except Exception as e:
+        raise SystemError(
+            f"Failed to build github package: {e}"
+        ) 
+        
+    # now install the packages using the pixi task command  
+    try: 
+        print("installing github package to environment...")
+        install_wheels_to_env(built_wheel)
+    except Exception as e: 
+        raise SystemError(
+            f"Failed to install github package {url}: {e}"
+        )
+    return True
+
+
+def install_wheels_to_env(wheel_file): 
+
     subprocess.run(
-        ["pixi", "task", "add", "install-wheel", f"pip install wheels/{dest_wheel.name}"],
-        cwd=pixi_env_path,
+        ["pip", "install", wheel_file],
         check=True,
     )
+    return True 
 
-    return True
 
 @with_default_logging
 def save_custom_conda_environment(env_name: str, description: str,
@@ -184,6 +224,28 @@ def save_custom_conda_environment(env_name: str, description: str,
             return resp
 
 
+def update_install_wheel_task(dest_wheel):
+    data = tomllib.loads(PIXI_TOML.read_text())
+
+    tasks = data.setdefault("tasks", {})
+
+    install_cmd = tasks.get("install-wheel", "")
+
+    existing_wheels = set()
+    if install_cmd.startswith("pip install"):
+        existing_wheels = set(install_cmd.split()[2:])
+
+    new_wheel_ref = f"wheels/{dest_wheel.name}"
+
+    if new_wheel_ref not in existing_wheels:
+        existing_wheels.add(new_wheel_ref)
+
+    tasks["install-wheel"] = "pip install " + " ".join(sorted(existing_wheels))
+
+    PIXI_TOML.write_text(tomli_w.dumps(data))
+    return True
+
+
 def validate_conda_env_params(env_name: str, description: str,
                               languages: list[str]):
     """
@@ -211,3 +273,15 @@ def validate_conda_env_params(env_name: str, description: str,
         raise ValueError(f"languages must be one of {valid_languages}.")
 
     return
+
+
+def validate_install_github_package_params(url : str, version_tag : str): 
+    if not url.startswith("https://github.com/"):
+        raise ValueError("url must be a GitHub https URL")
+
+    if not version_tag:
+        raise ValueError("version_tag must be provided")
+
+    if not PIXI_TOML.exists():
+        raise FileNotFoundError(f"pixi.toml not found at {PIXI_TOML}")
+    return True
