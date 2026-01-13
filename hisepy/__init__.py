@@ -30,7 +30,7 @@ from .private_folders import (
     find_private_folder_of_file)
 from .instances import (stop_ide)
 from .training_job import (start_training_run, review_training_job_run)
-from .conda_pack import save_custom_conda_environment
+from .conda_pack import (save_custom_conda_environment, install_github_package_to_pixi_env)
 from .version import __version__
 from .reader_utils import (hise_file, query_files)
 

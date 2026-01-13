@@ -23,6 +23,80 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
+PIXI_ENV_DIR = f'{CONFIG['STORES']['ENV_STORE']}/{cu.get_environment_name()}'
+PIXI_TOML = PIXI_ENV_DIR / "pixi.toml"
+
+@with_default_logging
+def install_github_package_to_pixi_env(url : str, version_tag : str): 
+    """
+    Install a package from github to an existing pixi environment
+
+    Parameters: 
+        url (str): Github url of package
+        version_tag (str): tag or branch of Github repo
+    Returns: 
+        True if installation was successful. Error otherwise
+    Example: 
+        install_github_package_to_pixi_env(url = "https://github.com/aifimmunology/hisepy", version_tag = 'v1.0.0')
+    """
+
+    # validate params 
+    if not url.startswith("https://github.com/"):
+        raise ValueError("url must be a GitHub https URL")
+
+    if not version_tag:
+        raise ValueError("version_tag must be provided")
+
+    if not PIXI_TOML.exists():
+        raise FileNotFoundError(f"pixi.toml not found at {PIXI_TOML}")
+    
+    # clone repo to scratch 
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_dir = Path(tmpdir) / "repo"
+
+        subprocess.run(
+            ["git", "clone", url, str(repo_dir)],
+            check=True,
+        )
+
+        subprocess.run(
+            ["git", "checkout", version_tag],
+            cwd=repo_dir,
+            check=True,
+        )
+
+        # build a whl, copy whl to pixi env dir 
+        # error out if whl can't be generated 
+        subprocess.run(
+            ["python", "-m", "pip", "install", "--quiet", "build"],
+            check=True,
+        )
+
+        subprocess.run(
+            ["python", "-m", "build", "--wheel"],
+            cwd=repo_dir,
+            check=True,
+        )
+
+        dist_dir = repo_dir / "dist"
+        wheels = list(dist_dir.glob("*.whl"))
+
+        if not wheels:
+            raise RuntimeError("Wheel build succeeded but no .whl found")
+
+        # take the first wheel
+        wheel_path = wheels[0]
+        dest_wheel = WHEEL_DIR / wheel_path.name
+        shutil.copy2(wheel_path, dest_wheel)
+
+    # add pixi task to build from the whl
+    subprocess.run(
+        ["pixi", "task", "add", "install-wheel", f"pip install wheels/{dest_wheel.name}"],
+        cwd=pixi_env_path,
+        check=True,
+    )
+
+    return True
 
 @with_default_logging
 def save_custom_conda_environment(env_name: str, description: str,
