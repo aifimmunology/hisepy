@@ -26,7 +26,7 @@ import tomli_w
 
 logger = logging.getLogger(__name__)
 
-PIXI_ENV_DIR = Path(f"{CONFIG['STORES']['ENV_STORE']}/{cu.get_environment_name()")
+PIXI_ENV_DIR = Path(f"{CONFIG['STORES']['ENV_STORE']}/{cu.get_environment_name()}")
 PIXI_TOML = PIXI_ENV_DIR / "pixi.toml"
 WHEEL_DIR = PIXI_ENV_DIR / "wheels"
 
