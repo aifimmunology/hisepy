@@ -31,62 +31,24 @@ PIXI_TOML = PIXI_ENV_DIR / "pixi.toml"
 WHEEL_DIR = PIXI_ENV_DIR / "wheels"
 
 
-def build_github_repo(url : str, version_tag : str) -> Path: 
-    """ 
-        Clones a github repo and attempts to build and create a .whl file. 
-        If successful, it will copy it over to the IDE's Pixi environment
-
-        Parameters:
-            url (str): Github url of package
-            version_tag (str): tag or branch of Github repo 
-
-        Returns: 
-            Filepath of copied wheel file 
+def extract_repo_name(url: str) -> str:
     """
-    
-    # clone repo to scratch, checkout tag, build it, and copy it over
-    with tempfile.TemporaryDirectory() as tmpdir:
-        repo_dir = Path(tmpdir) / "repo"
+    Extract the repository name from a GitHub URL.
 
-        subprocess.run(
-            ["git", "clone", url, str(repo_dir)],
-            check=True,
-        )
+    Parameters:
+        url (str): GitHub repository URL
 
-        subprocess.run(
-            ["git", "checkout", version_tag],
-            cwd=repo_dir,
-            check=True,
-        )
-
-        # build a whl, copy whl to pixi env dir 
-        # error out if whl can't be generated 
-        subprocess.run(
-            ["python", "-m", "pip", "install", "--quiet", "build"],
-            check=True,
-        )
-
-        subprocess.run(
-            ["python", "-m", "build", "--wheel"],
-            cwd=repo_dir,
-            check=True,
-        )
-
-        dist_dir = repo_dir / "dist"
-        wheels = list(dist_dir.glob("*.whl"))
-
-        if not wheels:
-            raise RuntimeError("Wheel build succeeded but no .whl found")
-
-        # take the first wheel
-        wheel_path = wheels[0]
-        dest_wheel = WHEEL_DIR / wheel_path.name
-        shutil.copy2(wheel_path, dest_wheel)
-    return dest_wheel
+    Returns:
+        str: Repository name
+    """
+    repo_name = url.rstrip("/").split("/")[-1]
+    if repo_name.endswith(".git"):
+        repo_name = repo_name[:-4]
+    return repo_name
 
 
 @with_default_logging
-def install_github_package_to_pixi_env(url : str, version_tag : str): 
+def install_github_package_to_pixi_env(url : str, version_tag : str, overwrite : bool = False): 
     """
     Install a package from github to an existing pixi environment
 
@@ -99,33 +61,29 @@ def install_github_package_to_pixi_env(url : str, version_tag : str):
         install_github_package_to_pixi_env(url = "https://github.com/aifimmunology/hisepy", version_tag = 'v1.0.0')
     """
 
-    # make wheel directory
-    WHEEL_DIR.mkdir(exist_ok=True)
-    
     try:
         # validate params 
         validate_install_github_package_params(url, version_tag)
 
-        print("building github repo...") 
-        # clone repo to scratch, checkout tag, build it, and copy it over
-        built_wheel = build_github_repo(url, version_tag)
+        # create unique task name based on repo name
+        pkg_name = extract_repo_name(url)  
+        task_name = f"install-github-{pkg_name}"
 
-        # add pixi task to build from the whl
-        # update if the task already exists
-        update_install_wheel_task(built_wheel)
+        print("updating manifest to build github package...") 
+        # create task to install from github
+        update_or_create_pixi_task(task_name, url, version_tag, overwrite)
+
+        print("builing and installing github package...")
+        # install immediately for the user
+        subprocess.run(
+            ["pixi", "run", task_name],
+            check=True,
+        )
     except Exception as e:
         raise SystemError(
             f"Failed to build github package: {e}"
         ) 
         
-    # now install the packages using the pixi task command  
-    try: 
-        print("installing github package to environment...")
-        install_wheels_to_env(built_wheel)
-    except Exception as e: 
-        raise SystemError(
-            f"Failed to install github package {url}: {e}"
-        )
     return True
 
 
@@ -157,11 +115,11 @@ def save_custom_pixi_environment(env_name : str, description : str,
 
     # prompt user 
     if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_ENV"].format("pixi"),
-                            sys.prefix):
+                            PIXI_ENV_DIR):
         raise RuntimeError(
             "User cancelled saving the custom Pixi environment"
         )
-    path_to_env = Path(sys.prefix)
+    path_to_env = PIXI_ENV_DIR
     logger.info(f"saving activate Pixi environment at {path_to_env}")
 
     # verify packing is successful 
@@ -279,6 +237,69 @@ def save_custom_conda_environment(env_name: str, description: str,
             # attach workflow to log entry 
             logger.extra["_override"]['workflow'] = resp['WorkflowId']
             return resp
+
+
+def update_or_create_pixi_task(
+    task_name: str,
+    url: str,
+    version_tag: str,
+    overwrite : bool = False,
+) -> None:
+    """
+    Create or update a Pixi task that installs a GitHub package by
+    cloning, building, and installing a wheel.
+
+    Parameters:
+        task_name (str): Name of the Pixi task (e.g. install-github-hisepy)
+        url (str): GitHub repository URL
+        version_tag (str): Git tag or branch
+    """
+
+    if not PIXI_TOML.exists():
+        raise FileNotFoundError("pixi.toml not found")
+
+    result = subprocess.run(
+        ["pixi", "task", "list"],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    if task_name in result.stderr and not overwrite:
+        raise RuntimeError(
+            f"Pixi task '{task_name}' already exists. "
+            "Pass overwrite=True to overwrite."
+        )
+
+    # Build a single-line shell command safely
+    cmd = (
+        f'REPO_URL="{url}" && '
+        f'VERSION_TAG="{version_tag}" && '
+        f'ENV="{PIXI_ENV_DIR}" && '
+        'cd "$ENV" && '
+        'rm -rf repo && '
+        'git clone "$REPO_URL" repo && '
+        'cd repo && '
+        'git checkout "$VERSION_TAG" && '
+        'python -m pip install --quiet build'
+    )
+
+    # delete so we can add it back 
+    subprocess.run(
+        ["pixi", "task", "remove", task_name],
+        check=False  # ok if it doesn't exist
+    )
+
+    # Use subprocess to call Pixi CLI and add/update task
+    result = subprocess.run(
+        ["pixi", "task", "add", task_name, cmd],
+        check=True
+    )
+    if result.returncode != 0:
+        raise SystemError(
+            f"Failed to add Pixi task: {result.stderr}")  
+
+    print(f"Pixi task '{task_name}' updated/added successfully.")
+    return True
 
 
 def update_install_wheel_task(dest_wheel):
