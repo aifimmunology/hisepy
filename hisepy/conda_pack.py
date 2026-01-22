@@ -274,13 +274,11 @@ def update_or_create_pixi_task(
     cmd = (
         f'REPO_URL="{url}" && '
         f'VERSION_TAG="{version_tag}" && '
-        f'ENV="{PIXI_ENV_DIR}" && '
-        'cd "$ENV" && '
         'rm -rf repo && '
         'git clone "$REPO_URL" repo && '
         'cd repo && '
         'git checkout "$VERSION_TAG" && '
-        'python -m pip install --quiet build'
+        'pip install .'
     )
 
     # delete so we can add it back 
