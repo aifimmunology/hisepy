@@ -7,7 +7,7 @@ import shutil
 from hisepy.utils import conda_env_builds
 from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
 import hisepy.common_utils as cu
-from hisepy.upload import get_study_spaces, get_default_project, DashAppImg
+from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
