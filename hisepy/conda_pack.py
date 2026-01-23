@@ -31,6 +31,60 @@ PIXI_TOML = PIXI_ENV_DIR / "pixi.toml"
 WHEEL_DIR = PIXI_ENV_DIR / "wheels"
 
 
+def build_github_repo(url : str, version_tag : str) -> Path: 
+    """ 
+        Clones a github repo and attempts to build and create a .whl file. 
+        If successful, it will copy it over to the IDE's Pixi environment
+
+        Parameters:
+            url (str): Github url of package
+            version_tag (str): tag or branch of Github repo 
+
+        Returns: 
+            Filepath of copied wheel file 
+    """
+    
+    # clone repo to scratch, checkout tag, build it, and copy it over
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_dir = Path(tmpdir) / "repo"
+
+        subprocess.run(
+            ["git", "clone", url, str(repo_dir)],
+            check=True,
+        )
+
+        subprocess.run(
+            ["git", "checkout", version_tag],
+            cwd=repo_dir,
+            check=True,
+        )
+
+        # build a whl, copy whl to pixi env dir 
+        # error out if whl can't be generated 
+        subprocess.run(
+            ["python", "-m", "pip", "install", "--quiet", "build"],
+            check=True,
+        )
+
+        subprocess.run(
+            ["python", "-m", "build", "--wheel"],
+            cwd=repo_dir,
+            check=True,
+        )
+
+        dist_dir = repo_dir / "dist"
+        wheels = list(dist_dir.glob("*.whl"))
+
+        if not wheels:
+            raise RuntimeError("Wheel build succeeded but no .whl found")
+
+        # take the first wheel
+        wheel_path = wheels[0]
+        dest_wheel = WHEEL_DIR / wheel_path.name
+        shutil.copy2(wheel_path, dest_wheel)
+    return dest_wheel
+
+
 def extract_repo_name(url: str) -> str:
     """
     Extract the repository name from a GitHub URL.
@@ -61,29 +115,35 @@ def install_github_package_to_pixi_env(url : str, version_tag : str, overwrite :
         install_github_package_to_pixi_env(url = "https://github.com/aifimmunology/hisepy", version_tag = 'v1.0.0')
     """
 
+    # make wheel directory
+    WHEEL_DIR.mkdir(exist_ok=True)
+
     try:
         # validate params 
         validate_install_github_package_params(url, version_tag)
 
         # create unique task name based on repo name
-        pkg_name = extract_repo_name(url)  
-        task_name = f"install-github-{pkg_name}"
+        print("building github repo...") 
+        # clone repo to scratch, checkout tag, build it, and copy it over
+        built_wheel = build_github_repo(url, version_tag)
 
-        print("updating manifest to build github package...") 
-        # create task to install from github
-        update_or_create_pixi_task(task_name, url, version_tag, overwrite)
+        # add pixi task to build from the whl
+        # update if the task already exists
+        update_install_wheel_task(built_wheel)
 
-        print("builing and installing github package...")
-        # install immediately for the user
-        subprocess.run(
-            ["pixi", "run", task_name],
-            check=True,
-        )
     except Exception as e:
         raise SystemError(
             f"Failed to build github package: {e}"
         ) 
         
+     # now install the packages using the pixi task command  
+    try: 
+        print("installing github package to environment...")
+        install_wheels_to_env(built_wheel)
+    except Exception as e: 
+        raise SystemError(
+            f"Failed to install github package {url}: {e}"
+        )
     return True
 
 
@@ -122,8 +182,6 @@ def save_custom_pixi_environment(env_name : str, description : str,
     path_to_env = PIXI_ENV_DIR
     logger.info(f"saving activate Pixi environment at {path_to_env}")
 
-    # verify packing is successful 
-    # TODO 
 
     # export manifest file to temporary directory
     with tempfile.TemporaryDirectory(prefix="env_export_") as tmpdir: 
@@ -141,7 +199,8 @@ def save_custom_pixi_environment(env_name : str, description : str,
             "description": description,
             "language": languages,
             "ownerEmail": HiseUser().email,
-            "packageManager": "pixi"
+            "packageManager": "pixi",
+            "additionalPackages": 
         }
 
         with open(toml_path, "rb") as f:
