@@ -182,13 +182,19 @@ def save_custom_pixi_environment(env_name : str, description : str,
     path_to_env = PIXI_ENV_DIR
     logger.info(f"saving activate Pixi environment at {path_to_env}")
 
+    # grep all files in /wheels 
+    wheel_files = list(WHEEL_DIR.glob("*.whl"))
 
     # export manifest file to temporary directory
     with tempfile.TemporaryDirectory(prefix="env_export_") as tmpdir: 
         tmpdir_path = Path(tmpdir)
         toml_path = tmpdir_path / "pixi.toml"
 
-        # TODO: do I need to remove SDKs? 
+        # copy wheel files to temp dir
+        additional_packages = []
+        for wheel in wheel_files:
+            shutil.copy2(wheel, tmpdir_path / wheel.name)
+            additional_packages.append(tmpdir_path / wheel.name)
 
         # export pixi manifest
         cu.copy_files(f"{path_to_env}/pixi.toml", toml_path)
@@ -200,15 +206,23 @@ def save_custom_pixi_environment(env_name : str, description : str,
             "language": languages,
             "ownerEmail": HiseUser().email,
             "packageManager": "pixi",
-            "additionalPackages": 
+            "additionalPackages": [Path(p).name for p in wheel_files],
         }
 
+        files = []
         with open(toml_path, "rb") as f:
-            files = {"file": (toml_path.name, f, "application/octet-stream")}
+            files.append(("file", (toml_path.name, f, "application/octet-stream")))
+
+            # additional packages (list of paths)
+            for pkg_path in additional_packages:  # list of Path objects or strings
+                pkg_path = Path(pkg_path)
+                f = open(pkg_path, "rb")
+                files.append(
+                    ("additionalPackages", (pkg_path.name, f, "application/octet-stream"))
+                )
+
             url = cu.hise_url("ide_management", "save_custom_conda_env")
             return hreq.hise_post(url, data=params, files=files)
-
-
 
 
 @with_default_logging
@@ -298,66 +312,6 @@ def save_custom_conda_environment(env_name: str, description: str,
             return resp
 
 
-def update_or_create_pixi_task(
-    task_name: str,
-    url: str,
-    version_tag: str,
-    overwrite : bool = False,
-) -> None:
-    """
-    Create or update a Pixi task that installs a GitHub package by
-    cloning, building, and installing a wheel.
-
-    Parameters:
-        task_name (str): Name of the Pixi task (e.g. install-github-hisepy)
-        url (str): GitHub repository URL
-        version_tag (str): Git tag or branch
-    """
-
-    if not PIXI_TOML.exists():
-        raise FileNotFoundError("pixi.toml not found")
-
-    result = subprocess.run(
-        ["pixi", "task", "list"],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-    if task_name in result.stderr and not overwrite:
-        raise RuntimeError(
-            f"Pixi task '{task_name}' already exists. "
-            "Pass overwrite=True to overwrite."
-        )
-
-    # Build a single-line shell command safely
-    cmd = (
-        f'REPO_URL="{url}" && '
-        f'VERSION_TAG="{version_tag}" && '
-        'rm -rf repo && '
-        'git clone "$REPO_URL" repo && '
-        'cd repo && '
-        'git checkout "$VERSION_TAG" && '
-        'pip install .'
-    )
-
-    # delete so we can add it back 
-    subprocess.run(
-        ["pixi", "task", "remove", task_name],
-        check=False  # ok if it doesn't exist
-    )
-
-    # Use subprocess to call Pixi CLI and add/update task
-    result = subprocess.run(
-        ["pixi", "task", "add", task_name, cmd],
-        check=True
-    )
-    if result.returncode != 0:
-        raise SystemError(
-            f"Failed to add Pixi task: {result.stderr}")  
-
-    print(f"Pixi task '{task_name}' updated/added successfully.")
-    return True
-
 
 def update_install_wheel_task(dest_wheel):
     data = tomllib.loads(PIXI_TOML.read_text())
@@ -375,7 +329,7 @@ def update_install_wheel_task(dest_wheel):
     if new_wheel_ref not in existing_wheels:
         existing_wheels.add(new_wheel_ref)
 
-    tasks["install-wheel"] = "pip install " + " ".join(sorted(existing_wheels))
+    tasks["install-github-wheel"] = "pip install " + " ".join(sorted(existing_wheels))
 
     PIXI_TOML.write_text(tomli_w.dumps(data))
     return True
