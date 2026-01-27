@@ -139,6 +139,7 @@ JOB_ORCHESTRATE:
   REVIEW_JOB: orchestrate/job/review
 
 IDE_MANAGEMENT:
+  CONDA_PACK: ide-nextgen/build/info/pack
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
   IDE_PATH: ide-nextgen/instances 
   TAG_IDE: ide-nextgen/instances/tag/ide

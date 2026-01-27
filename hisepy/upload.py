@@ -609,7 +609,7 @@ def upload_files(files: list,
                              file_log_dir)
 
     # build payload
-    tmpdir = tempfile.mkdtemp(dir='/home/workspace/temp', prefix="conda_env_export_")
+    tmpdir = tempfile.mkdtemp(dir='/home/workspace/temp', prefix="env_export_")
     qargs = hpu.build_upload_payload(
         files=files,
         file_types=file_types,
@@ -623,9 +623,17 @@ def upload_files(files: list,
         home_dir=home_dir,
         inst=inst,
     )
-    if not cu.is_legacy_ide():
-        qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
 
+    # get conda pack to determine whether to use pixi or conda
+    package_manager =  cu.get_ide_package_manager()
+    qargs['packageManager'] = package_manager
+    if not cu.is_legacy_ide():
+        if package_manager == "conda":
+            qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
+        elif package_manager == "pixi": 
+            qargs["condaEnvironmentFile"] = hpu.do_pixi_export(tmpdir)
+        else:
+            raise SystemError(f"{package_manager} is not supported")
     # only use fast_mode if the user made the call from upload_files_fast_mode
     if use_fast_mode:
         if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
@@ -633,7 +641,7 @@ def upload_files(files: list,
     
     global upload_files_conda_env_checked
     if not upload_files_conda_env_checked:
-        if not use_fast_mode: # check the conda environment if user isn't not running fast_mode
+        if not use_fast_mode and package_manager == "conda": # check the conda environment if user isn't not running fast_mode
             hpu.ensure_conda_env_ready(do_conda_build_check)
             upload_files_conda_env_checked = True
         
