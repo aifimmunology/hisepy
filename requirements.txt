@@ -4,7 +4,6 @@
 #
 #    pip-compile
 #
-astor==0.8.1
 beautifulsoup4==4.12.3
     # via google
 blinker==1.8.2
@@ -107,6 +106,7 @@ protobuf==5.28.3
     #   googleapis-common-protos
     #   proto-plus
 psutil==7.0.0
+    # via -r requirements.in
 pyasn1==0.6.1
     # via
     #   pyasn1-modules
@@ -123,7 +123,6 @@ pytz==2024.2
     # via pandas
 pyyaml==6.0.2
     # via -r requirements.in
-ray==2.46.0
 requests==2.32.3
     # via
     #   -r requirements.in
@@ -144,6 +143,8 @@ soupsieve==2.6
 tenacity==9.0.0
     # via plotly
 termcolor==2.3.0
+    # via -r requirements.in
+tomli-w==1.2.0
     # via -r requirements.in
 typing-extensions==4.12.2
     # via dash
