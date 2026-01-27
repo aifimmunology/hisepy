@@ -26,10 +26,6 @@ import tomli_w
 
 logger = logging.getLogger(__name__)
 
-PIXI_ENV_DIR = Path(f"{CONFIG['STORES']['ENV_STORE']}/{cu.get_environment_name()}")
-PIXI_TOML = PIXI_ENV_DIR / "pixi.toml"
-WHEEL_DIR = PIXI_ENV_DIR / "wheels"
-
 
 def build_github_repo(url : str, version_tag : str) -> Path: 
     """ 
@@ -43,7 +39,7 @@ def build_github_repo(url : str, version_tag : str) -> Path:
         Returns: 
             Filepath of copied wheel file 
     """
-    
+    wheel_dir = get_pixi_env_dir() / "wheels"
     # clone repo to scratch, checkout tag, build it, and copy it over
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_dir = Path(tmpdir) / "repo"
@@ -80,7 +76,7 @@ def build_github_repo(url : str, version_tag : str) -> Path:
 
         # take the first wheel
         wheel_path = wheels[0]
-        dest_wheel = WHEEL_DIR / wheel_path.name
+        dest_wheel = wheel_dir / wheel_path.name
         shutil.copy2(wheel_path, dest_wheel)
     return dest_wheel
 
@@ -101,6 +97,9 @@ def extract_repo_name(url: str) -> str:
     return repo_name
 
 
+def get_pixi_env_dir():
+    return Path(f"{CONFIG['STORES']['ENV_STORE']}/{cu.get_environment_name()}")
+
 @with_default_logging
 def install_github_package_to_pixi_env(url : str, version_tag : str, overwrite : bool = False): 
     """
@@ -116,7 +115,8 @@ def install_github_package_to_pixi_env(url : str, version_tag : str, overwrite :
     """
 
     # make wheel directory
-    WHEEL_DIR.mkdir(exist_ok=True)
+    wheel_dir = get_pixi_env_dir() / "wheels"
+    wheel_dir.mkdir(exist_ok=True)
 
     try:
         # validate params 
@@ -172,18 +172,19 @@ def save_custom_pixi_environment(env_name : str, description : str,
 
     # validate parameters 
     validate_save_custom_env_params(env_name, description, languages)
-
+    pixi_env_dir = get_pixi_env_dir()
+    wheel_dir = pixi_env_dir / "wheels"
     # prompt user 
     if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_ENV"].format("pixi"),
-                            PIXI_ENV_DIR):
+                            pixi_env_dir):
         raise RuntimeError(
             "User cancelled saving the custom Pixi environment"
         )
-    path_to_env = PIXI_ENV_DIR
+    path_to_env = pixi_env_dir
     logger.info(f"saving activate Pixi environment at {path_to_env}")
 
     # grep all files in /wheels 
-    wheel_files = list(WHEEL_DIR.glob("*.whl"))
+    wheel_files = list(wheel_dir.glob("*.whl"))
 
     # export manifest file to temporary directory
     with tempfile.TemporaryDirectory(prefix="env_export_") as tmpdir: 
@@ -314,7 +315,8 @@ def save_custom_conda_environment(env_name: str, description: str,
 
 
 def update_install_wheel_task(dest_wheel):
-    data = tomllib.loads(PIXI_TOML.read_text())
+    pixi_toml = get_pixi_env_dir() / "pixi.toml"
+    data = tomllib.loads(pixi_toml.read_text())
 
     tasks = data.setdefault("tasks", {})
 
@@ -331,7 +333,7 @@ def update_install_wheel_task(dest_wheel):
 
     tasks["install-github-wheel"] = "pip install " + " ".join(sorted(existing_wheels))
 
-    PIXI_TOML.write_text(tomli_w.dumps(data))
+    pixi_toml.write_text(tomli_w.dumps(data))
     return True
 
 
