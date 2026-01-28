@@ -270,7 +270,7 @@ def resolve_upload_context(study_space_id, project, input_sample_ids,
 
 def select_input_samples():
     provided_samples = cu.prompt_for_input(
-        "Please provide input of comma separated sample ids for the files being uploaded: "
+        "Please provide input of comma separated sample ids for the files being uploaded. If you do not have any sample ids, press enter: "
     )
     # Check for empty input
     if provided_samples is None or provided_samples == "":
