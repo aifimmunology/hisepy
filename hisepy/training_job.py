@@ -13,7 +13,7 @@ import hisepy.reader as hpr
 import hisepy.ray_transformer as rt
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
 from hisepy.upload import get_default_project
-from hisepy.upload_utils import do_conda_export, get_ide_env_name, check_default_project
+from hisepy.upload_utils import do_conda_export, get_conda_env_name, check_default_project
 from hisepy.logging import with_default_logging, logger
 
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -158,7 +158,6 @@ def start_training_run(
     # submit job
     job_response = job_obj.submit_ray_workflow(
     ) if provider == 'ray' else job_obj.submit_beaker_workflow()
-    logger.extra["_override"]['workflow'] = job_resp['WorkflowId'] # attach workflow to log entry
     return job_response
 
 
@@ -515,7 +514,7 @@ class TrainingJob:
                 self.artifacts_path,
                 "condaEnvironmentName":
                 "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
-                               get_ide_env_name()),
+                               get_conda_env_name()),
                 "packageManager":
                 self.package_manager,
             }
@@ -556,7 +555,7 @@ class TrainingJob:
                 self.artifacts_path,
                 "condaEnvironmentName":
                 "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
-                               get_ide_env_name()),
+                               get_conda_env_name()),
                 "packageManager":
                 self.package_manager,
             }
