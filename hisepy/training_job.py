@@ -158,7 +158,6 @@ def start_training_run(
     # submit job
     job_response = job_obj.submit_ray_workflow(
     ) if provider == 'ray' else job_obj.submit_beaker_workflow()
-    logger.extra["_override"]['workflow'] = job_resp['WorkflowId'] # attach workflow to log entry
     return job_response
 
 

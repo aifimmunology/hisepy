@@ -220,12 +220,15 @@ class RayTransformer(ast.NodeTransformer):
         if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Subscript):
             # Assume this is like: workers[i].do_work(x)
             # Wrap with ray.get(... .remote(...))
-            remote_call = ast.Call(
-                func=ast.Attribute(value=func, attr='remote', ctx=ast.Load()),
-                args=node.args,
-                keywords=node.keywords
-            )
-            return self._wrap_with_ray_get(remote_call)
+            base = self._get_subscript_base(func.value)
+            # Only wrap if the base is a known actor instance
+            if base in self.actor_instances:
+                remote_call = ast.Call(
+                    func=ast.Attribute(value=func, attr='remote', ctx=ast.Load()),
+                    args=node.args,
+                    keywords=node.keywords
+                )
+                return self._wrap_with_ray_get(remote_call)
         return node
         
     def _get_subscript_base(self, subscript):
@@ -359,7 +362,6 @@ def rayify_code(source_code: str, num_gpus: int = None, num_cpus: int = None) ->
     transformer = RayTransformer(num_gpus=num_gpus, num_cpus=num_cpus)
     tree = transformer.visit(tree)
     ast.fix_missing_locations(tree)
-
     boilerplate = "import ray\nray.init()\n"
     code_body = astor.to_source(tree)
     if "ray.init()" not in code_body:
