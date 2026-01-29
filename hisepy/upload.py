@@ -152,7 +152,7 @@ class DashAppImg:
         logger.debug("Upload response: %s", upload_resp)
 
         dash_flow_payload = {
-            "images": [self.hero_image],
+            "images": [img_resp["id"],
         }
 
         # this will be the path where we mount all of the data
