@@ -75,7 +75,7 @@ class DashAppImg:
         req_txt_path = f"{self.work_dir}/{app_dir}/requirements.txt"
 
         try:
-            if 'requirements.in' == os.path.basename(self.requirements):
+            if self.requirements and 'requirements.in' == os.path.basename(self.requirements):
                 subprocess.run([
                     "bash", "-c",
                     f"source /opt/conda/etc/profile.d/conda.sh && "
@@ -85,7 +85,7 @@ class DashAppImg:
                     f"{self.requirements}"
                 ],
                                check=True)
-            elif "requirements.txt" == os.path.basename(self.requirements):
+            elif self.requirements and "requirements.txt" == os.path.basename(self.requirements):
                 # save file to directory of app_filepath
                 shutil.copy(
                     self.requirements,
@@ -152,7 +152,7 @@ class DashAppImg:
         logger.debug("Upload response: %s", upload_resp)
 
         dash_flow_payload = {
-            "images": [img_resp["id"],
+            "images": [img_resp["id"]],
         }
 
         # this will be the path where we mount all of the data
