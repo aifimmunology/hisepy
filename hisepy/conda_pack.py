@@ -172,7 +172,14 @@ def save_custom_pixi_environment(env_name : str, description : str,
 
     # validate parameters 
     validate_save_custom_env_params(env_name, description, languages)
-    pixi_env_dir = get_pixi_env_dir()
+
+    # grab env path from PIXI_PROJECT_MANIFEST env var
+    pixi_env_dir = sys.getenv("PIXI_PROJECT_MANIFEST")
+    if not pixi_env_dir:
+        raise RuntimeError(
+            "Pixi environment not detected. Please activate a Pixi environment before saving."
+        )
+
     wheel_dir = pixi_env_dir / "wheels"
     # prompt user 
     if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_ENV"].format("pixi"),
