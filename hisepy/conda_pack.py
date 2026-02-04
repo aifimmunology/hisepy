@@ -80,25 +80,8 @@ def build_github_repo(url : str, version_tag : str) -> Path:
         shutil.copy2(wheel_path, dest_wheel)
     return dest_wheel
 
-
-def extract_repo_name(url: str) -> str:
-    """
-    Extract the repository name from a GitHub URL.
-
-    Parameters:
-        url (str): GitHub repository URL
-
-    Returns:
-        str: Repository name
-    """
-    repo_name = url.rstrip("/").split("/")[-1]
-    if repo_name.endswith(".git"):
-        repo_name = repo_name[:-4]
-    return repo_name
-
-
 def get_pixi_env_dir():
-    return Path(f"{CONFIG['STORES']['ENV_STORE']}/{cu.get_environment_name()}")
+    return Path(os.path.dirname(os.getenv("PIXI_PROJECT_MANIFEST")))
 
 @with_default_logging
 def install_github_package_to_pixi_env(url : str, version_tag : str, overwrite : bool = False): 
@@ -174,7 +157,7 @@ def save_custom_pixi_environment(env_name : str, description : str,
     validate_save_custom_env_params(env_name, description, languages)
 
     # grab env path from PIXI_PROJECT_MANIFEST env var
-    pixi_env_dir = sys.getenv("PIXI_PROJECT_MANIFEST")
+    pixi_env_dir = Path(os.path.dirname(os.getenv("PIXI_PROJECT_MANIFEST")))
     if not pixi_env_dir:
         raise RuntimeError(
             "Pixi environment not detected. Please activate a Pixi environment before saving."
@@ -333,7 +316,7 @@ def update_install_wheel_task(dest_wheel):
     if install_cmd.startswith("pip install"):
         existing_wheels = set(install_cmd.split()[2:])
 
-    new_wheel_ref = f"wheels/{dest_wheel.name}"
+    new_wheel_ref = f"{dest_wheel.name}"
 
     if new_wheel_ref not in existing_wheels:
         existing_wheels.add(new_wheel_ref)
@@ -374,12 +357,13 @@ def validate_save_custom_env_params(env_name: str, description: str,
 
 
 def validate_install_github_package_params(url : str, version_tag : str): 
+    pixi_toml = Path(os.getenv("PIXI_PROJECT_MANIFEST"))
     if not url.startswith("https://github.com/"):
         raise ValueError("url must be a GitHub https URL")
 
     if not version_tag:
         raise ValueError("version_tag must be provided")
 
-    if not PIXI_TOML.exists():
-        raise FileNotFoundError(f"pixi.toml not found at {PIXI_TOML}")
+    if not pixi_toml.exists():
+        raise FileNotFoundError(f"pixi.toml not found at {pixi_toml}")
     return True
