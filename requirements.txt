@@ -116,7 +116,7 @@ plotly==5.23.0
     #   dash
 proto-plus==1.25.0
     # via google-api-core
-protobuf==5.28.3
+protobuf==5.29.6
     # via
     #   google-api-core
     #   googleapis-common-protos
