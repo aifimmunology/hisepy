@@ -1,18 +1,18 @@
 # help with interacting with materialized view for emr/subject/file etc
-# can this just be a list of values...? 
-MATERIALIZED_VIEW: 
-  QUERYABLE_FIELDS : 
+# can this just be a list of values...?
+MATERIALIZED_VIEW:
+  QUERYABLE_FIELDS :
     - file
     - sample
     - subject
-  EMR: emr 
+  EMR: emr
   LAB: lab
 
-FILETYPES: 
-  SCRNA_RESULT : scRNA-seq-labeled 
+FILETYPES:
+  SCRNA_RESULT : scRNA-seq-labeled
   DASH_APP: dash_app.tar.gz
 
-PROMPTS: 
+PROMPTS:
   UPLOAD : You are trying to upload file IDs.
   ABSTRACTION: You are about to save an abstract visualization template
   QUERY_ID_READ: "DEPRECATED: You are passing a {} to {}. This parameter is no longer supported and does not work well with when trying to produce a Certificate of Reproducibility. It is recommended to submit a list of file_ids instead"
@@ -26,7 +26,7 @@ PROMPTS:
   FAST_MODE_UPLOAD: "You are uploading in fast mode. This will skip checking that your environment can build, and will speed up the entire upload process. Do you want to continue?"
 
 # Authorization config
-AUTHORIZE: 
+AUTHORIZE:
   METADATA_SERVER_ROOT : http://metadata.google.internal/computeMetadata/v1/instance
   INSTANCE_NAME_PATH : name
   CLIENT_ID_PATH : attributes/iap-client-id
@@ -34,8 +34,8 @@ AUTHORIZE:
   IDENTITY_PATH : service-accounts/default/identity
   SERVER_ID_PATH : attributes/hise-server
   TOKEN_ENV : TOKEN_GENERATOR
-  
-PROJECT_STORE: 
+
+PROJECT_STORE:
   TAG_FIELD_NAME : availability
   PROJECT_STORE_ENDPOINT : analysis/projectStore
   AVAILABLE_TAG : available
@@ -51,11 +51,13 @@ STORES:
   TEMP_STORE: /home/workspace/temp
   SDK_STORE: /home/workspace/sdk
 
-  
-PROJECT_FOLDER: 
+PROJECT_FOLDER:
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
 
-# hydration endpoints 
+PUBLISHING:
+  PUBLISHING_FILE_SEARCH: publishing/file/q
+
+# hydration endpoints
 HYDRATION:
   HYDRATION_NAME : hydration
   USER_FOLDER_PATH : hydration/analysis/userFolder
@@ -70,57 +72,57 @@ HYDRATION:
   HISE_WIDE_STATIC_IMG_PATH: hydration/source/abstraction/save
   REVIEW_JOB_OUTPUT_PATH: hydration/analysis/training/output
 
-AMDS: 
+AMDS:
   AMDS_NAME : accountmanager
   PROJECT_PATH : accountmanager/project
   USER_PATH: accountmanager/userinfo
   ACCOUNT_PATH : accountmanager/account
-  
-# ledger file availabilities 
-BIO_SDK_FILE_AVAILABILITIES: 
-  NOT_STARTED : bio_sdk_not_started 
+
+# ledger file availabilities
+BIO_SDK_FILE_AVAILABILITIES:
+  NOT_STARTED : bio_sdk_not_started
   IN_PROGRESS : bio_sdk_in_progress
   UNDER_REVIEW : bio_sdk_under_review
   REJECTED : bio_sdk_rejected
 
-# ledger endpoints 
-LEDGER: 
+# ledger endpoints
+LEDGER:
   LEDGER_NAME : ledger
   SAMPLE_SEARCH_PATH : ledger/sample/q
   SUBJECT_SEARCH_PATH : ledger/subject/q
   FILE_SEARCH_PATH : ledger/file/q
   RESULT_FILE_SEARCH_PATH: ledger/resultfile
 
-# tracer endpoints 
-TRACER: 
-  TRACER_NAME : tracer 
+# tracer endpoints
+TRACER:
+  TRACER_NAME : tracer
   TRACE_PATH : tracer/trace
   IDE_PATH: tracer/ide
   STUDY_SPACE_PATH: tracer/studyspace
   FILE_SET : tracer/fileset
   IDE_INSTANCE: tracer/ideinstance
   TRAINING_JOB: tracer/trainingjob
-  TRAINING_JOB_COLS: 
+  TRAINING_JOB_COLS:
     - id
     - accountGuid
     - projectGuid
-    - status 
+    - status
     - studySpaceId
     - title
-    - description 
+    - description
     - tags
     - trainingImageId
-    - model 
-    - deleted 
-    - availability 
-    - promoted 
+    - model
+    - deleted
+    - availability
+    - promoted
     - promotedVisibility
     - added
     - addedUser
   TRAINING_IMAGE: tracer/trainingimage
-  
-# globals specific for IDE 
-IDE: 
+
+# globals specific for IDE
+IDE:
   CACHE_DIR : cache
   HOME_DIR : /home/jupyter
   HOME_DIR_V2: /home/workspace
@@ -131,7 +133,7 @@ IDE:
   DOWNLOAD_CHUNK_SIZE : 102400
   PAGINATION_SIZE : 100
 
-JOB_ORCHESTRATE: 
+JOB_ORCHESTRATE:
   RAY_WORKFLOW: orchestrate/ray/workflow
   BEAKER_WORKFLOW: orchestrate/beaker/workflow
   ARTIFACTS_PATH: /home/workspace/.artifacts
@@ -141,16 +143,16 @@ JOB_ORCHESTRATE:
 IDE_MANAGEMENT:
   CONDA_PACK: ide-nextgen/build/info/pack
   UPLOAD_FILE_V3_PATH: ide-nextgen/filev3
-  IDE_PATH: ide-nextgen/instances 
+  IDE_PATH: ide-nextgen/instances
   TAG_IDE: ide-nextgen/instances/tag/ide
   UPLOAD_USER_FOLDER_PATH: ide-nextgen/filev3/userFolder
   SAVE_CUSTOM_CONDA_ENV: ide-nextgen/build/conda/save/hise
   INSTALL_SDK: ide-nextgen/sdk/install
   SDK_VERSION: ide-nextgen/instances/sdk
   DASH_WORKFLOW: ide-nextgen/visualization/dash/workflow
-  
-# NOTE: should this be separate from the rest of scheduler section? 
-TOOLCHAIN: 
+
+# NOTE: should this be separate from the rest of scheduler section?
+TOOLCHAIN:
   SCHEDULER_PATH : toolchain/scheduler
   VISUALIZATION_PATH: toolchain/visualization
   ABSTRACTION_PATH: toolchain/abstraction
@@ -159,38 +161,38 @@ TOOLCHAIN:
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
   TOOLCHAIN_IDE : toolchain/instances
   UPLOAD_HARVEST_LOWER_BOUND_MB: 10.0
-  
-ABSTRACTION: 
+
+ABSTRACTION:
   VIZ_CONFIGS_PATH : /home/workspace/examples/demos/Visualization_apps/dash/configs
   SUBJECT_METADATA_URN: urn:hise:metadata:subject
   SAMPLE_METADATA_URN: urn:hise:metadata:sample
 
-# scheduler endpoints and global... 
-SCHEDULER: 
+# scheduler endpoints and global...
+SCHEDULER:
   PLATFORM_DEFAULT : Notebook
-  PLATFORM_LOUVAIN : Louvain 
+  PLATFORM_LOUVAIN : Louvain
   JOB_ID_FIELD : id
   FILE_IDS_FIELD : fileIds
-  STATUS_FIELD : status 
+  STATUS_FIELD : status
   TITLE_FIELD : title
-  LEDGER_OUTPUT_FIELD : ledger_output 
+  LEDGER_OUTPUT_FIELD : ledger_output
   NOTEBOOK_NAME_FIELD : notebook_name
   INSTANCE_NAME_FIELD : instance_name
-  NOTEBOOK_PATH_FIELD : notebook_path 
+  NOTEBOOK_PATH_FIELD : notebook_path
   INPUT_FILES_FIELD : input_files
-  OUTPUT_FILES_FIELD : output_files 
-  PLATFORM_FIELD : platform 
-  PROJECT_FIELD : project 
-  JOB_COMPLETE_STATUS : Completed 
+  OUTPUT_FILES_FIELD : output_files
+  PLATFORM_FIELD : platform
+  PROJECT_FIELD : project
+  JOB_COMPLETE_STATUS : Completed
 
-TEMP_FILES: 
-  NBCONVERT_TMP_FILE : nbconverted_file.py 
+TEMP_FILES:
+  NBCONVERT_TMP_FILE : nbconverted_file.py
   JOB_ENTRYPOINT_FILE : app.py
   CONDA_PACK_TMP_FILE: conda_pack.tar.gz
 
 TEMP_FOLDERS:
   TRAINING_JOB_TMP : training_job
-  
+
 VISUALIZATION:
   PLOTLY_DATA_FILE: plotly_data.json
   PLOTLY_FILE: plotly.json
