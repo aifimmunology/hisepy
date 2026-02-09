@@ -28,13 +28,13 @@ def cache_files(file_ids: list[str] | None = None,
                 query_id: list[str] | None = None,
                 query_dict: dict[str, any] | None = None) -> list[str]:
     """ Downloads requested files to an IDE
-    
-    Parameters: 
+
+    Parameters:
         file_ids (list): list of file IDs
         query_id (list): list of a single query ID
         query_dict (dict): query in the format of a dict
 
-    Returns: 
+    Returns:
         a list of filepaths that were successfully downloaded
     """
     start_time = time.time()
@@ -111,12 +111,13 @@ def cache_files(file_ids: list[str] | None = None,
 
 
 @with_default_logging
-def get_file_descriptors(query_dict: dict = None):
-    """ 
+def get_file_descriptors(query_dict: dict = None, public: bool = False):
+    """
     Retrieves file descriptors based on user's query.
 
     Parameters:
         query_dict (dict): dictionary that contains query parameters
+        public (bool): boolean to determine whether to query public files or not.
     Returns:
         dictionary of data.frame objects
     Examples:
@@ -195,7 +196,7 @@ def read_files(file_list: list[str] | None = None,
         query_id (str): string value of queryID from Advanced Search
         query_dict (dict): dictionary that allows users to submit a query.
             Note: for each key:value pair, the value must be of type list
-        to_df (bool):  boolean determining whether result should be returned as a data.frame. 
+        to_df (bool):  boolean determining whether result should be returned as a data.frame.
 
     Returns:
         a list of hise_file objects
@@ -313,12 +314,12 @@ def read_files(file_list: list[str] | None = None,
 @with_default_logging
 def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
     """
-    Read or search the SampleStatus materialized view. User should specify one 
+    Read or search the SampleStatus materialized view. User should specify one
     or the other of sample_ids or query.
 
     Parameters:
         sample_ids (list): a list of UUIDS to retrieve.
-        query_dict (dict): a dictionary object containing search 
+        query_dict (dict): a dictionary object containing search
             parameters using mongo query language.
         to_df (bool) : If true, returns a data.frame object
 
@@ -368,17 +369,17 @@ def read_subjects(subject_ids: str = None,
                   query_dict: dict = None,
                   to_df: bool = True):
     """
-    Read or search the Subject materialized view.User should specify one or the 
+    Read or search the Subject materialized view.User should specify one or the
     other of subject_ids or query
 
     Parameters:
         subject_ids (list): a list of UUIDS to retrieve
-        query_dict (dict): a dictionary object containing search parameters 
+        query_dict (dict): a dictionary object containing search parameters
             using mongo query language
-        to_df (bool): If true, returns a data.frame 
+        to_df (bool): If true, returns a data.frame
 
     Returns:
-        response payload as a data.frame or JSON 
+        response payload as a data.frame or JSON
 
     """
     ru.validate_samples_subjects_params(subject_ids, query_dict)
@@ -412,16 +413,16 @@ def read_subjects(subject_ids: str = None,
 
 @with_default_logging
 def list_filesets(study_space_id: str) -> pd.DataFrame:
-    """ 
-    Returns a list of filesets for a given study 
+    """
+    Returns a list of filesets for a given study
 
     Parameters:
         study_space_id (str) : a unique identifier for a study in the collaboration space
 
-    Returns: 
+    Returns:
         data.frame with columns ['id', 'studySpaceId', 'title','description','fileIds']
-        
-    Example: 
+
+    Example:
         hp.list_filesets(study_space_id='c39e3ae5-ec11-4f02-b89d-255945c5788e')
     """
     if type(study_space_id) is not str:
@@ -453,16 +454,16 @@ def list_filesets(study_space_id: str) -> pd.DataFrame:
 
 @with_default_logging
 def cache_fileset(fileset_id: str) -> list[str]:
-    """ 
+    """
     Downloads all files pertaining to a fileset to a user's workspace.
 
-    Parameters: 
+    Parameters:
         fileset_id (str) : unique identifier for a fileset in a study
 
     Example:
         hp.cache_fileset(fileset_id='c39e3ae5-ec11-4f02-b89d-255945c5788e')
-    
-    Returns: 
+
+    Returns:
         list of filepaths of downloaded files. Files will be downloaded to /input/.../fileset/<fileset_id>
     """
     # validate
