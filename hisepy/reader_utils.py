@@ -260,11 +260,16 @@ def convert_file_data(file_data: dict, path_to_file: str):
                      data_values=this_file_values)
 
 
-def count_payload_entries(query: dict):
+def count_payload_entries(query: dict, public: bool):
     """
+    get the count of how many entries a file descriptor query will return
+    Parameters:
+        query (dict): the user's query reformatted into mongo query language
+        public (bool): whether the query is for public files or not
+    Returns:
+        count (int): how many entries the query will return
     """
-    count_endpoint = "https://{s}/{de}?_count=true".format(
-        s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+    count_endpoint = get_file_descriptor_count_endpoint(public)
     count = cu.parse_hise_response(
         requests.post(count_endpoint,
                       data=json.dumps({"filter": query}),
@@ -292,6 +297,44 @@ def gen_read_samples_subjects_query(ids_list: list = None,
     elif ids_list is not None:
         query = {"id": {"$in": ids_list}}
     return query
+
+def get_file_descriptor_endpoint(public: bool):
+    """
+    get the endpoint for file descriptor request, check public bool to determine whether to go to ledger or publishing endpoint
+
+    Parameters:
+    public (bool): whether the query is for public files or not
+    """
+    if public:
+        return "https://{s}/{de}".format(
+            s=hise_server(), de=CONFIG['PUBLISHING']['PUBLISHING_FILE_SEARCH'])
+    else:
+        return "https://{s}/{de}".format(
+            s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+
+
+def get_file_descriptor_count_endpoint(public: bool):
+    """
+    get the endpoint for counting how many entries a file descriptor query will return
+
+    Parameters:
+        public (bool): whether the query is for public files or not
+    """
+    return "{s}?_count=true".format(
+        s=get_file_descriptor_endpoint(public))
+
+
+def get_file_descriptor_paginated_endpoint(public: bool, page_size: int, page_number: int):
+    """
+    get the endpoint for paginated file descriptor request
+
+    Parameters:
+        public (bool): whether the query is for public files or not
+        page_size (int): number of entries per page
+        page_number (int): which page to access (starting from 1)
+    """
+    return "{s}?page_size={ps}&page_number={pn}".format(
+        s=get_file_descriptor_endpoint(public), ps=page_size, pn=page_number)
 
 
 def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
@@ -379,12 +422,12 @@ def post_query(
 
         # submit GET request
         obj = []
-        for f in file_list: 
+        for f in file_list:
             print("getting file descriptor for file: {}".format(f))
             endpoint = f"https://{hise_server()}/{CONFIG['HYDRATION']['FILE_SEARCH_PATH']}?id={f}"
             resp_obj = cu.parse_hise_response(requests.get(endpoint, headers=get_bearer_token_header()))
             obj += resp_obj
-        
+
         if not isinstance(obj, list):
             raise TypeError(
                 f"Response is {type(obj).__name__}, expected list.")
@@ -398,15 +441,16 @@ def post_query(
         raise ValueError(f"Failed to decode JSON response: {e}") from e
 
 
-def query_files(user_query: dict):
-    """ 
+def query_files(user_query: dict, public: bool):
+    """
     POST request to ledger by submitting user's query parameters
-    
+
     Parameters:
         user_query (dict): dictionary where for each key:value pair, the value must be of type list.
+        public (bool): flag indicating whether the query is for public files.
     Returns:
         response payload
-    Example: 
+    Example:
         query_files(user_query={'cohortGuid' : ['FH1']})
     """
 
@@ -415,19 +459,16 @@ def query_files(user_query: dict):
         query_instance.add_prefix_to_query())
 
     # count how many entries are in query
-    count = count_payload_entries(formatted_query)
-    obj = submit_file_descriptor_request(formatted_query, count)
+    count = count_payload_entries(formatted_query, public)
+    obj = submit_file_descriptor_request(formatted_query, count, public)
     return obj['payload']
 
-
-def submit_file_descriptor_request(formatted_query: dict, count: int):
-
+def submit_file_descriptor_request(formatted_query: dict, count: int, public: bool):
     # paginate/chunk if count is greater than pagination_size we set in config
     if count > CONFIG['IDE']['PAGINATION_SIZE']:
-        obj = submit_paginated_query(formatted_query, count)
+        obj = submit_paginated_query(formatted_query, count, public)
     else:
-        endpoint = "https://{s}/{de}".format(
-            s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
+        endpoint = get_file_descriptor_endpoint(public)
         obj = cu.parse_hise_response(
             requests.post(endpoint,
                           data=json.dumps({"filter": formatted_query}),
@@ -435,8 +476,16 @@ def submit_file_descriptor_request(formatted_query: dict, count: int):
     return obj
 
 
-def submit_paginated_query(query: dict, number_entries: int):
+def submit_paginated_query(query: dict, number_entries: int, public: bool):
     """
+    Submits multiple paginated requests and concatenates the results together if the number of entries a query will return exceeds the pagination size set in config.
+
+    Parameters:
+        query (dict): the user's query reformatted into mongo query language
+        number_entries (int): how many entries the query will return
+        public (bool): whether the query is for public files or not
+    Returns:
+        dict: concatenated response payload from all paginated requests
     """
 
     # determine how many chunks
@@ -444,11 +493,7 @@ def submit_paginated_query(query: dict, number_entries: int):
     obj = {'payload': []}
     num_chunks = math.ceil(number_entries / page_size)
     for i in range(0, num_chunks):
-        endpoint = "https://{s}/{de}?page_size={ps}&page_number={pn}".format(
-            s=hise_server(),
-            de=CONFIG['LEDGER']['FILE_SEARCH_PATH'],
-            ps=page_size,
-            pn=i + 1)
+        endpoint = get_file_descriptor_paginated_endpoint(public, page_size, i + 1)
         this_chunk = cu.parse_hise_response(
             requests.post(endpoint,
                           data=json.dumps({"filter": query}),
