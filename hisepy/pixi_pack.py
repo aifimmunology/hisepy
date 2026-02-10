@@ -213,7 +213,11 @@ def save_custom_pixi_environment(env_name : str, description : str,
                 )
 
             url = cu.hise_url("ide_management", "save_custom_conda_env")
-            return hreq.hise_post(url, data=params, files=files)
+            resp = hreq.hise_post(url, data=params, files=files)
+            
+            # attach workflow to log entry 
+            logger.extra["_override"]['workflow'] = resp['WorkflowId']
+            return resp
 
 
 def update_install_wheel_task(dest_wheel):
