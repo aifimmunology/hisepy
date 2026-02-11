@@ -138,7 +138,7 @@ def get_file_descriptors(query_dict: dict = None, public: bool = False):
 
     # get a list of descriptor objects
     try:
-        obj = ru.query_files(query_dict)
+        obj = ru.query_files(query_dict, public)
     except Exception as e:
         raise Exception(f"failed to query for file descriptors: {e}")
 
