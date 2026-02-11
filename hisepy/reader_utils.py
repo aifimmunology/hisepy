@@ -441,7 +441,7 @@ def post_query(
         raise ValueError(f"Failed to decode JSON response: {e}") from e
 
 
-def query_files(user_query: dict, public: bool):
+def query_files(user_query: dict, public: bool = False):
     """
     POST request to ledger by submitting user's query parameters
 
