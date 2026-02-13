@@ -306,7 +306,7 @@ def is_valid_upload_kernel():
     kernel_source = sys.prefix
 
     # compare conda env from instance obj to conda env from current kernel
-    if conda_env_path != kernel_source:
+    if conda_env_path not in kernel_source:
         return False
     return True
 
