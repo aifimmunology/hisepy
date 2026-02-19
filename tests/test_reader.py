@@ -26,7 +26,8 @@ class TestReader:
             'descriptors': {
                 'file': {
                     'id': 'file_id1',
-                    'name': 'file_name1'
+                    'name': 'file_name1',
+                    'availability': 'available'
                 },
                 'sample': {
                     "id": "smaple_id1",
@@ -109,7 +110,7 @@ class TestReader:
                                           query_dict=query_dict_not_dict)
 
     def test_parse_file_descriptor_from_file(self, init_test):
-        file_id, file_name, desc = hpru.parse_file_descriptor_from_hise_file(
+        file_id, file_name, desc, _ = hpru.parse_file_descriptor_from_hise_file(
             self.descriptor_obj)
         assert file_id == 'file_id1', "Failed to parse file id correctly"
         assert file_name == "file_name1", "Failed to parse file name correctly"
@@ -246,7 +247,7 @@ class TestReader:
                 match="query dictionary values must be of type list"):
             hpr.validate_query_files_params({'fileType': 'txt'})
 
-    """ TODO: properly mock a class that's instantiated from a GET call 
+    """ TODO: properly mock a class that's instantiated from a GET call
     def test_is_legacy_ide(self, init_test):
         with patch('hisepy.common_utils.get_ide', return_value=self.mock_ide_obj), patch('hisepy.auth.IDEInstance', return_value=self.mock_ide_obj):
             assert hpcu.is_legacy_ide(), "Expected legacy IDE, but did not get it"
