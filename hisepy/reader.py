@@ -1,17 +1,12 @@
 import json
 import os
-import pathlib
-import urllib
+from urllib import response
 import uuid
 import pandas as pd
-import copy
 from termcolor import colored
-import math
 import requests
-import inspect
 from hisepy.instances import IDEInstance
 import hisepy.common_utils as cu
-import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
 import hisepy.reader_utils as ru
@@ -26,18 +21,19 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 @with_default_logging
 def cache_files(file_ids: list[str] | None = None,
                 query_id: list[str] | None = None,
-                query_dict: dict[str, any] | None = None) -> list[str]:
+                query_dict: dict[str, any] | None = None,
+                is_public: bool = False) -> list[str]:
     """ Downloads requested files to an IDE
 
     Parameters:
         file_ids (list): list of file IDs
         query_id (list): list of a single query ID
         query_dict (dict): query in the format of a dict
+        is_public (bool): flag indicating if the files are public
 
     Returns:
         a list of filepaths that were successfully downloaded
     """
-    start_time = time.time()
 
     try:
         ru.validate_download_params(file_ids, query_id, query_dict)
@@ -47,14 +43,18 @@ def cache_files(file_ids: list[str] | None = None,
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
                 logger.info("Cancelled cache_files call.")
                 return []
+            if is_public:
+                raise ValueError("Query ID search not supported for public files.")
             resp_obj = ru.post_query(query_id=query_id[0])
+
         elif query_dict:
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "cache_files")):
                 logger.info("Cancelled cache_files call.")
                 return []
-            resp_obj = ru.post_query(query_dict=query_dict)
+            resp_obj = ru.post_query(query_dict=query_dict, is_public=is_public)
+
         else:
-            resp_obj = ru.post_query(file_list=file_ids)
+            resp_obj = ru.post_query(file_list=file_ids, is_public=is_public)
 
     except Exception as e:
         raise Exception(f"Failed to fetch file descriptors: {e}")
@@ -71,7 +71,11 @@ def cache_files(file_ids: list[str] | None = None,
                 fail_files.append(failed_file)
                 continue
 
-            file_id, file_name, _ = ru.parse_file_descriptor_from_hise_file(f)
+            file_id, file_name, _, availability = ru.parse_file_descriptor_from_hise_file(f)
+
+            if not ru.availability_matches_is_public(file_id, availability, is_public):
+                fail_files.append(str(f))
+                continue
 
             if cu.is_legacy_ide():
                 log_dir = CONFIG["IDE"]["HOME_DIR"]
@@ -90,15 +94,10 @@ def cache_files(file_ids: list[str] | None = None,
             # download file to current IDE architecture
             else:
                 log_dir = CONFIG["STORES"]["TEMP_STORE"]
-                endpoint = "https://%s/%s/%s/%s" % (
-                    hise_server(),
-                    CONFIG["HYDRATION"]["DOWNLOAD_PATHV2"],
-                    file_id,
-                    ide_name,
-                )
+                dl_endpoint = ru.get_download_path(file_id, ide_name)
                 dl_resp = cu.parse_hise_response(
                     requests.request("GET",
-                                     endpoint,
+                                     dl_endpoint,
                                      headers=get_bearer_token_header()))
                 this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
                                          dl_resp["Path"])
@@ -126,13 +125,13 @@ def cache_files(file_ids: list[str] | None = None,
 
 
 @with_default_logging
-def get_file_descriptors(query_dict: dict = None, public: bool = False):
+def get_file_descriptors(query_dict: dict = None, is_public: bool = False):
     """
     Retrieves file descriptors based on user's query.
 
     Parameters:
         query_dict (dict): dictionary that contains query parameters
-        public (bool): boolean to determine whether to query public files or not.
+        is_public (bool): boolean to determine whether to query public files or not.
     Returns:
         dictionary of data.frame objects
     Examples:
@@ -153,7 +152,7 @@ def get_file_descriptors(query_dict: dict = None, public: bool = False):
 
     # get a list of descriptor objects
     try:
-        obj = ru.query_files(query_dict, public)
+        obj = ru.query_files(query_dict, is_public)
     except Exception as e:
         raise Exception(f"failed to query for file descriptors: {e}")
 
@@ -201,7 +200,8 @@ def get_files_for_query(query_id: str):
 def read_files(file_list: list[str] | None = None,
                query_id: list[str] | None = None,
                query_dict: dict[str, any] | None = None,
-               to_df: bool = True):
+               to_df: bool = True,
+               is_public: bool = False):
     """
     Read the contents of a list of file ids into a hise_file object
     Note: users should only use 1 parameter per function call
@@ -212,13 +212,13 @@ def read_files(file_list: list[str] | None = None,
         query_dict (dict): dictionary that allows users to submit a query.
             Note: for each key:value pair, the value must be of type list
         to_df (bool):  boolean determining whether result should be returned as a data.frame.
+        is_public (bool): boolean determining whether to query public files or not.
 
     Returns:
         a list of hise_file objects
 
     Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
     """
-    start_time = time.time()
 
     # validate params; resolve query method used
     try:
@@ -227,6 +227,8 @@ def read_files(file_list: list[str] | None = None,
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "read_files")):
                 print("Cancelled read_files call.")
                 return []
+            if is_public:
+                raise ValueError("Query ID search not supported for public files.")
             obj = ru.post_query(query_id=query_id[0])
 
         elif query_dict is not None:
@@ -254,16 +256,23 @@ def read_files(file_list: list[str] | None = None,
                 f["id"] = uuid.UUID(int=0)
 
             if "error" in f:
-                fobj = hise_file(f["error"]["File"])
+                fobj = ru.hise_file(f["error"]["File"])
                 fobj.message = f["error"]["Message"]
                 fobj.status = False
                 response.append(fobj)
                 continue
 
             # parse file metadata
-            file_id, file_name, desc = ru.parse_file_descriptor_from_hise_file(
-                f)
-            endpoint = f"https://{hise_server()}/{CONFIG['HYDRATION']['DOWNLOAD_PATHV2']}/{file_id}/{ide_name}"
+            file_id, _, desc, availability = ru.parse_file_descriptor_from_hise_file(f)
+
+            if not ru.availability_matches_is_public(file_id, availability, is_public):
+                fobj = ru.hise_file(file_id)
+                fobj.message = "File skipped due to availability settings."
+                fobj.status = False
+                response.append(fobj)
+                continue
+
+            dl_endpoint = ru.get_download_path(file_id, ide_name)
 
             # method to download files in legacy IDEs
             if cu.is_legacy_ide():
@@ -273,7 +282,7 @@ def read_files(file_list: list[str] | None = None,
             else:
                 # download data to user's ide
                 parsed_dl = cu.parse_hise_response(
-                    requests.get(endpoint, headers=get_bearer_token_header()))
+                    requests.get(dl_endpoint, headers=get_bearer_token_header()))
                 download_filepath = os.path.join(home_dir_v2,
                                                  parsed_dl["Path"])
 

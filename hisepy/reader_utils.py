@@ -232,6 +232,18 @@ def cache_file(url: str, file_name: str, file_dir: str):
                         chunk_size=CONFIG['IDE']["DOWNLOAD_CHUNK_SIZE"]):
                     file.write(chunk)
 
+def availability_matches_is_public(file_id: str, availability: str, is_public: bool):
+    # file is public but user did not set is_public to True
+    if is_public_file(availability) and not is_public:
+        logger.warning(f"File {file_id} is public and will be skipped. Set is_public=True to download this file.")
+        return False
+
+    # file is not public but user set is_public to True
+    if not is_public_file(availability) and is_public:
+        logger.warning(f"File {file_id} is not a public file and will be skipped. Do not set is_public or set is_public=False to download this file.")
+        return False
+    return True
+
 
 def convert_file_data(file_data: dict, path_to_file: str):
     if type(file_data) is not dict:
@@ -260,22 +272,24 @@ def convert_file_data(file_data: dict, path_to_file: str):
                      data_values=this_file_values)
 
 
-def count_payload_entries(query: dict, public: bool):
+def count_payload_entries(query: dict, is_public: bool):
     """
     get the count of how many entries a file descriptor query will return
     Parameters:
         query (dict): the user's query reformatted into mongo query language
-        public (bool): whether the query is for public files or not
+        is_public (bool): whether the query is for public files or not
     Returns:
         count (int): how many entries the query will return
     """
-    count_endpoint = get_file_descriptor_count_endpoint(public)
+    count_endpoint = get_file_descriptor_count_endpoint(is_public)
     count = cu.parse_hise_response(
         requests.post(count_endpoint,
                       data=json.dumps({"filter": query}),
                       headers=get_bearer_token_header()))
     return count['payload']
 
+def get_download_path(file_id: str, ide_name: str):
+    return f"https://{hise_server()}/{CONFIG['HYDRATION']['DOWNLOAD_PATHV2']}/{file_id}/{ide_name}"
 
 def gen_read_samples_subjects_query(ids_list: list = None,
                                     query_dict: dict = None,
@@ -298,14 +312,14 @@ def gen_read_samples_subjects_query(ids_list: list = None,
         query = {"id": {"$in": ids_list}}
     return query
 
-def get_file_descriptor_endpoint(public: bool):
+def get_file_descriptor_endpoint(is_public: bool):
     """
     get the endpoint for file descriptor request, check public bool to determine whether to go to ledger or publishing endpoint
 
     Parameters:
-    public (bool): whether the query is for public files or not
+    is_public (bool): whether the query is for public files or not
     """
-    if public:
+    if is_public:
         return "https://{s}/{de}".format(
             s=hise_server(), de=CONFIG['PUBLISHING']['PUBLISHING_FILE_SEARCH'])
     else:
@@ -313,28 +327,28 @@ def get_file_descriptor_endpoint(public: bool):
             s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
 
 
-def get_file_descriptor_count_endpoint(public: bool):
+def get_file_descriptor_count_endpoint(is_public: bool):
     """
     get the endpoint for counting how many entries a file descriptor query will return
 
     Parameters:
-        public (bool): whether the query is for public files or not
+        is_public (bool): whether the query is for public files or not
     """
     return "{s}?_count=true".format(
-        s=get_file_descriptor_endpoint(public))
+        s=get_file_descriptor_endpoint(is_public))
 
 
-def get_file_descriptor_paginated_endpoint(public: bool, page_size: int, page_number: int):
+def get_file_descriptor_paginated_endpoint(is_public: bool, page_size: int, page_number: int):
     """
     get the endpoint for paginated file descriptor request
 
     Parameters:
-        public (bool): whether the query is for public files or not
+        is_public (bool): whether the query is for public files or not
         page_size (int): number of entries per page
         page_number (int): which page to access (starting from 1)
     """
     return "{s}?page_size={ps}&page_number={pn}".format(
-        s=get_file_descriptor_endpoint(public), ps=page_size, pn=page_number)
+        s=get_file_descriptor_endpoint(is_public), ps=page_size, pn=page_number)
 
 
 def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
@@ -345,17 +359,31 @@ def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
         hise_file (hise_file): hisepy.reader.hise_file object
         file_id (str): original file_id that's passed in to read_files() or cache_files()
     """
-    this_file_id, this_file_name, _ = parse_file_descriptor_from_hise_file(
+    this_file_id, _, _, _ = parse_file_descriptor_from_hise_file(
         hise_file)
     if (this_file_id != file_id):
-        tmp_hise_file = copy.deepcopy(hise_file)
         cu.log_downloaded_files(file_id, None, ide_dir, this_file_id, None)
     return
+
+def is_public_file(availability: str):
+    """
+    Checks if a hise_file is a public file by looking at its descriptors
+
+    Parameters:
+        availability (str): availability status of the file
+    Returns:
+        bool: True if the file is public, False otherwise
+    """
+    public_availability = ["pre_public_staged", "retracted", "public"]
+    if availability in public_availability:
+        return True
+    else:
+        return False
 
 
 def parse_file_descriptor_from_hise_file(hise_file):
     """
-    Takes a hise_file object and returns its file_id, file_name and the descriptor object
+    Takes a hise_file object and returns its file_id, file_name, descriptor object, and availability
 
     Parameters:
         hise_file (hise_file): hisepy.reader.hise_file object
@@ -365,13 +393,14 @@ def parse_file_descriptor_from_hise_file(hise_file):
     if type(hise_file['descriptors']) is list:
         this_file_id = hise_file['descriptors'][0]['file']['id']
         this_file_name = hise_file['descriptors'][0]['file']['name']
+        this_availability = hise_file['descriptors'][0]['file']['availability']
         this_desc = hise_file['descriptors'][0]
     elif type(hise_file['descriptors']) is dict:
         this_file_id = hise_file['descriptors']['file']['id']
         this_file_name = hise_file['descriptors']['file']['name']
+        this_availability = hise_file['descriptors']['file']['availability']
         this_desc = hise_file['descriptors']
-    return this_file_id, this_file_name, this_desc
-
+    return this_file_id, this_file_name, this_desc, this_availability
 
 def parse_file_id_from_hise_file(hise_file):
     """
@@ -394,21 +423,33 @@ def post_query(
     file_list: list[str] | None = None,
     query_id: str | None = None,
     query_dict: dict[str, any] | None = None,
+    is_public: bool = False
 ) -> list[dict[str, any]]:
     """
-    Create a response object from POST request to the Hydration endpoint.
+    Submits a POST request to the ledger to retrieve file descriptors based on user's query parameters
+
+    Parameters:
+        file_list (list[str]): list of file ids to retrieve descriptors for
+        query_id (str): query_id that corresponds to a saved query in the HISE UI
+        query_dict (dict): dictionary that contains the user's query parameters. The keys should be field
+        names and the values should be lists of values the user wants to query for. For example: {'fileType': ['csv']}
+        is_public (bool): whether the query is for public files or not
+    Returns:
+        list of file descriptor objects that match the query parameters
     """
     # validate params
     validate_post_query_params(file_list, query_id, query_dict)
 
     try:
         if query_dict is not None:
-            payload = query_files(query_dict)
+            payload = query_files(query_dict, is_public)
             if not payload:
                 raise LookupError("Query had no matching results.")
             file_list = {item["file"]["id"] for item in payload}
 
         elif query_id is not None:
+            if is_public:
+                raise ValueError("Query ID search not supported for public files.")
             q_endpoint = f"https://{hise_server()}/{CONFIG['HYDRATION']['QUERY_SEARCH_PATH']}/{query_id}"
             resp = requests.post(q_endpoint, headers=get_bearer_token_header())
             resp_obj = cu.parse_hise_response(resp)
@@ -441,13 +482,13 @@ def post_query(
         raise ValueError(f"Failed to decode JSON response: {e}") from e
 
 
-def query_files(user_query: dict, public: bool = False):
+def query_files(user_query: dict, is_public: bool = False):
     """
     POST request to ledger by submitting user's query parameters
 
     Parameters:
         user_query (dict): dictionary where for each key:value pair, the value must be of type list.
-        public (bool): flag indicating whether the query is for public files.
+        is_public (bool): flag indicating whether the query is for public files.
     Returns:
         response payload
     Example:
@@ -459,16 +500,16 @@ def query_files(user_query: dict, public: bool = False):
         query_instance.add_prefix_to_query())
 
     # count how many entries are in query
-    count = count_payload_entries(formatted_query, public)
-    obj = submit_file_descriptor_request(formatted_query, count, public)
+    count = count_payload_entries(formatted_query, is_public)
+    obj = submit_file_descriptor_request(formatted_query, count, is_public)
     return obj['payload']
 
-def submit_file_descriptor_request(formatted_query: dict, count: int, public: bool):
+def submit_file_descriptor_request(formatted_query: dict, count: int, is_public: bool):
     # paginate/chunk if count is greater than pagination_size we set in config
     if count > CONFIG['IDE']['PAGINATION_SIZE']:
-        obj = submit_paginated_query(formatted_query, count, public)
+        obj = submit_paginated_query(formatted_query, count, is_public)
     else:
-        endpoint = get_file_descriptor_endpoint(public)
+        endpoint = get_file_descriptor_endpoint(is_public)
         obj = cu.parse_hise_response(
             requests.post(endpoint,
                           data=json.dumps({"filter": formatted_query}),
@@ -476,14 +517,14 @@ def submit_file_descriptor_request(formatted_query: dict, count: int, public: bo
     return obj
 
 
-def submit_paginated_query(query: dict, number_entries: int, public: bool):
+def submit_paginated_query(query: dict, number_entries: int, is_public: bool):
     """
     Submits multiple paginated requests and concatenates the results together if the number of entries a query will return exceeds the pagination size set in config.
 
     Parameters:
         query (dict): the user's query reformatted into mongo query language
         number_entries (int): how many entries the query will return
-        public (bool): whether the query is for public files or not
+        is_public (bool): whether the query is for public files or not
     Returns:
         dict: concatenated response payload from all paginated requests
     """
@@ -493,7 +534,7 @@ def submit_paginated_query(query: dict, number_entries: int, public: bool):
     obj = {'payload': []}
     num_chunks = math.ceil(number_entries / page_size)
     for i in range(0, num_chunks):
-        endpoint = get_file_descriptor_paginated_endpoint(public, page_size, i + 1)
+        endpoint = get_file_descriptor_paginated_endpoint(is_public, page_size, i + 1)
         this_chunk = cu.parse_hise_response(
             requests.post(endpoint,
                           data=json.dumps({"filter": query}),
