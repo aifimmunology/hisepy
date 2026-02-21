@@ -16,5 +16,5 @@ termcolor==2.3.0
 pathlib==1.0.1
 mock==5.1.0
 tomli-w==1.2.0
-ray==2.52.1
+ray==2.54.0
 astor==0.8.1
