@@ -82,7 +82,7 @@ def build_github_repo(url : str, version_tag : str) -> Path:
     return dest_wheel
 
 def get_pixi_env_dir():
-    return Path(os.path.dirname(os.getenv("PIXI_PROJECT_MANIFEST")))
+    return Path(sys.prefix.split("/.pixi")[0])
 
 @with_default_logging
 def install_github_package_to_pixi_env(url : str, version_tag : str): 
@@ -157,7 +157,7 @@ def save_custom_pixi_environment(env_name : str, description : str,
     validate_save_custom_env_params(env_name, description, languages)
 
     # grab env path from PIXI_PROJECT_MANIFEST env var
-    pixi_env_dir = Path(os.path.dirname(os.getenv("PIXI_PROJECT_MANIFEST")))
+    pixi_env_dir = get_pixi_env_dir()
     if not pixi_env_dir:
         raise RuntimeError(
             "Pixi environment not detected. Please activate a Pixi environment before saving."
@@ -243,7 +243,7 @@ def update_install_wheel_task(dest_wheel):
     return True
 
 def validate_install_github_package_params(url : str, version_tag : str): 
-    pixi_toml = Path(os.getenv("PIXI_PROJECT_MANIFEST"))
+    pixi_toml = get_pixi_env_dir() / 'pixi.toml'
     if not url.startswith("https://github.com/"):
         raise ValueError("url must be a GitHub https URL")
 
