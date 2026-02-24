@@ -157,7 +157,7 @@ def save_custom_pixi_environment(env_name : str, description : str,
     validate_save_custom_env_params(env_name, description, languages)
 
     # grab env path from PIXI_PROJECT_MANIFEST env var
-    pixi_env_dir = Path(os.path.dirname(os.getenv("PIXI_PROJECT_MANIFEST")))
+    pixi_env_dir = get_pixi_env_dir()
     if not pixi_env_dir:
         raise RuntimeError(
             "Pixi environment not detected. Please activate a Pixi environment before saving."
