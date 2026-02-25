@@ -141,7 +141,9 @@ def get_file_descriptors(query_dict: dict = None, is_public: bool = False):
         df_dict['labResults'] # lab results
         df_dict['specimens'] # specimen df
     """
-    if 'fileType' not in query_dict.keys():
+
+    ## filetype required for non public files
+    if 'fileType' not in query_dict.keys() and is_public == False:
         raise ValueError(
             'fileType field must be in the your query dictionary.')
     if type(query_dict) is not dict:
@@ -179,9 +181,11 @@ def get_file_descriptors(query_dict: dict = None, is_public: bool = False):
             for k, v in collectors.items()
         }
 
-        # attach project info to descriptors
-        dict_df['descriptors'] = hf.attach_project_info_to_df(
-            dict_df['descriptors'])
+        # public files do not have a project guid
+        if "projectGuid" in dict_df["descriptors"].columns:
+            # attach project info to descriptors
+            dict_df['descriptors'] = hf.attach_project_info_to_df(
+                dict_df['descriptors'])
         return dict_df
     except Exception as e:
         raise Exception(f"failed to append all file descriptors: {e}")
