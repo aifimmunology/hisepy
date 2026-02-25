@@ -309,14 +309,17 @@ def reshape_descriptors(this_desc):
         "survey": surv_df,
     }
 
-    # Extract projectGuid once
-    this_proj_guid = dict_df["descriptors"]["projectGuid"].iat[0]
 
-    # Attach projectGuid to all relevant DataFrames at once
-    for key in ("labResults", "specimens", "survey"):
-        df = dict_df[key]
-        # Assign using assign() to create a new DataFrame
-        dict_df[key] = df.assign(projectGuid=this_proj_guid)
+    # public files don't have a projectGuid
+    if "projectGuid" in dict_df["descriptors"].columns:
+         # Extract projectGuid once
+        this_proj_guid = dict_df["descriptors"]["projectGuid"].iat[0]
+
+        # Attach projectGuid to all relevant DataFrames at once
+        for key in ("labResults", "specimens", "survey"):
+            df = dict_df[key]
+            # Assign using assign() to create a new DataFrame
+            dict_df[key] = df.assign(projectGuid=this_proj_guid)
 
     return dict_df
 
