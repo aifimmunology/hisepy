@@ -10,6 +10,7 @@ import urllib
 import plotly
 import plotly.graph_objects as go
 import requests
+from pathlib import Path
 
 import hisepy.common_utils as cu
 import hisepy.upload_utils as hpu
@@ -18,6 +19,7 @@ from hisepy import auth
 from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_is_from_regular_account, ide_is_from_guest_account, ide_is_from_certificate_account, guest_hise_server
 from hisepy.utils import conda_env_builds
 from hisepy.logging import with_default_logging, logger
+from hisepy.pixi_pack import get_pixi_env_dir
 
 dataframe_file_type = "Visualization-dataframe"
 upload_files_conda_env_checked = False
@@ -632,6 +634,19 @@ def upload_files(files: list,
             qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
         elif package_manager == "pixi": 
             qargs["condaEnvironmentFile"] = hpu.do_pixi_export(tmpdir)
+
+            # copy over additional files to temp dir
+            wheel_dir = get_pixi_env_dir() / "python-packages"
+            wheel_files = list(wheel_dir.glob("*.whl"))
+            if wheel_files:
+                logger.info("Copying additional package files to temp directory for upload...")
+                additional_packages = []
+                for wheel in wheel_files:
+                    shutil.copy2(wheel, Path(tmpdir) / wheel.name)
+                    additional_packages.append(Path(tmpdir) / wheel.name)
+                qargs['additionalPackages'] = [str(p) for p in additional_packages]
+            
+
         else:
             raise SystemError(f"{package_manager} is not supported")
     # only use fast_mode if the user made the call from upload_files_fast_mode
