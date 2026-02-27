@@ -9,3 +9,7 @@ hisepy.egg-info
 __pycache__
 cache
 *.ipynb
+.DS_Store
+pixi.toml
+pixi.lock
+.gitattributes
