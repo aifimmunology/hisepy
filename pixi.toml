@@ -1,0 +1,31 @@
+[workspace]
+authors = ["mjkinsey-aifi <168585409+mjkinsey-aifi@users.noreply.github.com>"]
+channels = ["conda-forge"]
+name = "hisepy"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = ">=3.10,<3.13"
+
+[pypi-dependencies]
+h5py = ">=3.15.1, <4"
+pandas = ">=3.0.1, <4"
+requests = ">=2.32.5, <3"
+pyyaml = ">=6.0.3, <7"
+pyreader = ">=0.0.1, <0.0.2"
+pyreadr = ">=0.5.4, <0.6"
+google = ">=3.0.0, <4"
+google-cloud-storage = ">=3.9.0, <4"
+termcolor = ">=3.3.0, <4"
+numpy = ">=2.4.2, <3"
+plotly = ">=6.5.2, <7"
+dash = ">=4.0.0, <5"
+dash-bootstrap-components = ">=2.0.4, <3"
+dash-core-components = ">=2.0.0, <3"
+dash-html-components = ">=2.0.0, <3"
+dash-table = ">=5.0.0, <6"
+pydeck = ">=0.9.1, <0.10"
+psutil = ">=7.2.2, <8"
