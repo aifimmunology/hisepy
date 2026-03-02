@@ -42,6 +42,7 @@ def cache_files(file_ids: list[str] | None = None,
     try:
         ru.validate_download_params(file_ids, query_id, query_dict)
 
+        """
         # Determine how to get the response object
         if query_id:
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
@@ -55,24 +56,23 @@ def cache_files(file_ids: list[str] | None = None,
             resp_obj = ru.post_query(query_dict=query_dict)
         else:
             resp_obj = ru.post_query(file_list=file_ids)
-
+        """
     except Exception as e:
-        raise Exception(f"Failed to fetch file descriptors: {e}")
+        raise Exception(f"validating parameters failed: {e}")
 
     dl_paths: List[str] = []
     fail_files: List[str] = []
     ide_name = IDEInstance().podName
-    for idx, f in enumerate(resp_obj):
+    for file_id in file_ids:
         try:
-            if "error" in f:
-                msg = f["error"].get("Message", "Unknown error")
-                failed_file = f["error"].get("File", "Unknown file")
-                logger.error("Error downloading file %s: %s", failed_file, msg)
-                fail_files.append(failed_file)
-                continue
+            fm = ru.get_file_metadata(file_id)
 
-            file_id, file_name, _ = ru.parse_file_descriptor_from_hise_file(f)
+            # grab file_name 
+            file_name = os.path.basename(fm['name'])
 
+            # grab sample_id from filemetadata
+            sample_ids = [*fm['sampleReferences']]
+            import pdb; pdb.set_trace()
             if cu.is_legacy_ide():
                 log_dir = CONFIG["IDE"]["HOME_DIR"]
                 download_dir = os.path.join(
@@ -105,19 +105,20 @@ def cache_files(file_ids: list[str] | None = None,
                 dl_paths.append(this_path)
 
             # Log downloads
-            this_file_id = ru.parse_file_id_from_hise_file(f)
-            this_sample_id = cu.parse_sample_id_from_hise_file(f)
-            cu.log_downloaded_files(this_file_id, this_sample_id, log_dir)
+            #this_file_id = ru.parse_file_id_from_hise_file(f)
+            #this_sample_id = cu.parse_sample_id_from_hise_file(f)
+            """
+            cu.log_downloaded_files(file_id, "test sample", log_dir)
 
             if file_ids:
                 # ensure correct file mapping
                 original_file_id = file_ids[idx]
                 ru.log_replica_file_download(f, original_file_id, log_dir)
-
+            """
         # don't outright fail, but log the error
         except Exception as e:
-            logger.error("Unexpected error processing file response: %s", f)
-            fail_files.append(str(f))
+            logger.error("Unexpected error processing file response: %s", file_id)
+            fail_files.append(str(file_id))
 
     if fail_files:
         logger.warning("Some files failed to download: %s", fail_files)
