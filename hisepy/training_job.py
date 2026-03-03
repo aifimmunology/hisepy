@@ -13,7 +13,7 @@ import hisepy.reader as hpr
 import hisepy.ray_transformer as rt
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
 from hisepy.upload import get_default_project
-from hisepy.upload_utils import do_conda_export, get_conda_env_name, check_default_project
+from hisepy.upload_utils import do_conda_export, get_ide_env_name, check_default_project
 from hisepy.logging import with_default_logging, logger
 
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -266,6 +266,7 @@ class TrainingJob:
         self.__beaker_workflow_url = cu.hise_url('job_orchestrate',
                                                  'beaker_workflow')
         self.__review_job_url = cu.hise_url('job_orchestrate', 'review_job')
+
         # initialize attributes
         self.provider = provider
         self.package_manager = "conda" if use_conda else "pip"
@@ -380,7 +381,6 @@ class TrainingJob:
             requests.get(self.__url, headers=get_bearer_token_header()))
 
     def convert_training_job_file_to_ray(self):
-
         # first check if the file is a notebook or a script
         if self.training_job_file_path.endswith('.ipynb'):
             # if it's a notebook, convert it to script
@@ -448,7 +448,6 @@ class TrainingJob:
         return
 
     def copy_scripts_and_dirs_to_temp(self):
-
         # define master list of directories and additional files
         app_files = self.additional_files + self.additional_dirs
 
@@ -550,7 +549,7 @@ class TrainingJob:
                 self.artifacts_path,
                 "condaEnvironmentName":
                 "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
-                               get_conda_env_name()),
+                               get_ide_env_name()),
                 "packageManager":
                 self.package_manager,
             }
@@ -590,7 +589,7 @@ class TrainingJob:
                 self.artifacts_path,
                 "condaEnvironmentName":
                 "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
-                               get_conda_env_name()),
+                               get_ide_env_name()),
                 "packageManager":
                 self.package_manager,
             }

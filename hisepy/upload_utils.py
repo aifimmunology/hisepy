@@ -7,7 +7,7 @@ import shutil
 from hisepy.utils import conda_env_builds
 from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
 import hisepy.common_utils as cu
-from hisepy.upload import get_study_spaces, get_default_project, DashAppImg
+from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -107,7 +107,7 @@ def do_conda_export(to_directory: str = ""):
 
     # export to scratch and move to to staging store
     env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
-                             get_conda_env_name())
+                             get_ide_env_name())
     result = subprocess.run(
         ["conda", "env", "export", "-p",
          str(env_dir)],
@@ -127,6 +127,29 @@ def do_conda_export(to_directory: str = ""):
     return conda_export_dest
 
 
+def do_pixi_export(to_directory): 
+    """
+    Exports the current Pixi environment to a file
+    """
+    if to_directory == "":
+        to_directory = "{}".format(CONFIG["STORES"]["TEMP_STORE"])
+
+    if not os.path.isdir(to_directory) and not debug():
+        raise ValueError("directory {dir} is not a valid directory".format(
+            dir=to_directory))
+        
+    # pack environment; copy manifests over to scratch
+    env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'],
+            get_ide_env_name())
+    if not os.path.isdir(env_dir) and not debug(): 
+        raise ValueError("directory {dir} is not a valid directory".format(dir=env_dir))
+    pixi_export_dest = os.path.join(to_directory, "pixi.toml")
+    pixi_manifest_src = os.path.join(env_dir, 'pixi.toml')
+
+    shutil.copy(pixi_manifest_src, pixi_export_dest)
+    return pixi_export_dest
+
+
 def ensure_conda_env_ready(do_check: bool):
     if not do_check or debug():
         return
@@ -144,7 +167,7 @@ def gen_upload_body(files, filetypes=[]):
     return body
 
 
-def get_conda_env_name():
+def get_ide_env_name():
     """
     Returns the name of the current conda environment
     """
@@ -168,7 +191,7 @@ def get_size_in_megabytes(file_list, convert_to_megabytes=True):
 
 def get_study_space(id: str):
     """ Returns the given study space, assuming the user has access """
-    return parse_hise_response(
+    return cu.parse_hise_response(
         requests.request("GET",
                          hise_url("tracer", "study_space_path", id),
                          headers=get_bearer_token_header()))

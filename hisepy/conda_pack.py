@@ -2,6 +2,7 @@ import requests
 import os
 import sys
 import subprocess
+import shutil
 from pathlib import Path
 import hisepy.common_utils as cu
 import hisepy.hise_requests as hreq
@@ -21,8 +22,6 @@ import logging
 import requests
 from typing import List, Optional
 
-logger = logging.getLogger(__name__)
-
 
 @with_default_logging
 def save_custom_conda_environment(env_name: str, description: str,
@@ -37,7 +36,7 @@ def save_custom_conda_environment(env_name: str, description: str,
     Returns: 
         dict: Response from the HISE API after saving the environment.
     Example: 
-        >>> save_custom_conda_environment(
+        save_custom_conda_environment(
                 env_name="my_custom_env",
                 description="A custom conda environment for data science.",
                 languages=["python", "r"],
@@ -45,10 +44,10 @@ def save_custom_conda_environment(env_name: str, description: str,
     """
 
     # validate parameters
-    validate_conda_env_params(env_name, description, languages)
+    validate_save_custom_env_params(env_name, description, languages)
 
     # prompt user
-    if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_CONDA_ENV"],
+    if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_ENV"].format("conda"),
                           sys.prefix):
         raise RuntimeError(
             "User cancelled saving the custom conda environment.")
@@ -98,6 +97,7 @@ def save_custom_conda_environment(env_name: str, description: str,
             "description": description,
             "language": languages,
             "ownerEmail": HiseUser().email,
+            "packageManager": "conda"
         }
 
         with open(yaml_path, "rb") as f:
@@ -110,7 +110,7 @@ def save_custom_conda_environment(env_name: str, description: str,
             return resp
 
 
-def validate_conda_env_params(env_name: str, description: str,
+def validate_save_custom_env_params(env_name: str, description: str,
                               languages: list[str]):
     """
     Validate parameters for saving a custom conda environment.
