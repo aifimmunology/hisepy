@@ -25,7 +25,7 @@ import inspect
 import uuid
 import subprocess
 import zlib
-from hisepy.auth import debug, defaultLocalAccountGuid, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid
+from hisepy.auth import debug, defaultLocalAccountGuid, get_bearer_token_header, hise_server, IDEInstance, ide_is_from_guest_account, guest_hise_server, instance_account_guid, ide_instance_guid
 
 # directory of hisepy package
 _here = os.path.abspath(os.path.dirname(__file__))
@@ -156,6 +156,16 @@ def find_files(directory, filenames):
     return files_list
 
 
+def get_conda_pack(conda_pack_id : str): 
+    endpoint = "https://{s}/{cp}/{id}".format(s=hise_server(),
+    cp= CONFIG['IDE_MANAGEMENT']['CONDA_PACK'],
+    id = conda_pack_id)
+
+    resp = parse_hise_response(
+        requests.request("GET", endpoint, headers=get_bearer_token_header()))
+    return resp
+
+
 def get_environment_name():
     # get instance obj from tracer
     inst = IDEInstance()
@@ -188,15 +198,6 @@ def get_func_params():
     return args_info.locals
 
 
-def get_ide(ide_instance_guid):
-    endpoint = "https://{s}/{de}/{ig}".format(s=hise_server(),
-                                              de=CONFIG['TRACER']['IDE_PATH'],
-                                              ig=ide_instance_guid)
-    resp = parse_hise_response(
-        requests.request("GET", endpoint, headers=get_bearer_token_header()))
-    return resp
-
-
 def get_organization():
 
     # get account from amds
@@ -219,6 +220,16 @@ def get_organization():
     # get org guid
     return account_info[0]['organization']['guid']
 
+def get_ide_package_manager():
+    # get ide; condaPackID
+    ide = IDEInstance()
+    conda_pack_guid = ide.condaPackId
+
+    # get conda pack 
+    conda_pack = get_conda_pack(conda_pack_guid)
+
+    # return packageManager
+    return conda_pack['packageManager']
 
 def get_projects(to_df: bool = True):
     """
@@ -295,7 +306,7 @@ def is_valid_upload_kernel():
     kernel_source = sys.prefix
 
     # compare conda env from instance obj to conda env from current kernel
-    if conda_env_path != kernel_source:
+    if conda_env_path not in kernel_source:
         return False
     return True
 
@@ -674,8 +685,8 @@ def string_contains_whitespaces(file_str):
 
 def tardir(output_filename, source_dir):
     """ Utility function that will create a tar file for an entire directory and its children """
-    with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.basename(source_dir))
+    with tarfile.open(output_filename, "w") as tar:
+        tar.add(source_dir, arcname='')
 
 
 def uuid_string():
