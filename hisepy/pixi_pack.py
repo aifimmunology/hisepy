@@ -226,7 +226,7 @@ def update_install_wheel_task(dest_wheel):
 
     tasks = data.setdefault("tasks", {})
 
-    install_cmd = tasks.get("install-wheel", "")
+    install_cmd = tasks.get("install-github-python-pkg", "")
 
     existing_wheels = set()
     if install_cmd.startswith("pip install"):
@@ -236,7 +236,6 @@ def update_install_wheel_task(dest_wheel):
 
     if new_wheel_ref not in existing_wheels:
         existing_wheels.add(new_wheel_ref)
-
     tasks["install-github-python-pkg"] = "pip install " + " ".join(sorted(existing_wheels))
 
     pixi_toml.write_text(tomli_w.dumps(data))
