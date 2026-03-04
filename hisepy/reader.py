@@ -72,7 +72,6 @@ def cache_files(file_ids: list[str] | None = None,
 
             # grab sample_id from filemetadata
             sample_ids = [*fm['sampleReferences']]
-            import pdb; pdb.set_trace()
             if cu.is_legacy_ide():
                 log_dir = CONFIG["IDE"]["HOME_DIR"]
                 download_dir = os.path.join(
@@ -105,16 +104,8 @@ def cache_files(file_ids: list[str] | None = None,
                 dl_paths.append(this_path)
 
             # Log downloads
-            #this_file_id = ru.parse_file_id_from_hise_file(f)
-            #this_sample_id = cu.parse_sample_id_from_hise_file(f)
-            """
-            cu.log_downloaded_files(file_id, "test sample", log_dir)
-
-            if file_ids:
-                # ensure correct file mapping
-                original_file_id = file_ids[idx]
-                ru.log_replica_file_download(f, original_file_id, log_dir)
-            """
+            cu.log_downloaded_files(file_id, sample_ids, log_dir)
+            
         # don't outright fail, but log the error
         except Exception as e:
             logger.error("Unexpected error processing file response: %s", file_id)
