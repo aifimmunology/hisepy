@@ -301,7 +301,7 @@ def get_file_metadata(file_id: str):
         requests.get(cu.hise_url("ledger", "file_metadata_path", file_id), 
                     headers=get_bearer_token_header()))
     
-    return
+    return resp
 
 
 def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
