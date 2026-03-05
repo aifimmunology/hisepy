@@ -1,22 +1,24 @@
 import json
+import operator
 import os
+import pandas as pd
+import plotly
+import plotly.graph_objects as go
+import re
+import requests
 import shutil
 import subprocess
 import tarfile
 import tempfile
-import re
-import uuid
-import urllib
-import plotly
-import plotly.graph_objects as go
-import requests
+from enum import Enum
+from IPython.display import HTML, display  # TODO: Add ipython to requirements.txt
 from pathlib import Path
+from typing import Any
 
 import hisepy.common_utils as cu
 import hisepy.upload_utils as hpu
 from hisepy.common_utils import parse_hise_response, hise_url, current_notebook, project_shortname_to_guid, project_guid_to_shortname
-from hisepy import auth
-from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_is_from_regular_account, ide_is_from_guest_account, ide_is_from_certificate_account, guest_hise_server
+from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_instance_guid, ide_is_from_guest_account, guest_hise_server
 from hisepy.utils import conda_env_builds
 from hisepy.logging import with_default_logging, logger
 from hisepy.pixi_pack import get_pixi_env_dir
@@ -28,7 +30,7 @@ save_visualization_conda_env_checked = False
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
-IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not auth.debug() else os.getcwd()
+IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not debug() else os.getcwd()
 UPLOAD_HARVEST_LOWER_BOUND = CONFIG['TOOLCHAIN'][
     'UPLOAD_HARVEST_LOWER_BOUND_MB']
 
@@ -77,7 +79,8 @@ class DashAppImg:
         req_txt_path = f"{self.work_dir}/{app_dir}/requirements.txt"
 
         try:
-            if self.requirements and 'requirements.in' == os.path.basename(self.requirements):
+            if self.requirements and 'requirements.in' == os.path.basename(
+                    self.requirements):
                 subprocess.run([
                     "bash", "-c",
                     f"source /opt/conda/etc/profile.d/conda.sh && "
@@ -87,7 +90,8 @@ class DashAppImg:
                     f"{self.requirements}"
                 ],
                                check=True)
-            elif self.requirements and "requirements.txt" == os.path.basename(self.requirements):
+            elif self.requirements and "requirements.txt" == os.path.basename(
+                    self.requirements):
                 # save file to directory of app_filepath
                 shutil.copy(
                     self.requirements,
@@ -191,7 +195,7 @@ def get_default_project():
 
 
 @with_default_logging
-def get_study_spaces(to_df : bool =False):
+def get_study_spaces(to_df: bool = False):
     """ 
     Returns list of studies a user has access to 
     
@@ -202,10 +206,10 @@ def get_study_spaces(to_df : bool =False):
         requests.request("GET",
                          hise_url("tracer", "study_space_path"),
                          headers=get_bearer_token_header()))
-    if to_df: 
+    if to_df:
         return pd.DataFrame(resp)
-    else: 
-        return resp  
+    else:
+        return resp
 
 
 @with_default_logging
@@ -253,6 +257,296 @@ def retry_ide_commit(id: str):
                           id,
                           args={"condaEnvironmentFile": hpu.do_conda_export()})
     return cu.parse_hise_response(requests.put(url))
+
+
+@with_default_logging
+def save_visualization_app(
+        application_files: list[str],
+        application_dirs: list[str],
+        study_space_id: str,
+        title: str,
+        png_image: str,
+        data_mount_path: str,
+        data_source_file_ids: list[str],
+        description: str = '',
+        build_template_name: str = '',
+        build_template_major_version: int = -1,
+        build_template_minor_version: int = -1,
+        build_template_parameters: dict[str, str] = {},
+        infer_build_template_arguments: bool = True) -> dict:
+    if title == '':
+        raise RuntimeError('A non-empty title is required')
+    elif data_mount_path == '':
+        raise RuntimeError('A non-empty data_mount_path is required')
+    elif len(data_source_file_ids) == 0:
+        raise RuntimeError('A non-empty list of data_source_files is required')
+
+    hpu.validate_files(application_files, application_dirs)
+    png_image = hpu.validate_hero_image(png_image)
+    hpu.get_study_space(study_space_id)
+    hpu.validate_upload_input_ids(input_file_ids=data_source_file_ids,
+                                  input_sample_ids=[],
+                                  ide_dir=CONFIG['STORES']['TEMP_STORE'])
+
+    if not data_mount_path.startswith('/'):
+        data_mount_path = '/' + data_mount_path
+
+    vbt = get_build_template(build_template_name, build_template_major_version,
+                             build_template_minor_version)
+
+    # enumerate all application files and directories
+    all_files = set([os.path.abspath(f) for f in application_files])
+    all_dirs = set([os.path.abspath(d) for d in application_dirs])
+    for application_dir in list(all_dirs):
+        for (dirpath, dirnames, filenames) in os.walk(application_dir):
+            all_files.update(
+                [os.path.join(dirpath, filename) for filename in filenames])
+            all_dirs.update(
+                [os.path.join(dirpath, dirname) for dirname in dirnames])
+
+    template_params = {}
+    for template_var in vbt['buildVariables']:
+        varName = template_var['varName']
+        if varName in build_template_parameters:
+            template_params[varName] = build_template_parameters[varName]
+        else:
+            template_params[varName] = get_template_variable(
+                template_var, all_files, all_dirs,
+                infer_build_template_arguments)
+
+    tmpdirname = tempfile.mkdtemp(prefix=CONFIG['STORES']['TEMP_STORE'])
+    os.chmod(tmpdirname, 0o777)
+    logger.info("Created temporary directory for Dash app build: %s",
+                tmpdirname)
+
+    hpu.create_temp_directory_files(list(all_files), tmpdirname)
+
+    tarfile_path = os.path.join(tmpdirname, "viz_app.tar.gz")
+    logger.debug("Creating tarball: %s", tarfile_path)
+    with tarfile.open(tarfile_path, "w:gz") as tar:
+        tar.add(tmpdirname, arcname="")
+
+    logger.debug("Uploading hero image: %s", png_image)
+    img_resp = save_static_image(image=png_image,
+                                 title=title,
+                                 study_space_id=study_space_id)
+
+    if img_resp.get("error"):
+        logger.warning("Error uploading image: %s", img_resp["error"])
+
+    vizapp_workflow_url = hise_url("ide_management", "vizapp_workflow")
+    logger.info("Creating Dash workflow: %s", vizapp_workflow_url)
+    resp = requests.post(vizapp_workflow_url,
+                         json={
+                             'artifactsFileName': tarfile_path,
+                             'dataMountPath': data_mount_path,
+                             'dataSourceFileIds': data_source_file_ids,
+                             'description': description,
+                             'images': [img_resp['id']],
+                             'instanceGuid': ide_instance_guid(),
+                             'studySpaceId': study_space_id,
+                             'title': title,
+                             'visualizationBuildTemplateArgs': template_params,
+                             'visualizationBuildTemplateId': vbt['id']
+                         },
+                         headers=get_bearer_token_header())
+    return parse_hise_response(resp)
+
+
+class BuildTemplateVariableType(Enum):
+    FILE = 1
+    DIRECTORY = 2
+    OTHER = 3
+
+
+def get_template_variable(template_var: dict[str,
+                                             Any], application_files: set[str],
+                          application_dirs: set[str],
+                          infer_build_template_arguments: bool) -> str:
+    type = BuildTemplateVariableType.OTHER
+    if template_var['isPath']:
+        type = BuildTemplateVariableType.DIRECTORY if template_var[
+            'directoryStructure'] is not None else BuildTemplateVariableType.FILE
+
+    match type:
+        case BuildTemplateVariableType.FILE:
+            if infer_build_template_arguments:
+                found_file = ''
+                for candidate in application_files:
+                    if re.search(template_var['matchRegex'], candidate):
+                        if found_file == '':
+                            found_file = candidate
+                        else:
+                            found_file = ''
+                            break
+
+                if found_file != '':
+                    return found_file
+
+            while True:
+                user_input = input(
+                    f'Please enter {template_var["friendlyName"]}:')
+                if user_input == '' and not template_var['required']:
+                    return ''
+                elif re.search(template_var['matchRegex'],
+                               user_input) and os.path.isfile(user_input):
+                    user_input_abspath = os.path.abspath(user_input)
+                    application_files.add(user_input_abspath)
+                    return user_input_abspath
+        case BuildTemplateVariableType.DIRECTORY:
+            dir_structure = template_var['directoryStructure']
+            if infer_build_template_arguments:
+                found_dir = ''
+                for candidate in application_dirs:
+                    if user_included_directory_structure(
+                            candidate, dir_structure, application_files,
+                            application_dirs):
+                        if found_dir == '':
+                            found_dir = candidate
+                        else:
+                            found_dir = ''
+                            break
+
+                if found_dir != '':
+                    return found_dir
+
+            while True:
+                user_input = input(
+                    f'Please enter {template_var["friendlyName"]}:')
+                if user_input == '' and not template_var['required']:
+                    return ''
+                elif re.search(template_var['matchRegex'],
+                               user_input) and os.path.isdir(user_input):
+                    user_input_abspath = os.path.abspath(user_input)
+                    if user_included_directory_structure(
+                            user_input_abspath, dir_structure):
+                        # Include files in all subdirectories of the directory that the user gave us in our list of
+                        # files that we will upload for this visualization app
+                        for (dirpath, dirnames,
+                             filenames) in os.walk(user_input_abspath):
+                            application_dirs.update([
+                                os.path.join(dirpath, dirname)
+                                for dirname in dirnames
+                            ])
+                            application_files.update([
+                                os.path.join(dirpath, filename)
+                                for filename in filenames
+                            ])
+                        return user_input_abspath
+        case BuildTemplateVariableType.OTHER:
+            while True:
+                user_input = input(
+                    f'Please enter {template_var["friendlyName"]}:')
+                if user_input == '' and not template_var['required']:
+                    return ''
+                elif re.search(template_var['matchRegex'], user_input):
+                    return user_input
+    raise RuntimeError(f'impossible BuildTemplateVariableType {type}')
+
+
+def user_included_directory_structure(
+        user_dir: str,
+        dir_structure: dict,
+        included_files: set[str] | None = None,
+        included_dirs: set[str] | None = None) -> bool:
+    if operator.xor(included_files is None, included_dirs is None):
+        raise RuntimeError(
+            'either both files and dirs must be included or neither files nor dirs can be included'
+        )
+
+    dirs = set([])
+    files = set([])
+    if included_dirs is not None and included_files is not None:
+        dirs = included_dirs
+        files = included_files
+    else:
+        for (dirpath, dirnames, filenames) in os.walk(user_dir):
+            dirs = set(
+                [os.path.join(dirpath, dirname) for dirname in dirnames])
+            files = set(
+                [os.path.join(dirpath, filename) for filename in filenames])
+            break
+
+    for name, val in dir_structure.items():
+        if type(val) is dict:
+            dirname = os.path.join(user_dir, name)
+            if not dirname in dirs or not user_included_directory_structure(
+                    dirname, val, included_dirs, included_files):
+                return False
+        elif type(val) is str:
+            # Do we have a file with this exact name?
+            if val == '':
+                return os.path.join(user_dir, name) in files
+
+            # Do we have a file that matches this regex?
+            if not any(re.search(val, file) for file in files):
+                return False
+    return True
+
+
+def get_build_template(build_template_name: str,
+                       build_template_major_version: int,
+                       build_template_minor_version: int):
+    templates = get_build_templates(build_template_name,
+                                    build_template_major_version,
+                                    build_template_minor_version)
+    if len(templates) == 1:
+        return templates[0]
+    elif len(templates) == 0:
+        raise RuntimeError(
+            'No visualization templates found with name %s version %s.%s' %
+            build_template_name, '*' if build_template_major_version < 0 else
+            build_template_major_version, '*' if build_template_minor_version
+            < 0 else build_template_minor_version)
+
+    template_df = pd.DataFrame({
+        'Name': [vbt['name'] for vbt in templates],
+        'Version': [vbt['githubLink'] for vbt in templates],
+        'Description': [vbt['description'] for vbt in templates]
+    })
+
+    # Define the function to create a clickable HTML link in a DataFrame
+    def make_clickable(val):
+        # target="_blank" ensures the link opens in a new window/tab
+        # The last element of the Github URL is the version of the Visualization Build Template
+        return '<a target="_blank" href="%s">%s</a>' % (val,
+                                                        val.split('/')[-1])
+
+    styled_df = template_df.style.format(formatter={'Version': make_clickable})
+    print('The following Visualization Build Templates are available:')
+    display(HTML(styled_df.to_html()))
+
+    prompt = 'Enter the index of your desired template. Possible values range from 0 to %d' % (
+        len(templates) - 1)
+    user_choice = -1
+    while not 0 <= user_choice < len(templates):
+        try:
+            user_choice = int(input(prompt))
+        except ValueError:
+            user_choice = -1
+    return templates[user_choice]
+
+
+def get_build_templates(build_template_name: str,
+                        build_template_major_version: int,
+                        build_template_minor_version: int) -> list:
+    filter = {}
+    filter["deprecated"] = "false"
+    if build_template_name != "":
+        filter["name"] = build_template_name
+        if build_template_major_version >= 0:
+            filter["version.major"] = build_template_major_version
+            if build_template_minor_version >= 0:
+                filter["version.minor"] = build_template_minor_version
+                del filter[
+                    "deprecated"]  # they specified the exact template; include deprecated ones
+
+    resp = cu.requests.post(url=hise_url("tracer",
+                                         "visualization_build_template",
+                                         "filter"),
+                            headers=get_bearer_token_header(),
+                            json={"Filter": filter})
+    return resp.json()
 
 
 @with_default_logging
@@ -312,7 +606,7 @@ def save_dash_app(app_filepath: str,
 
     log_dir = CONFIG['STORES']['TEMP_STORE'] if not cu.is_legacy_ide(
     ) else IDE_HOME_DIR
-    if not auth.debug():
+    if not debug():
         hpu.validate_upload_input_ids(input_file_ids, input_sample_ids,
                                       log_dir)
 
@@ -358,10 +652,11 @@ def save_dash_app(app_filepath: str,
         logger.info("Dash app packaged at: %s", tarball_path)
 
         resp = dash_app.export()
-        logger.extra["_override"]['workflow'] = resp['WorkflowId'] #attach workflow to log entry
+        logger.extra["_override"]['workflow'] = resp[
+            'WorkflowId']  #attach workflow to log entry
         logger.info("Dash app successfully uploaded and deployed.")
         return resp
-    except: 
+    except:
         raise Exception("Failed to deploy dash app")
 
 
@@ -579,8 +874,8 @@ def upload_files(files: list,
                         title='a upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
-    # override logEntry to denote fast_mode was used 
-    if use_fast_mode: 
+    # override logEntry to denote fast_mode was used
+    if use_fast_mode:
         logger.info("user has chosen fast_mode for upload_files")
         logger.extra["_override"]['method_name'] = "upload_files_fast_mode"
 
@@ -627,25 +922,28 @@ def upload_files(files: list,
     )
 
     # get conda pack to determine whether to use pixi or conda
-    package_manager =  cu.get_ide_package_manager()
+    package_manager = cu.get_ide_package_manager()
     qargs['packageManager'] = package_manager
     if not cu.is_legacy_ide():
         if package_manager == "conda":
             qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
-        elif package_manager == "pixi": 
+        elif package_manager == "pixi":
             qargs["condaEnvironmentFile"] = hpu.do_pixi_export(tmpdir)
 
             # copy over additional files to temp dir
             wheel_dir = get_pixi_env_dir() / "python-packages"
             wheel_files = list(wheel_dir.glob("*.whl"))
             if wheel_files:
-                logger.info("Copying additional package files to temp directory for upload...")
+                logger.info(
+                    "Copying additional package files to temp directory for upload..."
+                )
                 additional_packages = []
                 for wheel in wheel_files:
                     shutil.copy2(wheel, Path(tmpdir) / wheel.name)
                     additional_packages.append(Path(tmpdir) / wheel.name)
-                qargs['additionalPackages'] = [str(p) for p in additional_packages]
-            
+                qargs['additionalPackages'] = [
+                    str(p) for p in additional_packages
+                ]
 
         else:
             raise SystemError(f"{package_manager} is not supported")
@@ -653,22 +951,19 @@ def upload_files(files: list,
     if use_fast_mode:
         if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
             qargs['useFastMode'] = True
-    
+
     global upload_files_conda_env_checked
     if not upload_files_conda_env_checked:
-        if not use_fast_mode and package_manager == "conda": # check the conda environment if user isn't not running fast_mode
+        if not use_fast_mode and package_manager == "conda":  # check the conda environment if user isn't not running fast_mode
             hpu.ensure_conda_env_ready(do_conda_build_check)
             upload_files_conda_env_checked = True
-        
+
     # upload thy files
     url = hpu.get_upload_url()
     try:
-        resp = cu.parse_hise_response(requests.post(url,
-                             json=qargs,
-                             headers=get_bearer_token_header()))
+        resp = cu.parse_hise_response(
+            requests.post(url, json=qargs, headers=get_bearer_token_header()))
         logger.extra["_override"]['workflow'] = resp['WorkflowId']
         return resp
     except requests.RequestException as e:
         raise RuntimeError(f"Upload request failed: {e}") from e
-
-
