@@ -53,7 +53,6 @@ def cache_files(file_ids: list[str] | None = None,
             return []
         return ru.cache_files_using_descriptors(ru.post_query(query_dict=query_dict))
     else:
-        resp_obj = ru.post_query(file_list=file_ids)
         dl_paths: List[str] = []
         fail_files: List[str] = []
         ide_name = IDEInstance().podName
