@@ -21,15 +21,13 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 @with_default_logging
 def cache_files(file_ids: list[str] | None = None,
                 query_id: list[str] | None = None,
-                query_dict: dict[str, any] | None = None,
-                is_public: bool = False) -> list[str]:
+                query_dict: dict[str, any] | None = None) -> list[str]:
     """ Downloads requested files to an IDE
 
     Parameters:
         file_ids (list): list of file IDs
         query_id (list): list of a single query ID
         query_dict (dict): query in the format of a dict
-        is_public (bool): flag indicating if the files are public
 
     Returns:
         a list of filepaths that were successfully downloaded
@@ -37,25 +35,21 @@ def cache_files(file_ids: list[str] | None = None,
 
     ru.validate_download_params(file_ids, query_id, query_dict)
 
-    # Determine how to get the response object
-    if query_id:
-        if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
-            logger.info("Cancelled cache_files call.")
-            return []
-        if is_public:
-            raise ValueError("Query ID search not supported for public files.")
-        resp_obj = ru.post_query(query_id=query_id[0])
+        # Determine how to get the response object
+        if query_id:
+            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
+                logger.info("Cancelled cache_files call.")
+                return []
+            resp_obj = ru.post_query(query_id=query_id[0])
 
-    elif query_dict:
-        if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "cache_files")):
-            logger.info("Cancelled cache_files call.")
-            return []
-        resp_obj = ru.post_query(query_dict=query_dict, is_public=is_public)
-    else:
-        resp_obj = ru.post_query(file_list=file_ids, is_public=is_public)
+        elif query_dict:
+            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "cache_files")):
+                logger.info("Cancelled cache_files call.")
+                return []
+            resp_obj = ru.post_query(query_dict=query_dict)
 
-    # grab file_name
-    file_name = os.path.basename(fm['name'])
+        else:
+            resp_obj = ru.post_query(file_list=file_ids)
 
     # grab sample_id from filemetadata
     sample_ids = [*fm['sampleReferences']]
@@ -87,17 +81,63 @@ def cache_files(file_ids: list[str] | None = None,
         logger.error("Unexpected error processing file response: %s", file_id)
         fail_files.append(str(file_id))
 
-    # download file to current IDE architecture
-    else:
-        log_dir = CONFIG["STORES"]["TEMP_STORE"]
-        dl_endpoint = ru.get_download_path(file_id, ide_name)
-        dl_resp = cu.parse_hise_response(
-            requests.request("GET",
-                                dl_endpoint,
-                                headers=get_bearer_token_header()))
-        this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
-                                    dl_resp["Path"])
-        dl_paths.append(this_path)
+    dl_paths: List[str] = []
+    fail_files: List[str] = []
+    ide_name = IDEInstance().podName
+    for idx, f in enumerate(resp_obj):
+        try:
+            if "error" in f:
+                msg = f["error"].get("Message", "Unknown error")
+                failed_file = f["error"].get("File", "Unknown file")
+                logger.error("Error downloading file %s: %s", failed_file, msg)
+                fail_files.append(failed_file)
+                continue
+
+            file_id, file_name, _, _ = ru.parse_file_descriptor_from_hise_file(f)
+
+            if cu.is_legacy_ide():
+                log_dir = CONFIG["IDE"]["HOME_DIR"]
+                download_dir = os.path.join(
+                    CONFIG["IDE"]["HOME_DIR"],
+                    CONFIG["IDE"]["CACHE_DIR"],
+                    str(file_id),
+                )
+                fname = os.path.basename(file_name)
+                logger.info("Downloading fileID %s -> %s", file_id,
+                            download_dir)
+                ru.cache_file(url=f["url"],
+                              file_name=fname,
+                              file_dir=download_dir)
+
+            # download file to current IDE architecture
+            else:
+                log_dir = CONFIG["STORES"]["TEMP_STORE"]
+                dl_endpoint = ru.get_download_path(file_id, ide_name)
+                dl_resp = cu.parse_hise_response(
+                    requests.request("GET",
+                                     dl_endpoint,
+                                     headers=get_bearer_token_header()))
+                this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
+                                         dl_resp["Path"])
+                dl_paths.append(this_path)
+
+            # Log downloads
+            this_file_id = ru.parse_file_id_from_hise_file(f)
+            this_sample_id = cu.parse_sample_id_from_hise_file(f)
+            cu.log_downloaded_files(this_file_id, this_sample_id, log_dir)
+
+            if file_ids:
+                # ensure correct file mapping
+                original_file_id = file_ids[idx]
+                ru.log_replica_file_download(f, original_file_id, log_dir)
+
+        # don't outright fail, but log the error
+        except Exception as e:
+            logger.error("Unexpected error processing file response: %s", f)
+            fail_files.append(str(f))
+
+    if fail_files:
+        logger.warning("Some files failed to download: %s", fail_files)
 
     return dl_paths
 
