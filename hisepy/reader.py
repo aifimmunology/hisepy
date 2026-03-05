@@ -39,82 +39,76 @@ def cache_files(file_ids: list[str] | None = None,
     """
     start_time = time.time()
 
-    try:
-        ru.validate_download_params(file_ids, query_id, query_dict)
+    ru.validate_download_params(file_ids, query_id, query_dict)
 
-        """
-        # Determine how to get the response object
-        if query_id:
-            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
-                logger.info("Cancelled cache_files call.")
-                return []
-            resp_obj = ru.post_query(query_id=query_id[0])
-        elif query_dict:
-            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "cache_files")):
-                logger.info("Cancelled cache_files call.")
-                return []
-            resp_obj = ru.post_query(query_dict=query_dict)
-        else:
-            resp_obj = ru.post_query(file_list=file_ids)
-        """
-    except Exception as e:
-        raise Exception(f"validating parameters failed: {e}")
+    # backwards compatibility for query_id and query_dict parameters, which used to be non-list types
+    if query_id:
+        if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
+            logger.info("Cancelled cache_files call.")
+            return []
+        return ru.cache_files_using_descriptors(ru.post_query(query_id=query_id[0]))
+    elif query_dict:
+        if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "cache_files")):
+            logger.info("Cancelled cache_files call.")
+            return []
+        return ru.cache_files_using_descriptors(ru.post_query(query_dict=query_dict))
+    else:
+        resp_obj = ru.post_query(file_list=file_ids)
+        dl_paths: List[str] = []
+        fail_files: List[str] = []
+        ide_name = IDEInstance().podName
+        for file_id in file_ids:
+            try:
+                fm = ru.get_file_metadata(file_id)
 
-    dl_paths: List[str] = []
-    fail_files: List[str] = []
-    ide_name = IDEInstance().podName
-    for file_id in file_ids:
-        try:
-            fm = ru.get_file_metadata(file_id)
+                # grab file_name 
+                file_name = os.path.basename(fm['name'])
 
-            # grab file_name 
-            file_name = os.path.basename(fm['name'])
+                # grab sample_id from filemetadata
+                sample_ids = [*fm['sampleReferences']]
+                if cu.is_legacy_ide():
+                    log_dir = CONFIG["IDE"]["HOME_DIR"]
+                    download_dir = os.path.join(
+                        CONFIG["IDE"]["HOME_DIR"],
+                        CONFIG["IDE"]["CACHE_DIR"],
+                        str(file_id),
+                    )
+                    fname = os.path.basename(file_name)
+                    logger.info("Downloading fileID %s -> %s", file_id,
+                                download_dir)
+                    ru.cache_file(url=f["url"],
+                                file_name=fname,
+                                file_dir=download_dir)
 
-            # grab sample_id from filemetadata
-            sample_ids = [*fm['sampleReferences']]
-            if cu.is_legacy_ide():
-                log_dir = CONFIG["IDE"]["HOME_DIR"]
-                download_dir = os.path.join(
-                    CONFIG["IDE"]["HOME_DIR"],
-                    CONFIG["IDE"]["CACHE_DIR"],
-                    str(file_id),
-                )
-                fname = os.path.basename(file_name)
-                logger.info("Downloading fileID %s -> %s", file_id,
-                            download_dir)
-                ru.cache_file(url=f["url"],
-                              file_name=fname,
-                              file_dir=download_dir)
+                # download file to current IDE architecture
+                else:
+                    log_dir = CONFIG["STORES"]["TEMP_STORE"]
+                    endpoint = "https://%s/%s/%s/%s" % (
+                        hise_server(),
+                        CONFIG["HYDRATION"]["DOWNLOAD_PATHV2"],
+                        file_id,
+                        ide_name,
+                    )
+                    dl_resp = cu.parse_hise_response(
+                        requests.request("GET",
+                                        endpoint,
+                                        headers=get_bearer_token_header()))
+                    this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
+                                            dl_resp["Path"])
+                    dl_paths.append(this_path)
 
-            # download file to current IDE architecture
-            else:
-                log_dir = CONFIG["STORES"]["TEMP_STORE"]
-                endpoint = "https://%s/%s/%s/%s" % (
-                    hise_server(),
-                    CONFIG["HYDRATION"]["DOWNLOAD_PATHV2"],
-                    file_id,
-                    ide_name,
-                )
-                dl_resp = cu.parse_hise_response(
-                    requests.request("GET",
-                                     endpoint,
-                                     headers=get_bearer_token_header()))
-                this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
-                                         dl_resp["Path"])
-                dl_paths.append(this_path)
+                # Log downloads
+                cu.log_downloaded_files(file_id, sample_ids, log_dir)
+                
+            # don't outright fail, but log the error
+            except Exception as e:
+                logger.error("Unexpected error processing file response: %s", file_id)
+                fail_files.append(str(file_id))
 
-            # Log downloads
-            cu.log_downloaded_files(file_id, sample_ids, log_dir)
-            
-        # don't outright fail, but log the error
-        except Exception as e:
-            logger.error("Unexpected error processing file response: %s", file_id)
-            fail_files.append(str(file_id))
+        if fail_files:
+            logger.warning("Some files failed to download: %s", fail_files)
 
-    if fail_files:
-        logger.warning("Some files failed to download: %s", fail_files)
-
-    return dl_paths
+        return dl_paths
 
 
 @with_default_logging
