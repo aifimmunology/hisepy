@@ -140,7 +140,6 @@ def current_notebook():
     # check for whitespaces 
     if string_contains_whitespaces(notebooks[0]):
         raise ValueError("The current notebook has whitespaces in its name, which is not supported. Please rename the notebook to remove any whitespaces and try again. The notebook with whitespaces is: {}".format(notebooks[0]))
-        return
     return notebooks[0]
 
 
