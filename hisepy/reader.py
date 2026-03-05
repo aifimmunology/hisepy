@@ -21,15 +21,13 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 @with_default_logging
 def cache_files(file_ids: list[str] | None = None,
                 query_id: list[str] | None = None,
-                query_dict: dict[str, any] | None = None,
-                is_public: bool = False) -> list[str]:
+                query_dict: dict[str, any] | None = None) -> list[str]:
     """ Downloads requested files to an IDE
 
     Parameters:
         file_ids (list): list of file IDs
         query_id (list): list of a single query ID
         query_dict (dict): query in the format of a dict
-        is_public (bool): flag indicating if the files are public
 
     Returns:
         a list of filepaths that were successfully downloaded
@@ -43,18 +41,16 @@ def cache_files(file_ids: list[str] | None = None,
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
                 logger.info("Cancelled cache_files call.")
                 return []
-            if is_public:
-                raise ValueError("Query ID search not supported for public files.")
             resp_obj = ru.post_query(query_id=query_id[0])
 
         elif query_dict:
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "cache_files")):
                 logger.info("Cancelled cache_files call.")
                 return []
-            resp_obj = ru.post_query(query_dict=query_dict, is_public=is_public)
+            resp_obj = ru.post_query(query_dict=query_dict)
 
         else:
-            resp_obj = ru.post_query(file_list=file_ids, is_public=is_public)
+            resp_obj = ru.post_query(file_list=file_ids)
 
     except Exception as e:
         raise Exception(f"Failed to fetch file descriptors: {e}")
@@ -71,11 +67,7 @@ def cache_files(file_ids: list[str] | None = None,
                 fail_files.append(failed_file)
                 continue
 
-            file_id, file_name, _, availability = ru.parse_file_descriptor_from_hise_file(f)
-
-            if not ru.availability_matches_is_public(file_id, availability, is_public):
-                fail_files.append(str(f))
-                continue
+            file_id, file_name, _, _ = ru.parse_file_descriptor_from_hise_file(f)
 
             if cu.is_legacy_ide():
                 log_dir = CONFIG["IDE"]["HOME_DIR"]
