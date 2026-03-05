@@ -191,7 +191,7 @@ def get_size_in_megabytes(file_list, convert_to_megabytes=True):
 
 def get_study_space(id: str):
     """ Returns the given study space, assuming the user has access """
-    return parse_hise_response(
+    return cu.parse_hise_response(
         requests.request("GET",
                          hise_url("tracer", "study_space_path", id),
                          headers=get_bearer_token_header()))

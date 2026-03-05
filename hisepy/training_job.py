@@ -27,9 +27,12 @@ def start_training_run(
     description: str,
     file_set_id: str,
     provider: str = 'ray',
-    cpu_count: int = 1,
-    gpu_count: int = 0,
-    memory_size: int = 10,
+    head_cpu_count: int = 1,
+    head_gpu_count: int = 0,
+    head_memory_size: int = 10,
+    worker_cpu_count: int = 1,
+    worker_gpu_count: int = 0,
+    worker_memory_size: int = 10,
     worker_count: int = 0,
     additional_dirs: list = [],
     additional_files: list = [],
@@ -48,9 +51,12 @@ def start_training_run(
         description (str): training job description
         file_set_id (str): file set ID used as the training job input
         provider (str) (Optional): 'ray' or 'beaker'. default is ray
-        cpu_count (int) (Optional): number of CPUs to use. default is 1
-        gpu_count (int) (Optional): number of GPUs to use. default is 0 
-        memory_size (int) (Optional): memory size (GB). default is 10
+        head_cpu_count (int) (Optional): number of CPUs to use on the Ray head node. default is 1
+        head_gpu_count (int) (Optional): number of GPUs to use on the Ray head node. default is 0
+        head_memory_size (int) (Optional): memory size for the Ray head node (GB). default is 10
+        worker_cpu_count (int) (Optional): number of CPUs to use on the Ray worker node(s). default is 1
+        worker_gpu_count (int) (Optional): number of GPUs to use on the Ray worker node(s). default is 0 
+        worker_memory_size (int) (Optional): memory size for the Ray worker node(s) (GB). default is 10
         worker_count (int) (Optional): number of workers to use. default is 0
         additional_dirs (list): (Optional) list of directories your script requires. default is []
         additional_files (list): (Optional) list of files your script requires. default is []
@@ -98,10 +104,13 @@ def start_training_run(
         print("Using default project: {}".format(project))
     check_default_project(project)
 
-    job_obj = TrainingJob(cpu_count=cpu_count,
-                          use_conda=use_conda,
-                          gpu_count=gpu_count,
-                          memory_size=memory_size,
+    job_obj = TrainingJob(use_conda=use_conda,
+                          head_cpu_count=head_cpu_count,
+                          head_gpu_count=head_gpu_count,
+                          head_memory_size=head_memory_size,
+                          worker_cpu_count=worker_cpu_count,
+                          worker_gpu_count=worker_gpu_count,
+                          worker_memory_size=worker_memory_size,
                           worker_count=worker_count,
                           title=title,
                           description=description,
@@ -158,7 +167,6 @@ def start_training_run(
     # submit job
     job_response = job_obj.submit_ray_workflow(
     ) if provider == 'ray' else job_obj.submit_beaker_workflow()
-    logger.extra["_override"]['workflow'] = job_resp['WorkflowId'] # attach workflow to log entry
     return job_response
 
 
@@ -229,9 +237,12 @@ class TrainingJob:
             self,
             provider: str = 'ray',
             use_conda: bool = False,
-            cpu_count: int = 1,
-            gpu_count: int = 0,
-            memory_size: int = 0,
+            head_cpu_count: int = 1,
+            head_gpu_count: int = 0,
+            head_memory_size: int = 10,
+            worker_cpu_count: int = 1,
+            worker_gpu_count: int = 0,
+            worker_memory_size: int = 10,
             worker_count: int = 1,
             title: str = "",
             description: str = "",
@@ -255,12 +266,16 @@ class TrainingJob:
         self.__beaker_workflow_url = cu.hise_url('job_orchestrate',
                                                  'beaker_workflow')
         self.__review_job_url = cu.hise_url('job_orchestrate', 'review_job')
+
         # initialize attributes
         self.provider = provider
         self.package_manager = "conda" if use_conda else "pip"
-        self.cpu_count = cpu_count
-        self.gpu_count = gpu_count
-        self.memory_size = memory_size
+        self.head_cpu_count = head_cpu_count
+        self.head_gpu_count = head_gpu_count
+        self.head_memory_size = head_memory_size
+        self.worker_cpu_count = worker_cpu_count
+        self.worker_gpu_count = worker_gpu_count
+        self.worker_memory_size = worker_memory_size
         self.worker_count = worker_count
         self.title = title
         self.description = description
@@ -285,15 +300,35 @@ class TrainingJob:
 
     def _validate_params(self):
         # check types
-        if type(self.cpu_count) is not int:
-            raise Exception("cpu_count must be an int")
-        elif type(self.gpu_count) is not int:
-            raise Exception("gpu_count must be an int")
-        elif type(self.memory_size) is not int:
-            raise Exception("memory_size must be an int")
-        elif type(self.worker_count) is not int:
-            raise Exception("worker_count must be an int")
-        elif self.title is not None and type(self.title) is not str:
+        if type(self.head_cpu_count) is not int or self.head_cpu_count < 0:
+            raise Exception("head_cpu_count must be a non-negative integer")
+        elif type(self.head_gpu_count) is not int or self.head_gpu_count < 0:
+            raise Exception("head_gpu_count must be a non-negative integer")
+        elif type(
+                self.head_memory_size) is not int or self.head_memory_size < 0:
+            raise Exception("head_memory_size must be a non-negative integer")
+        elif type(self.worker_count) is not int or self.worker_count < 0:
+            raise Exception("worker_count must be a non-negative integer")
+        elif self.head_cpu_count == 0 and (self.head_gpu_count > 0
+                                           or self.head_memory_size > 0
+                                           or self.worker_count == 0):
+            raise Exception(
+                "when head_cpu_count is 0, head_gpu_count and head_memory_size must be 0, "
+                "and worker_count must be positive")
+        elif self.worker_count > 0:
+            if type(self.worker_cpu_count
+                    ) is not int or self.worker_cpu_count <= 0:
+                raise Exception("worker_cpu_count must be a positive integer")
+            elif type(self.worker_gpu_count
+                      ) is not int or self.worker_gpu_count < 0:
+                raise Exception(
+                    "worker_gpu_count must be a non-negative integer")
+            elif type(self.worker_memory_size
+                      ) is not int or self.worker_memory_size <= 0:
+                raise Exception(
+                    "worker_memory_size must be a positive integer")
+
+        if self.title is not None and type(self.title) is not str:
             raise Exception("title must be a string")
         elif self.description is not None and type(
                 self.description) is not str:
@@ -346,7 +381,6 @@ class TrainingJob:
             requests.get(self.__url, headers=get_bearer_token_header()))
 
     def convert_training_job_file_to_ray(self):
-
         # first check if the file is a notebook or a script
         if self.training_job_file_path.endswith('.ipynb'):
             # if it's a notebook, convert it to script
@@ -366,8 +400,10 @@ class TrainingJob:
             self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE'])
         rt.transform_to_ray(python_script_to_convert,
                             converted_script,
-                            num_gpus=self.gpu_count,
-                            num_cpus=self.cpu_count)
+                            num_gpus=self.worker_gpu_count
+                            if self.worker_count > 0 else self.head_gpu_count,
+                            num_cpus=self.worker_cpu_count
+                            if self.worker_count > 0 else self.head_cpu_count)
 
         # get list of ray remote targets
         ray_remote_targets = rt.get_ray_remote_targets(converted_script)
@@ -412,7 +448,6 @@ class TrainingJob:
         return
 
     def copy_scripts_and_dirs_to_temp(self):
-
         # define master list of directories and additional files
         app_files = self.additional_files + self.additional_dirs
 
@@ -497,17 +532,16 @@ class TrainingJob:
             'tags': self.tags,
             'outputPvcSize': self.output_file_size,
             'jobRequest': {
-                'headConfig':
-                {  # TODO: what should this headconfig actually be based on from user's params
-                    "cpus": self.cpu_count,
-                    "gpus": self.gpu_count,
-                    "memory": "{}G".format(str(self.memory_size))
+                'headConfig': {
+                    "cpus": self.head_cpu_count,
+                    "gpus": self.head_gpu_count,
+                    "memory": "{}G".format(str(self.head_memory_size))
                 },
                 'workerConfig': {
                     'replicas': self.worker_count,
-                    'cpus': self.cpu_count,
-                    'gpus': self.gpu_count,
-                    'memory': "{}G".format(str(self.memory_size))
+                    'cpus': self.worker_cpu_count,
+                    'gpus': self.worker_gpu_count,
+                    'memory': "{}G".format(str(self.worker_memory_size))
                 }
             },
             "harvestArtifactsRequest": {
@@ -538,17 +572,16 @@ class TrainingJob:
             'tags': self.tags,
             'outputPvcSize': self.output_file_size,
             'jobRequest': {
-                'headConfig':
-                {  # TODO: what should this headconfig actually be based on from user's params
-                    "cpus": self.cpu_count,
-                    "gpu": self.gpu_count,
-                    "memory": "{}G".format(str(self.memory_size))
+                'headConfig': {
+                    "cpus": self.head_cpu_count,
+                    "gpu": self.head_gpu_count,
+                    "memory": "{}G".format(str(self.head_memory_size))
                 },
                 'workerConfig': {
                     'replicas': self.worker_count,
-                    'cpus': self.cpu_count,
-                    'gpu': self.gpu_count,
-                    'memory': "{}G".format(str(self.memory_size)),
+                    'cpus': self.worker_cpu_count,
+                    'gpu': self.worker_gpu_count,
+                    'memory': "{}G".format(str(self.worker_memory_size))
                 }
             },
             "harvestArtifactsRequest": {
