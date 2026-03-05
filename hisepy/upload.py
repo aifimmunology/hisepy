@@ -10,6 +10,7 @@ import urllib
 import plotly
 import plotly.graph_objects as go
 import requests
+from pathlib import Path
 
 import hisepy.common_utils as cu
 import hisepy.upload_utils as hpu
@@ -18,6 +19,7 @@ from hisepy import auth
 from hisepy.auth import get_bearer_token_header, IDEInstance, debug, ide_is_from_regular_account, ide_is_from_guest_account, ide_is_from_certificate_account, guest_hise_server
 from hisepy.utils import conda_env_builds
 from hisepy.logging import with_default_logging, logger
+from hisepy.pixi_pack import get_pixi_env_dir
 
 dataframe_file_type = "Visualization-dataframe"
 upload_files_conda_env_checked = False
@@ -66,7 +68,7 @@ class DashAppImg:
         self.do_conda_build_check = do_conda_build_check
         self.data_mount_path = data_mount_path
         self.data_source_file_ids = data_source_file_ids
-        self.conda_pack_env_path = f"{CONFIG['STORES']['ENV_STORE']}/{hpu.get_conda_env_name()}"
+        self.conda_pack_env_path = f"{CONFIG['STORES']['ENV_STORE']}/{hpu.get_ide_env_name()}"
 
     def create_requirements_file(self) -> None:
         """Generate or compile a requirements.txt file for the Dash app."""
@@ -75,7 +77,7 @@ class DashAppImg:
         req_txt_path = f"{self.work_dir}/{app_dir}/requirements.txt"
 
         try:
-            if 'requirements.in' == os.path.basename(self.requirements):
+            if self.requirements and 'requirements.in' == os.path.basename(self.requirements):
                 subprocess.run([
                     "bash", "-c",
                     f"source /opt/conda/etc/profile.d/conda.sh && "
@@ -85,7 +87,7 @@ class DashAppImg:
                     f"{self.requirements}"
                 ],
                                check=True)
-            elif "requirements.txt" == os.path.basename(self.requirements):
+            elif self.requirements and "requirements.txt" == os.path.basename(self.requirements):
                 # save file to directory of app_filepath
                 shutil.copy(
                     self.requirements,
@@ -152,7 +154,7 @@ class DashAppImg:
         logger.debug("Upload response: %s", upload_resp)
 
         dash_flow_payload = {
-            "images": [self.hero_image],
+            "images": [img_resp["id"]],
         }
 
         # this will be the path where we mount all of the data
@@ -632,6 +634,19 @@ def upload_files(files: list,
             qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
         elif package_manager == "pixi": 
             qargs["condaEnvironmentFile"] = hpu.do_pixi_export(tmpdir)
+
+            # copy over additional files to temp dir
+            wheel_dir = get_pixi_env_dir() / "python-packages"
+            wheel_files = list(wheel_dir.glob("*.whl"))
+            if wheel_files:
+                logger.info("Copying additional package files to temp directory for upload...")
+                additional_packages = []
+                for wheel in wheel_files:
+                    shutil.copy2(wheel, Path(tmpdir) / wheel.name)
+                    additional_packages.append(Path(tmpdir) / wheel.name)
+                qargs['additionalPackages'] = [str(p) for p in additional_packages]
+            
+
         else:
             raise SystemError(f"{package_manager} is not supported")
     # only use fast_mode if the user made the call from upload_files_fast_mode
