@@ -92,6 +92,7 @@ LEDGER:
   SUBJECT_SEARCH_PATH : ledger/subject/q
   FILE_SEARCH_PATH : ledger/file/q
   RESULT_FILE_SEARCH_PATH: ledger/resultfile
+  FILE_METADATA_PATH: ledger/file
 
 # tracer endpoints
 TRACER:

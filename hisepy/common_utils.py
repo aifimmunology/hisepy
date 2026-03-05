@@ -136,6 +136,10 @@ def current_notebook():
                         % (num_printed_notebooks))
             the_current_notebook = notebooks[resp]
             return notebooks[resp]
+    
+    # check for whitespaces 
+    if string_contains_whitespaces(notebooks[0]):
+        raise ValueError("The current notebook has whitespaces in its name, which is not supported. Please rename the notebook to remove any whitespaces and try again. The notebook with whitespaces is: {}".format(notebooks[0]))
     return notebooks[0]
 
 
@@ -306,7 +310,7 @@ def is_valid_upload_kernel():
     kernel_source = sys.prefix
 
     # compare conda env from instance obj to conda env from current kernel
-    if conda_env_path != kernel_source:
+    if conda_env_path not in kernel_source:
         return False
     return True
 
@@ -462,7 +466,7 @@ def list_files_and_dirs(directory):
 
 
 def log_downloaded_files(file_id: str,
-                         sample_id: str = None,
+                         sample_ids: list = None,
                          ide_dir: str = None,
                          replica_file_id: str = None,
                          replica_sample_id: str = None):
@@ -500,7 +504,7 @@ def log_downloaded_files(file_id: str,
             data={
                 'fileId': [file_id],
                 'replicaFileId': [replica_file_id],
-                'sampleId': [sample_id],
+                'sampleId': sample_ids if isinstance(sample_ids, str) else [sample_ids],
                 'replicaSampleId': [replica_sample_id],
                 'downloadSourceDir': [download_workdir],
                 'downloadTimeStamp': [str(datetime.datetime.now())]

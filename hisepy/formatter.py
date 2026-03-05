@@ -62,23 +62,22 @@ def convert_single_val_to_df(df, single_val, col_name):
 
 
 def convert_dict_to_df(df, dict_val, col_name, add_prefix=True):
-    """ Converts a dictionary to a data.frame object
-    """
-    assert type(
-        dict_val
-    ) is dict, "Expected a dictionary to be of type dict. Received type %s" % type(
-        dict_val)
-    dict_val.update(
-        (k, [v]) for k, v in dict_val.items() if type(dict_val[k]) is not list)
-    dict_val.update((k, v.append('')) for k, v in dict_val.items()
-                    if type(v) is list and len(v) == 0)
-    dict_df_tmp = pd.DataFrame.from_dict(dict_val)
+    assert isinstance(dict_val, dict), \
+        f"Expected dict, got {type(dict_val)}"
+
+    # Ensure every value becomes a single cell
+    dict_val = {
+        k: [v] if not isinstance(v, list) else [v]
+        for k, v in dict_val.items()
+    }
+
+    dict_df_tmp = pd.DataFrame(dict_val)
+
     if add_prefix:
-        dict_df_tmp = dict_df_tmp.add_prefix('{}.'.format(col_name))
-    else:
-        pass
-    df = pd.concat([df, dict_df_tmp], axis=1)
-    return df
+        dict_df_tmp = dict_df_tmp.add_prefix(f"{col_name}.")
+
+    return pd.concat([df, dict_df_tmp], axis=1)
+
 
 
 def convert_list_to_df(df, list_val, col_name):
