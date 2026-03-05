@@ -6,6 +6,7 @@ import pathlib
 import uuid
 import time
 import math
+from hisepy.instances import IDEInstance
 from hisepy.auth import get_bearer_token_header, hise_server, debug
 import hisepy.lookup as hl
 import hisepy.common_utils as cu
@@ -260,6 +261,70 @@ def convert_file_data(file_data: dict, path_to_file: str):
                      data_values=this_file_values)
 
 
+def cache_files_using_descriptors(file_descriptors: list[dict]):
+    """ Helper function to cache files using file descriptors from ledger response """
+    dl_paths: List[str] = []
+    fail_files: List[str] = []
+    ide_name = IDEInstance().podName
+    for idx, f in enumerate(file_descriptors):
+        try:
+            if "error" in f:
+                msg = f["error"].get("Message", "Unknown error")
+                failed_file = f["error"].get("File", "Unknown file")
+                logger.error("Error downloading file %s: %s", failed_file, msg)
+                fail_files.append(failed_file)
+                continue
+
+            file_id, file_name, _ = parse_file_descriptor_from_hise_file(f)
+
+            if cu.is_legacy_ide():
+                log_dir = CONFIG["IDE"]["HOME_DIR"]
+                download_dir = os.path.join(
+                    CONFIG["IDE"]["HOME_DIR"],
+                    CONFIG["IDE"]["CACHE_DIR"],
+                    str(file_id),
+                )
+                fname = os.path.basename(file_name)
+                logger.info("Downloading fileID %s -> %s", file_id,
+                            download_dir)
+                cache_file(url=f["url"],
+                              file_name=fname,
+                              file_dir=download_dir)
+
+            # download file to current IDE architecture
+            else:
+                log_dir = CONFIG["STORES"]["TEMP_STORE"]
+                endpoint = "https://%s/%s/%s/%s" % (
+                    hise_server(),
+                    CONFIG["HYDRATION"]["DOWNLOAD_PATHV2"],
+                    file_id,
+                    ide_name,
+                )
+                dl_resp = cu.parse_hise_response(
+                    requests.request("GET",
+                                     endpoint,
+                                     headers=get_bearer_token_header()))
+                this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
+                                         dl_resp["Path"])
+                dl_paths.append(this_path)
+
+            # Log downloads
+            this_file_id = parse_file_id_from_hise_file(f)
+            this_sample_id = cu.parse_sample_id_from_hise_file(f)
+            cu.log_downloaded_files(this_file_id, this_sample_id, log_dir)
+
+        # don't outright fail, but log the error
+        except Exception as e:
+            logger.error("Unexpected error processing file response: %s", f)
+            fail_files.append(str(f))
+
+    if fail_files:
+        logger.warning("Some files failed to download: %s", fail_files)
+
+    return dl_paths
+
+
+
 def count_payload_entries(query: dict):
     """
     """
@@ -292,6 +357,16 @@ def gen_read_samples_subjects_query(ids_list: list = None,
     elif ids_list is not None:
         query = {"id": {"$in": ids_list}}
     return query
+
+
+def get_file_metadata(file_id: str): 
+    """
+    """
+    resp = cu.parse_hise_response(
+        requests.get(cu.hise_url("ledger", "file_metadata_path", file_id), 
+                    headers=get_bearer_token_header()))
+    
+    return resp
 
 
 def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
