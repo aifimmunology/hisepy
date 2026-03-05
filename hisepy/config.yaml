@@ -118,6 +118,7 @@ TRACER:
     - added
     - addedUser
   TRAINING_IMAGE: tracer/trainingimage
+  VISUALIZATION_BUILD_TEMPLATE: tracer/visualizationbuildtemplate
   
 # globals specific for IDE 
 IDE: 
@@ -148,6 +149,7 @@ IDE_MANAGEMENT:
   INSTALL_SDK: ide-nextgen/sdk/install
   SDK_VERSION: ide-nextgen/instances/sdk
   DASH_WORKFLOW: ide-nextgen/visualization/dash/workflow
+  VIZAPP_WORKFLOW: ide-nextgen/visualization/vizapp/workflow
   
 # NOTE: should this be separate from the rest of scheduler section? 
 TOOLCHAIN: 
