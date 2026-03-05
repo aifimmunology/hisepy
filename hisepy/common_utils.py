@@ -136,8 +136,8 @@ def current_notebook():
                         % (num_printed_notebooks))
             the_current_notebook = notebooks[resp]
             return notebooks[resp]
-    
-    # check for whitespaces 
+
+    # check for whitespaces
     if string_contains_whitespaces(notebooks[0]):
         raise ValueError("The current notebook has whitespaces in its name, which is not supported. Please rename the notebook to remove any whitespaces and try again. The notebook with whitespaces is: {}".format(notebooks[0]))
     return notebooks[0]
@@ -160,7 +160,7 @@ def find_files(directory, filenames):
     return files_list
 
 
-def get_conda_pack(conda_pack_id : str): 
+def get_conda_pack(conda_pack_id : str):
     endpoint = "https://{s}/{cp}/{id}".format(s=hise_server(),
     cp= CONFIG['IDE_MANAGEMENT']['CONDA_PACK'],
     id = conda_pack_id)
@@ -229,7 +229,7 @@ def get_ide_package_manager():
     ide = IDEInstance()
     conda_pack_guid = ide.condaPackId
 
-    # get conda pack 
+    # get conda pack
     conda_pack = get_conda_pack(conda_pack_guid)
 
     # return packageManager
@@ -465,7 +465,7 @@ def list_files_and_dirs(directory):
     return os.listdir(directory)
 
 
-def log_downloaded_files_or_samples(file_id: str = None,
+def log_downloaded_files(file_id: str,
                          sample_ids: list = None,
                          ide_dir: str = None,
                          replica_file_id: str = None,
