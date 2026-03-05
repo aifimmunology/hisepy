@@ -313,11 +313,6 @@ def cache_files_using_descriptors(file_descriptors: list[dict]):
             this_sample_id = cu.parse_sample_id_from_hise_file(f)
             cu.log_downloaded_files(this_file_id, this_sample_id, log_dir)
 
-            if file_ids:
-                # ensure correct file mapping
-                original_file_id = file_ids[idx]
-                log_replica_file_download(f, original_file_id, log_dir)
-
         # don't outright fail, but log the error
         except Exception as e:
             logger.error("Unexpected error processing file response: %s", f)
