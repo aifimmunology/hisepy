@@ -251,7 +251,7 @@ def resolve_upload_context(study_space_id, project, input_sample_ids,
     if study_space_id is None:
         study_space_id = select_study_space(project)
 
-    if not input_sample_ids:
+    if not input_sample_ids and do_prompt:
         input_sample_ids = select_input_samples()
 
     if project:
