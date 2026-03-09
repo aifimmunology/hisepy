@@ -152,7 +152,7 @@ def download_from_project_store_v1(store_name: str,
             _submit_url_download(this_url, store_name, i)
             ps_file_id = ps_df.loc[ps_df['name'].eq(i), 'id'].item()
 
-            cu.log_downloaded_files(ps_file_id, None,
+            cu.log_downloaded_files_or_samples(ps_file_id, None,
                                     CONFIG['STORES']['TEMP_STORE'])
     else:
         # create url download
@@ -165,7 +165,7 @@ def download_from_project_store_v1(store_name: str,
             fn=file_name)
         _submit_url_download(url, store_name, file_name)
         ps_file_id = ps_df.loc[ps_df['name'].eq(file_name), 'id'].item()
-        cu.log_downloaded_files(ps_file_id, None,
+        cu.log_downloaded_files_or_samples(ps_file_id, None,
                                 CONFIG['STORES']['TEMP_STORE'])
     return True
 
@@ -235,7 +235,7 @@ def download_from_project_store(store_name: str,
             obj = cu.parse_hise_response(response)
             local_path = obj.get("file")
             ps_file_id = ps_df.loc[ps_df['name'].eq(f), 'id'].item()
-            cu.log_downloaded_files(ps_file_id, None,
+            cu.log_downloaded_files_or_samples(ps_file_id, None,
                                     CONFIG['STORES']['TEMP_STORE'])
 
             logger.info(f"File '{f}' successfully downloaded to {local_path}")

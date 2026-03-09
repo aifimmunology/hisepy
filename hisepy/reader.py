@@ -97,7 +97,7 @@ def cache_files(file_ids: list[str] | None = None,
                     dl_paths.append(this_path)
 
                 # Log downloads
-                cu.log_downloaded_files(file_id, sample_ids, log_dir)
+                cu.log_downloaded_files_or_samples(file_id, sample_ids, log_dir)
                 
             # don't outright fail, but log the error
             except Exception as e:
@@ -276,7 +276,7 @@ def read_files(file_list: list[str] | None = None,
             # log activity
             file_id = ru.parse_file_id_from_hise_file(f)
             sample_id = cu.parse_sample_id_from_hise_file(f)
-            cu.log_downloaded_files(file_id, sample_id, log_dir)
+            cu.log_downloaded_files_or_samples(file_id, sample_id, log_dir)
 
             # attempt to log replica files for guest accounts
             if file_list:
@@ -356,7 +356,7 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
 
         dict_df = hf.sample_to_df(obj["payload"])
         dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
-        cu.log_downloaded_files(sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
+        cu.log_downloaded_files_or_samples(sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
         return dict_df
 
     except Exception as e:
@@ -495,7 +495,7 @@ def cache_fileset(fileset_id: str) -> list[str]:
 
         # log file ids
         for f in list(fileset_obj[0]['fileIds'].keys()):
-            cu.log_downloaded_files(file_id=f,
+            cu.log_downloaded_files_or_samples(file_id=f,
                                     ide_dir=CONFIG['STORES']['TEMP_STORE'])
 
         # return the user all the files that were downloaded
