@@ -253,7 +253,9 @@ def resolve_upload_context(study_space_id, project, input_sample_ids,
 
     if not input_sample_ids and do_prompt:
         input_sample_ids = select_input_samples()
-
+    else: 
+        input_sample_ids = []
+        
     if project:
         if do_prompt:
             check_default_project(project)
