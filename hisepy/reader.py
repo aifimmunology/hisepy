@@ -356,6 +356,7 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
 
         dict_df = hf.sample_to_df(obj["payload"])
         dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
+        cu.log_downloaded_files(sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
         return dict_df
 
     except Exception as e:
