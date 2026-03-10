@@ -7,7 +7,7 @@ import shutil
 from hisepy.utils import conda_env_builds
 from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
 import hisepy.common_utils as cu
-from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store
+from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store, get_default_store
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -322,7 +322,8 @@ def validate_app_path(app_path: str) -> None:
         raise ValueError(f"Filepath contains whitespace: {app_path}")
 
 
-def validate_files(filenames: list[str], filedirs: list[str] = []) -> None:
+def validate_files(filenames: list[str],
+                   filedirs: list[str] | None = None) -> None:
     """Ensure all provided files exist, are under /home/jupyter, and contain no spaces."""
     ide_dir = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
     ) else IDE_HOME_DIR
@@ -338,7 +339,7 @@ def validate_files(filenames: list[str], filedirs: list[str] = []) -> None:
         elif not os.path.isfile(abs_path):
             raise ValueError(f"Filepath is not a file: {abs_path}")
 
-    for path in filedirs:
+    for path in (filedirs or []):
         abs_path = os.path.abspath(path)
         if cu.string_contains_whitespaces(abs_path):
             raise ValueError(f"Whitespace detected in filepath: {abs_path}")
