@@ -330,10 +330,11 @@ def save_visualization_app(
     with tarfile.open(tarfile_path, 'w:gz') as tar:
         tar.add(tmpdirname, arcname='')
 
-    logger.debug('Uploading hero image: %s', png_image)
-    img_resp = save_static_image(image=png_image,
-                                 title=title,
-                                 study_space_id=study_space_id)
+    logger.debug("Uploading hero image: %s", png_image)
+    img_resp = save_static_image(
+        image=png_image,
+        title=title if len(title) >= 10 else "visualization app static image",
+        study_space_id=study_space_id)
 
     if img_resp.get('error'):
         logger.warning('Error uploading image: %s', img_resp['error'])
