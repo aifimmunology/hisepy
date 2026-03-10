@@ -272,7 +272,7 @@ def save_visualization_app(
         build_template_name: str = '',
         build_template_major_version: int = -1,
         build_template_minor_version: int = -1,
-        build_template_parameters: dict[str, str] = {},
+        build_template_parameters: dict[str, str] | None = None,
         infer_build_template_arguments: bool = True) -> dict:
     if title == '':
         raise RuntimeError('A non-empty title is required')
@@ -307,7 +307,11 @@ def save_visualization_app(
     template_params = {}
     for template_var in vbt['buildVariables']:
         varName = template_var['varName']
-        if varName in build_template_parameters:
+        if isinstance(
+                build_template_parameters,
+                dict) and varName in build_template_parameters and re.search(
+                    template_var['matchRegex'],
+                    build_template_parameters[varName]):
             template_params[varName] = build_template_parameters[varName]
         else:
             template_params[varName] = get_template_variable(
@@ -316,7 +320,7 @@ def save_visualization_app(
 
     tmpdirname = tempfile.mkdtemp(prefix=CONFIG['STORES']['TEMP_STORE'])
     os.chmod(tmpdirname, 0o777)
-    logger.info("Created temporary directory for Dash app build: %s",
+    logger.info("Created temporary directory for Visualization App build: %s",
                 tmpdirname)
 
     hpu.create_temp_directory_files(list(all_files), tmpdirname)
@@ -335,7 +339,7 @@ def save_visualization_app(
         logger.warning("Error uploading image: %s", img_resp["error"])
 
     vizapp_workflow_url = hise_url("ide_management", "vizapp_workflow")
-    logger.info("Creating Dash workflow: %s", vizapp_workflow_url)
+    logger.info("Creating Visualization App workflow: %s", vizapp_workflow_url)
     resp = requests.post(vizapp_workflow_url,
                          json={
                              'artifactsFileName': tarfile_path,
@@ -363,12 +367,12 @@ def get_template_variable(template_var: dict[str,
                                              Any], application_files: set[str],
                           application_dirs: set[str],
                           infer_build_template_arguments: bool) -> str:
-    type = BuildTemplateVariableType.OTHER
+    var_type = BuildTemplateVariableType.OTHER
     if template_var['isPath']:
-        type = BuildTemplateVariableType.DIRECTORY if template_var[
+        var_type = BuildTemplateVariableType.DIRECTORY if template_var[
             'directoryStructure'] is not None else BuildTemplateVariableType.FILE
 
-    match type:
+    match var_type:
         case BuildTemplateVariableType.FILE:
             if infer_build_template_arguments:
                 found_file = ''
@@ -441,7 +445,7 @@ def get_template_variable(template_var: dict[str,
                     return ''
                 elif re.search(template_var['matchRegex'], user_input):
                     return user_input
-    raise RuntimeError(f'impossible BuildTemplateVariableType {type}')
+    raise RuntimeError(f'impossible BuildTemplateVariableType {var_type}')
 
 
 def user_included_directory_structure(
@@ -468,12 +472,12 @@ def user_included_directory_structure(
             break
 
     for name, val in dir_structure.items():
-        if type(val) is dict:
+        if isinstance(val, dict):
             dirname = os.path.join(user_dir, name)
             if not dirname in dirs or not user_included_directory_structure(
-                    dirname, val, included_dirs, included_files):
+                    dirname, val, included_files, included_dirs):
                 return False
-        elif type(val) is str:
+        elif isinstance(val, str):
             # Do we have a file with this exact name?
             if val == '':
                 return os.path.join(user_dir, name) in files
@@ -494,10 +498,10 @@ def get_build_template(build_template_name: str,
         return templates[0]
     elif len(templates) == 0:
         raise RuntimeError(
-            'No visualization templates found with name %s version %s.%s' % (
-                build_template_name,
-                '*' if build_template_major_version < 0 else build_template_major_version,
-                '*' if build_template_minor_version < 0 else build_template_minor_version))
+            'No visualization templates found with name %s version %s.%s' %
+            (build_template_name, '*' if build_template_major_version < 0 else
+             build_template_major_version, '*' if build_template_minor_version
+             < 0 else build_template_minor_version))
 
     template_df = pd.DataFrame({
         'Name': [vbt['name'] for vbt in templates],
@@ -530,22 +534,22 @@ def get_build_template(build_template_name: str,
 def get_build_templates(build_template_name: str,
                         build_template_major_version: int,
                         build_template_minor_version: int) -> list:
-    filter = {}
-    filter["deprecated"] = "false"
+    query_filter = {}
+    query_filter["deprecated"] = "false"
     if build_template_name != "":
-        filter["name"] = build_template_name
+        query_filter["name"] = build_template_name
         if build_template_major_version >= 0:
-            filter["version.major"] = build_template_major_version
+            query_filter["version.major"] = build_template_major_version
             if build_template_minor_version >= 0:
-                filter["version.minor"] = build_template_minor_version
-                del filter[
+                query_filter["version.minor"] = build_template_minor_version
+                del query_filter[
                     "deprecated"]  # they specified the exact template; include deprecated ones
 
     resp = cu.requests.post(url=hise_url("tracer",
                                          "visualization_build_template",
                                          "filter"),
                             headers=get_bearer_token_header(),
-                            json={"Filter": filter})
+                            json={"Filter": query_filter})
     return resp.json()
 
 
