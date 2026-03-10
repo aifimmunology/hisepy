@@ -260,60 +260,22 @@ def retry_ide_commit(id: str):
 
 
 @with_default_logging
-def save_visualization_app(application_files: list[str],
-                           application_dirs: list[str],
-                           study_space_id: str,
-                           title: str,
-                           png_image: str,
-                           data_mount_path: str,
-                           data_source_file_ids: list[str],
-                           description: str = '',
-                           build_template_name: str = '',
-                           build_template_major_version: int = -1,
-                           build_template_minor_version: int = -1,
-                           build_template_parameters: dict[str, str]
-                           | None = None,
-                           infer_build_template_arguments: bool = True) -> str:
-    """
-    Given an app supported by HISE Visualization Build Templates, upload and deploy that
-    app to HISE as a visualization in the given study space.
-
-    Parameters:
-        application_files (list): list of individual files used by your app (e.g., custom CSS).
-            Only files under /home/workspace can be included.
-        application_dirs (list): list of directories used by your app.
-            Directories specified are for configs or scripts, not input data.
-        study_space_id (str): UUID of study space to save app to
-        title (str): a 10+ character title for the app
-        png_image (str): png thumbnail image for app in study space
-        data_mount_path (str): path of directory where input datasets should be read from
-        data_source_file_ids list[str] : file IDs in HISE of input data to your app
-        description (str): description of app being uploaded
-        build_template_name (str): the name of the HISE Visualization Build Template framework
-            (i.e. dash, deckgl), if known in advance
-        build_template_major_version (int): the major version number of the desired
-            HISE Visualization Build Template framework, if known in advance
-        build_template_major_version (int): the minor version number of the desired
-            HISE Visualization Build Template framework, if known in advance
-        build_template_parameters (dict[str, str]): the framework-specific arguments required by the
-            HISE Visualization Build Template, if known in advance
-        infer_build_template_arguments (bool): flag for whether this method should try to infer paths
-            for HISE Visualization Build Template arguments
-
-    Returns:
-        Response from server
-    Example:
-        hisepy.save_visualization_app(application_files='dash_app/app.py',
-                            application_dirs=['data'],
-                            study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                            title="Hello world Dash app",
-                            png_image="dash_app/thumbnail.png",
-                            data_mount_path='/my_mount_path'
-                            data_source_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
-                            description="An amazingly complex data visualization")
-    """
-    if len(title) < 10:
-        raise RuntimeError('Your title must be at least 10 characters long')
+def save_visualization_app(
+        application_files: list[str],
+        application_dirs: list[str],
+        study_space_id: str,
+        title: str,
+        png_image: str,
+        data_mount_path: str,
+        data_source_file_ids: list[str],
+        description: str = '',
+        build_template_name: str = '',
+        build_template_major_version: int = -1,
+        build_template_minor_version: int = -1,
+        build_template_parameters: dict[str, str] | None = None,
+        infer_build_template_arguments: bool = True) -> dict:
+    if title == '':
+        raise RuntimeError('A non-empty title is required')
     elif data_mount_path == '':
         raise RuntimeError('A non-empty data_mount_path is required')
     elif len(data_source_file_ids) == 0:
@@ -345,16 +307,16 @@ def save_visualization_app(application_files: list[str],
     template_params = {}
     for template_var in vbt['buildVariables']:
         varName = template_var['varName']
-        var_value = None
         if isinstance(
                 build_template_parameters,
                 dict) and varName in build_template_parameters and re.search(
                     template_var['matchRegex'],
                     build_template_parameters[varName]):
-            var_value = build_template_parameters[varName]
-        template_params[varName] = get_template_variable(
-            template_var, all_files, all_dirs, infer_build_template_arguments,
-            var_value)
+            template_params[varName] = build_template_parameters[varName]
+        else:
+            template_params[varName] = get_template_variable(
+                template_var, all_files, all_dirs,
+                infer_build_template_arguments)
 
     tmpdirname = tempfile.mkdtemp(dir=CONFIG['STORES']['TEMP_STORE'])
     os.chmod(tmpdirname, 0o777)
@@ -376,8 +338,8 @@ def save_visualization_app(application_files: list[str],
     if img_resp.get('error'):
         logger.warning('Error uploading image: %s', img_resp['error'])
 
-    vizapp_workflow_url = hise_url('ide_management', 'vizapp_workflow')
-    logger.info('Creating Visualization App workflow: %s', vizapp_workflow_url)
+    vizapp_workflow_url = hise_url("ide_management", "vizapp_workflow")
+    logger.info("Creating Visualization App workflow: %s", vizapp_workflow_url)
     resp = requests.post(vizapp_workflow_url,
                          json={
                              'artifactsFileName': tarfile_path,
@@ -407,19 +369,11 @@ class BuildTemplateVariableType(Enum):
 def get_template_variable(template_var: dict[str,
                                              Any], application_files: set[str],
                           application_dirs: set[str],
-                          infer_build_template_arguments: bool,
-                          provided_value: str | None) -> str:
-    if provided_value == '' and not template_var['required']:
-        return provided_value
-
+                          infer_build_template_arguments: bool) -> str:
     var_type = BuildTemplateVariableType.OTHER
     if template_var['isPath']:
-        ds = template_var['directoryStructure']
-        var_type = BuildTemplateVariableType.DIRECTORY if isinstance(
-            ds, dict) and len(ds) > 0 else BuildTemplateVariableType.FILE
-
-    def get_user_input() -> str:
-        return input(f'Please enter {template_var["friendlyName"]}:')
+        var_type = BuildTemplateVariableType.DIRECTORY if template_var[
+            'directoryStructure'] is not None else BuildTemplateVariableType.FILE
 
     match var_type:
         case BuildTemplateVariableType.FILE:
@@ -525,7 +479,7 @@ def user_included_directory_structure(
     for name, val in dir_structure.items():
         if isinstance(val, dict):
             dirname = os.path.join(user_dir, name)
-            if not dirname in included_dirs or not user_included_directory_structure(
+            if not dirname in dirs or not user_included_directory_structure(
                     dirname, val, included_files, included_dirs):
                 return False
         elif isinstance(val, str):
@@ -549,10 +503,10 @@ def get_build_template(build_template_name: str,
         return templates[0]
     elif len(templates) == 0:
         raise RuntimeError(
-            'No visualization templates found with name %s version %s.%s' % (
-                build_template_name,
-                '*' if build_template_major_version < 0 else build_template_major_version,
-                '*' if build_template_minor_version < 0 else build_template_minor_version))
+            'No visualization templates found with name %s version %s.%s' %
+            (build_template_name, '*' if build_template_major_version < 0 else
+             build_template_major_version, '*' if build_template_minor_version
+             < 0 else build_template_minor_version))
 
     template_df = pd.DataFrame({
         'Template Framework': [vbt['name'] for vbt in templates],
