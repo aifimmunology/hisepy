@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 import yaml
 import shutil
+import math
 from hisepy.utils import conda_env_builds
 from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
 import hisepy.common_utils as cu
@@ -157,6 +158,40 @@ def ensure_conda_env_ready(do_check: bool):
         raise RuntimeError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
 
 
+def flatten_sample_column(col):
+    result = set()
+    for entry in col:
+        if isinstance(entry, list):
+            result.update(entry)
+        elif isinstance(entry, str):
+            entry = entry.strip()
+            # Try to parse stringified list
+            if entry.startswith('[') and entry.endswith(']'):
+                try:
+                    # ast.literal_eval handles single or double quotes and spaces
+                    parsed = ast.literal_eval(entry)
+                    if isinstance(parsed, list):
+                        result.update(parsed)
+                    else:
+                        result.add(str(parsed))
+                except Exception:
+                    # fallback if parsing fails
+                    # remove surrounding brackets and split manually
+                    cleaned = entry[1:-1].strip()
+                    # split on comma and strip spaces and quotes
+                    items = [x.strip(" '\"") for x in cleaned.split(',')]
+                    result.update(items)
+            else:
+                # plain string
+                result.add(entry)
+        elif entry is None or (isinstance(entry, float) and math.isnan(entry)):
+            continue  # skip NaN
+        else:
+            # fallback for other types
+            result.add(str(entry))
+    return result
+
+
 def gen_upload_body(files, filetypes=[]):
     body = {"files": []}
     for i, f in enumerate(files):
@@ -253,7 +288,7 @@ def resolve_upload_context(study_space_id, project, input_sample_ids,
 
     if not input_sample_ids and do_prompt:
         input_sample_ids = select_input_samples()
-    else: 
+    elif not input_sample_ids: 
         input_sample_ids = []
         
     if project:
@@ -418,11 +453,15 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
                 f not in cache_df['replicaFileId'].unique()):
             invalid_file_ids += [f]
 
-    invalid_sample_ids = []
-    for s in input_sample_ids:
-        if (s not in cache_df['sampleId'].unique()) and (
-                s not in cache_df['replicaSampleId'].unique()):
-            invalid_sample_ids += [s]
+    
+    sample_ids_set = flatten_sample_column(cache_df['sampleId'])
+    replica_ids_set = flatten_sample_column(cache_df['replicaSampleId'])
+
+    # Find invalid sample IDs
+    invalid_sample_ids = [
+        s for s in input_sample_ids
+        if s not in sample_ids_set and s not in replica_ids_set
+    ]
 
     if len(invalid_file_ids) > 0:
         raise ValueError(
