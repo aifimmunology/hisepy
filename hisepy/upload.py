@@ -196,9 +196,9 @@ def get_default_project():
 
 @with_default_logging
 def get_study_spaces(to_df: bool = False):
-    """ 
-    Returns list of studies a user has access to 
-    
+    """
+    Returns list of studies a user has access to
+
     Parameters:
         to_df (bool): return a data.frame object if set to True
     """
@@ -281,25 +281,25 @@ def save_visualization_app(application_files: list[str],
     Parameters:
         application_files (list): list of individual files used by your app (e.g., custom CSS).
             Only files under /home/workspace can be included.
-        application_dirs (list): list of directories used by your app. 
+        application_dirs (list): list of directories used by your app.
             Directories specified are for configs or scripts, not input data.
         study_space_id (str): UUID of study space to save app to
         title (str): a 10+ character title for the app
         png_image (str): png thumbnail image for app in study space
-        data_mount_path (str): path of directory where input datasets should be read from 
+        data_mount_path (str): path of directory where input datasets should be read from
         data_source_file_ids list[str] : file IDs in HISE of input data to your app
         description (str): description of app being uploaded
         build_template_name (str): the name of the HISE Visualization Build Template framework
             (i.e. dash, deckgl), if known in advance
-        build_template_major_version (int): the major version number of the desired 
+        build_template_major_version (int): the major version number of the desired
             HISE Visualization Build Template framework, if known in advance
-        build_template_major_version (int): the minor version number of the desired 
+        build_template_major_version (int): the minor version number of the desired
             HISE Visualization Build Template framework, if known in advance
         build_template_parameters (dict[str, str]): the framework-specific arguments required by the
             HISE Visualization Build Template, if known in advance
         infer_build_template_arguments (bool): flag for whether this method should try to infer paths
             for HISE Visualization Build Template arguments
-        
+
     Returns:
         Response from server
     Example:
@@ -551,11 +551,8 @@ def get_build_template(build_template_name: str,
         raise RuntimeError(
             'No visualization templates found with name %s version %s.%s' % (
                 build_template_name,
-                '*' if build_template_major_version < 0 else
-                build_template_major_version,
-                '*' if build_template_minor_version < 0 else
-                build_template_minor_version,
-            ))
+                '*' if build_template_major_version < 0 else build_template_major_version,
+                '*' if build_template_minor_version < 0 else build_template_minor_version))
 
     template_df = pd.DataFrame({
         'Template Framework': [vbt['name'] for vbt in templates],
@@ -630,7 +627,7 @@ def save_dash_app(app_filepath: str,
             (i.e., ends with `app.run_server(host='0.0.0.0')`)
         additional_files (list): list of additional files used by your app (e.g., custom CSS).
             Only files under /home/jupyter can be included.
-        additional_dirs (list): list of additional directories for your app. 
+        additional_dirs (list): list of additional directories for your app.
             Directories specified are for configs, or additional scripts, not input data.
         input_file_ids (list): list of HISE file UUIDs that this app visualizes
         study_space_id (str): UUID of study space to save app to
@@ -638,8 +635,8 @@ def save_dash_app(app_filepath: str,
         description (str): description of app being uploaded
         image (str): png thumbnail image for app in study space
         input_sample_ids (list): list of samples UUIDs that this app visualizes
-        data_mount_path (str): path of directory where input datasets should be read from 
-        data_source_file_ids list[str] : file IDs in HISE of input data to a dash app 
+        data_mount_path (str): path of directory where input datasets should be read from
+        data_source_file_ids list[str] : file IDs in HISE of input data to a dash app
     Returns:
         Response from server
     Example:
