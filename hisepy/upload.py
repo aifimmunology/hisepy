@@ -498,10 +498,13 @@ def get_build_template(build_template_name: str,
         return templates[0]
     elif len(templates) == 0:
         raise RuntimeError(
-            'No visualization templates found with name %s version %s.%s' %
-            (build_template_name, '*' if build_template_major_version < 0 else
-             build_template_major_version, '*' if build_template_minor_version
-             < 0 else build_template_minor_version))
+            'No visualization templates found with name %s version %s.%s' % (
+                build_template_name,
+                '*' if build_template_major_version < 0 else
+                build_template_major_version,
+                '*' if build_template_minor_version < 0 else
+                build_template_minor_version,
+            ))
 
     template_df = pd.DataFrame({
         'Name': [vbt['name'] for vbt in templates],
