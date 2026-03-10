@@ -274,8 +274,8 @@ def save_visualization_app(
         build_template_minor_version: int = -1,
         build_template_parameters: dict[str, str] | None = None,
         infer_build_template_arguments: bool = True) -> dict:
-    if title == '':
-        raise RuntimeError('A non-empty title is required')
+    if len(title) < 10:
+        raise RuntimeError('Your title must be at least 10 characters long')
     elif data_mount_path == '':
         raise RuntimeError('A non-empty data_mount_path is required')
     elif len(data_source_file_ids) == 0:
@@ -331,10 +331,9 @@ def save_visualization_app(
         tar.add(tmpdirname, arcname='')
 
     logger.debug("Uploading hero image: %s", png_image)
-    img_resp = save_static_image(
-        image=png_image,
-        title=title if len(title) >= 10 else "visualization app static image",
-        study_space_id=study_space_id)
+    img_resp = save_static_image(image=png_image,
+                                 title=title,
+                                 study_space_id=study_space_id)
 
     if img_resp.get('error'):
         logger.warning('Error uploading image: %s', img_resp['error'])
