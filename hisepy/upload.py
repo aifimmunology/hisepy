@@ -307,16 +307,16 @@ def save_visualization_app(
     template_params = {}
     for template_var in vbt['buildVariables']:
         varName = template_var['varName']
+        var_value = None
         if isinstance(
                 build_template_parameters,
                 dict) and varName in build_template_parameters and re.search(
                     template_var['matchRegex'],
                     build_template_parameters[varName]):
-            template_params[varName] = build_template_parameters[varName]
-        else:
-            template_params[varName] = get_template_variable(
-                template_var, all_files, all_dirs,
-                infer_build_template_arguments)
+            var_value = build_template_parameters[varName]
+        template_params[varName] = get_template_variable(
+            template_var, all_files, all_dirs, infer_build_template_arguments,
+            var_value)
 
     tmpdirname = tempfile.mkdtemp(dir=CONFIG['STORES']['TEMP_STORE'])
     os.chmod(tmpdirname, 0o777)
@@ -366,15 +366,22 @@ class BuildTemplateVariableType(Enum):
 def get_template_variable(template_var: dict[str,
                                              Any], application_files: set[str],
                           application_dirs: set[str],
-                          infer_build_template_arguments: bool) -> str:
+                          infer_build_template_arguments: bool,
+                          provided_value: str | None) -> str:
+    if provided_value == '' and not template_var['required']:
+        return provided_value
+
     var_type = BuildTemplateVariableType.OTHER
     if template_var['isPath']:
         var_type = BuildTemplateVariableType.DIRECTORY if template_var[
             'directoryStructure'] is not None else BuildTemplateVariableType.FILE
 
+    def get_user_input() -> str:
+        return input(f'Please enter {template_var["friendlyName"]}:')
+
     match var_type:
         case BuildTemplateVariableType.FILE:
-            if infer_build_template_arguments:
+            if infer_build_template_arguments and provided_value is None:
                 found_file = ''
                 for candidate in application_files:
                     if re.search(template_var['matchRegex'], candidate):
@@ -387,9 +394,8 @@ def get_template_variable(template_var: dict[str,
                 if found_file != '':
                     return found_file
 
+            user_input = provided_value or get_user_input()
             while True:
-                user_input = input(
-                    f'Please enter {template_var["friendlyName"]}:')
                 if user_input == '' and not template_var['required']:
                     return ''
                 elif re.search(template_var['matchRegex'],
@@ -397,9 +403,11 @@ def get_template_variable(template_var: dict[str,
                     user_input_abspath = os.path.abspath(user_input)
                     application_files.add(user_input_abspath)
                     return user_input_abspath
+
+                user_input = get_user_input()
         case BuildTemplateVariableType.DIRECTORY:
             dir_structure = template_var['directoryStructure']
-            if infer_build_template_arguments:
+            if infer_build_template_arguments and provided_value is None:
                 found_dir = ''
                 for candidate in application_dirs:
                     if user_included_directory_structure(
@@ -414,9 +422,8 @@ def get_template_variable(template_var: dict[str,
                 if found_dir != '':
                     return found_dir
 
+            user_input = provided_value or get_user_input()
             while True:
-                user_input = input(
-                    f'Please enter {template_var["friendlyName"]}:')
                 if user_input == '' and not template_var['required']:
                     return ''
                 elif re.search(template_var['matchRegex'],
@@ -437,10 +444,11 @@ def get_template_variable(template_var: dict[str,
                                 for filename in filenames
                             ])
                         return user_input_abspath
+
+                user_input = get_user_input()
         case BuildTemplateVariableType.OTHER:
             while True:
-                user_input = input(
-                    f'Please enter {template_var["friendlyName"]}:')
+                user_input = get_user_input()
                 if user_input == '' and not template_var['required']:
                     return ''
                 elif re.search(template_var['matchRegex'], user_input):
@@ -453,37 +461,38 @@ def user_included_directory_structure(
         dir_structure: dict,
         included_files: set[str] | None = None,
         included_dirs: set[str] | None = None) -> bool:
+    # We run this function in two modes:
+    #   1. Check that the passed-in files and directories contain the provided directory structure rooted at user_dir
+    #   2. Check that the filesystem itself contains the provided directory structure rooted at user_dir
     if operator.xor(included_files is None, included_dirs is None):
         raise RuntimeError(
             'either both files and dirs must be included or neither files nor dirs can be included'
         )
 
-    dirs = set([])
-    files = set([])
-    if included_dirs is not None and included_files is not None:
-        dirs = included_dirs
-        files = included_files
-    else:
+    # We're checking the filesystem itself. Grab all the files and directories rooted at user_dir
+    if included_dirs is None or included_files is None:
+        included_dirs = set([])
+        included_files = set([])
         for (dirpath, dirnames, filenames) in os.walk(user_dir):
-            dirs = set(
+            included_dirs = set(
                 [os.path.join(dirpath, dirname) for dirname in dirnames])
-            files = set(
+            included_files = set(
                 [os.path.join(dirpath, filename) for filename in filenames])
             break
 
     for name, val in dir_structure.items():
         if isinstance(val, dict):
             dirname = os.path.join(user_dir, name)
-            if not dirname in dirs or not user_included_directory_structure(
+            if not dirname in included_dirs or not user_included_directory_structure(
                     dirname, val, included_files, included_dirs):
                 return False
         elif isinstance(val, str):
             # Do we have a file with this exact name?
             if val == '':
-                return os.path.join(user_dir, name) in files
+                return os.path.join(user_dir, name) in included_files
 
             # Do we have a file that matches this regex?
-            if not any(re.search(val, file) for file in files):
+            if not any(re.search(val, file) for file in included_files):
                 return False
     return True
 
@@ -507,7 +516,7 @@ def get_build_template(build_template_name: str,
             ))
 
     template_df = pd.DataFrame({
-        'Name': [vbt['name'] for vbt in templates],
+        'Template Framework': [vbt['name'] for vbt in templates],
         'Version': [vbt['githubLink'] for vbt in templates],
         'Description': [vbt['description'] for vbt in templates]
     })
