@@ -1,16 +1,19 @@
 import os
 import pyreadr
+import requests
 import subprocess
 from pathlib import Path
 import yaml
 import shutil
+import math
 from hisepy.utils import conda_env_builds
-from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
+from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug, get_bearer_token_header, guest_hise_server
 import hisepy.common_utils as cu
-from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store
+from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store, get_default_store
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not debug() else os.getcwd()
 
 no_study_default = "no study"
 permanent_store = "permanent"
@@ -106,8 +109,7 @@ def do_conda_export(to_directory: str = ""):
     conda_export_dest = os.path.join(to_directory, "environment.yml")
 
     # export to scratch and move to to staging store
-    env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
-                             get_ide_env_name())
+    env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"], get_ide_env_name())
     result = subprocess.run(
         ["conda", "env", "export", "-p",
          str(env_dir)],
@@ -127,7 +129,7 @@ def do_conda_export(to_directory: str = ""):
     return conda_export_dest
 
 
-def do_pixi_export(to_directory): 
+def do_pixi_export(to_directory):
     """
     Exports the current Pixi environment to a file
     """
@@ -137,12 +139,12 @@ def do_pixi_export(to_directory):
     if not os.path.isdir(to_directory) and not debug():
         raise ValueError("directory {dir} is not a valid directory".format(
             dir=to_directory))
-        
+
     # pack environment; copy manifests over to scratch
-    env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'],
-            get_ide_env_name())
-    if not os.path.isdir(env_dir) and not debug(): 
-        raise ValueError("directory {dir} is not a valid directory".format(dir=env_dir))
+    env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'], get_ide_env_name())
+    if not os.path.isdir(env_dir) and not debug():
+        raise ValueError(
+            "directory {dir} is not a valid directory".format(dir=env_dir))
     pixi_export_dest = os.path.join(to_directory, "pixi.toml")
     pixi_manifest_src = os.path.join(env_dir, 'pixi.toml')
 
@@ -155,6 +157,40 @@ def ensure_conda_env_ready(do_check: bool):
         return
     if not conda_env_builds():
         raise RuntimeError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
+
+
+def flatten_sample_column(col):
+    result = set()
+    for entry in col:
+        if isinstance(entry, list):
+            result.update(entry)
+        elif isinstance(entry, str):
+            entry = entry.strip()
+            # Try to parse stringified list
+            if entry.startswith('[') and entry.endswith(']'):
+                try:
+                    # ast.literal_eval handles single or double quotes and spaces
+                    parsed = ast.literal_eval(entry)
+                    if isinstance(parsed, list):
+                        result.update(parsed)
+                    else:
+                        result.add(str(parsed))
+                except Exception:
+                    # fallback if parsing fails
+                    # remove surrounding brackets and split manually
+                    cleaned = entry[1:-1].strip()
+                    # split on comma and strip spaces and quotes
+                    items = [x.strip(" '\"") for x in cleaned.split(',')]
+                    result.update(items)
+            else:
+                # plain string
+                result.add(entry)
+        elif entry is None or (isinstance(entry, float) and math.isnan(entry)):
+            continue  # skip NaN
+        else:
+            # fallback for other types
+            result.add(str(entry))
+    return result
 
 
 def gen_upload_body(files, filetypes=[]):
@@ -193,7 +229,7 @@ def get_study_space(id: str):
     """ Returns the given study space, assuming the user has access """
     return cu.parse_hise_response(
         requests.request("GET",
-                         hise_url("tracer", "study_space_path", id),
+                         cu.hise_url("tracer", "study_space_path", id),
                          headers=get_bearer_token_header()))
 
 
@@ -251,9 +287,11 @@ def resolve_upload_context(study_space_id, project, input_sample_ids,
     if study_space_id is None:
         study_space_id = select_study_space(project)
 
-    if not input_sample_ids:
+    if not input_sample_ids and do_prompt:
         input_sample_ids = select_input_samples()
-
+    elif not input_sample_ids: 
+        input_sample_ids = []
+        
     if project:
         if do_prompt:
             check_default_project(project)
@@ -270,7 +308,7 @@ def resolve_upload_context(study_space_id, project, input_sample_ids,
 
 def select_input_samples():
     provided_samples = cu.prompt_for_input(
-        "Please provide input of comma separated sample ids for the files being uploaded: "
+        "Please provide input of comma separated sample ids for the files being uploaded. If you do not have any sample ids, press enter: "
     )
     # Check for empty input
     if provided_samples is None or provided_samples == "":
@@ -322,7 +360,8 @@ def validate_app_path(app_path: str) -> None:
         raise ValueError(f"Filepath contains whitespace: {app_path}")
 
 
-def validate_files(filenames: list[str]) -> None:
+def validate_files(filenames: list[str],
+                   filedirs: list[str] | None = None) -> None:
     """Ensure all provided files exist, are under /home/jupyter, and contain no spaces."""
     ide_dir = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
     ) else IDE_HOME_DIR
@@ -330,17 +369,33 @@ def validate_files(filenames: list[str]) -> None:
         abs_path = os.path.abspath(path)
         if cu.string_contains_whitespaces(abs_path):
             raise ValueError(f"Whitespace detected in filepath: {abs_path}")
-        if not os.path.exists(abs_path):
+        elif not os.path.exists(abs_path):
             raise FileNotFoundError(f"File not found: {abs_path}")
-        if not abs_path.startswith(ide_dir):
+        elif not abs_path.startswith(ide_dir):
             raise PermissionError(
                 f"File outside allowed directory: {abs_path}")
+        elif not os.path.isfile(abs_path):
+            raise ValueError(f"Filepath is not a file: {abs_path}")
+
+    for path in (filedirs or []):
+        abs_path = os.path.abspath(path)
+        if cu.string_contains_whitespaces(abs_path):
+            raise ValueError(f"Whitespace detected in filepath: {abs_path}")
+        elif not os.path.exists(abs_path):
+            raise FileNotFoundError(f"File not found: {abs_path}")
+        elif not abs_path.startswith(ide_dir):
+            raise PermissionError(
+                f"File outside allowed directory: {abs_path}")
+        elif not os.path.isdir(abs_path):
+            raise ValueError(f"Filepath is not a directory: {abs_path}")
 
 
-def validate_hero_image(hero_image: str) -> None:
+def validate_hero_image(hero_image: str | None) -> str:
     """Validate that the hero image is a PNG file."""
-    if not isinstance(hero_image, str) or cu.get_filetype(hero_image) != "png":
+    if not isinstance(hero_image, str) or cu.get_filetype(
+            hero_image) != "png" or not os.path.isfile(hero_image):
         raise ValueError("Hero image must be a PNG file path string.")
+    return os.path.abspath(hero_image)
 
 
 def validate_upload_data(files, study_space_id, project, title,
@@ -416,11 +471,15 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
                 f not in cache_df['replicaFileId'].unique()):
             invalid_file_ids += [f]
 
-    invalid_sample_ids = []
-    for s in input_sample_ids:
-        if (s not in cache_df['sampleId'].unique()) and (
-                s not in cache_df['replicaSampleId'].unique()):
-            invalid_sample_ids += [s]
+    
+    sample_ids_set = flatten_sample_column(cache_df['sampleId'])
+    replica_ids_set = flatten_sample_column(cache_df['replicaSampleId'])
+
+    # Find invalid sample IDs
+    invalid_sample_ids = [
+        s for s in input_sample_ids
+        if s not in sample_ids_set and s not in replica_ids_set
+    ]
 
     if len(invalid_file_ids) > 0:
         raise ValueError(
