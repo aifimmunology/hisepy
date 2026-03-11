@@ -118,7 +118,7 @@ class TestReader:
             'descriptors'], "Failed to parse descriptor correctly"
 
     @pytest.mark.xfail(raises=Exception)
-    def test_log_downloaded_files(self):
+    def test_log_downloaded_files_or_samples(self):
         cwd = os.getcwd()
 
         # remove log file if it exists
