@@ -1,11 +1,12 @@
 import os
 import pyreadr
+import requests
 import subprocess
 from pathlib import Path
 import yaml
 import shutil
 from hisepy.utils import conda_env_builds
-from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
+from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug, get_bearer_token_header, guest_hise_server
 import hisepy.common_utils as cu
 from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store, get_default_store
 
@@ -192,16 +193,16 @@ def get_size_in_megabytes(file_list, convert_to_megabytes=True):
 def get_study_space(id: str):
     """ Returns the given study space, assuming the user has access """
     return cu.parse_hise_response(
-        cu.requests.request("GET",
-                            cu.hise_url("tracer", "study_space_path", id),
-                            headers=cu.get_bearer_token_header()))
+        requests.request("GET",
+                         cu.hise_url("tracer", "study_space_path", id),
+                         headers=get_bearer_token_header()))
 
 
 def get_upload_url():
     """Returns the correct upload URL depending on guest or non-guest account."""
     base_url = cu.hise_url("ide_management", "upload_file_v3_path")
     if ide_is_from_guest_account():
-        return cu.guest_hise_server(base_url)
+        return guest_hise_server(base_url)
     return base_url
 
 

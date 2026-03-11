@@ -197,3 +197,6 @@ VISUALIZATION:
   PLOTLY_DATA_FILE: plotly_data.json
   PLOTLY_FILE: plotly.json
   PLOTLY_IMAGE_FILE: plotly.png
+
+WORKFLOW:
+  UI_PATH: workflow/flow
