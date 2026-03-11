@@ -281,25 +281,25 @@ def save_visualization_app(application_files: list[str],
     Parameters:
         application_files (list): list of individual files used by your app (e.g., custom CSS).
             Only files under /home/workspace can be included.
-        application_dirs (list): list of directories used by your app. 
+        application_dirs (list): list of directories used by your app.
             Directories specified are for configs or scripts, not input data.
         study_space_id (str): UUID of study space to save app to
         title (str): a 10+ character title for the app
         png_image (str): png thumbnail image for app in study space
-        data_mount_path (str): path of directory where input datasets should be read from 
+        data_mount_path (str): path of directory where input datasets should be read from
         data_source_file_ids list[str] : file IDs in HISE of input data to your app
         description (str): description of app being uploaded
         build_template_name (str): the name of the HISE Visualization Build Template framework
             (i.e. dash, deckgl), if known in advance
-        build_template_major_version (int): the major version number of the desired 
+        build_template_major_version (int): the major version number of the desired
             HISE Visualization Build Template framework, if known in advance
-        build_template_major_version (int): the minor version number of the desired 
+        build_template_major_version (int): the minor version number of the desired
             HISE Visualization Build Template framework, if known in advance
         build_template_parameters (dict[str, str]): the framework-specific arguments required by the
             HISE Visualization Build Template, if known in advance
         infer_build_template_arguments (bool): flag for whether this method should try to infer paths
             for HISE Visualization Build Template arguments
-        
+
     Returns:
         Response from server
     Example:
