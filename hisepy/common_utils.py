@@ -160,10 +160,11 @@ def find_files(directory, filenames):
     return files_list
 
 
-def get_conda_pack(conda_pack_id : str):
-    endpoint = "https://{s}/{cp}/{id}".format(s=hise_server(),
-    cp= CONFIG['IDE_MANAGEMENT']['CONDA_PACK'],
-    id = conda_pack_id)
+def get_conda_pack(conda_pack_id: str):
+    endpoint = "https://{s}/{cp}/{id}".format(
+        s=hise_server(),
+        cp=CONFIG['IDE_MANAGEMENT']['CONDA_PACK'],
+        id=conda_pack_id)
 
     resp = parse_hise_response(
         requests.request("GET", endpoint, headers=get_bearer_token_header()))
@@ -224,6 +225,7 @@ def get_organization():
     # get org guid
     return account_info[0]['organization']['guid']
 
+
 def get_ide_package_manager():
     # get ide; condaPackID
     ide = IDEInstance()
@@ -234,6 +236,7 @@ def get_ide_package_manager():
 
     # return packageManager
     return conda_pack['packageManager']
+
 
 def get_projects(to_df: bool = True):
     """
@@ -465,7 +468,7 @@ def list_files_and_dirs(directory):
     return os.listdir(directory)
 
 
-def log_downloaded_files(file_id: str,
+def log_downloaded_files_or_samples(file_id: str = None,
                          sample_ids: list = None,
                          ide_dir: str = None,
                          replica_file_id: str = None,
@@ -518,7 +521,7 @@ def log_downloaded_files(file_id: str,
 
 
 def parse_hise_response(resp):
-    obj = None
+    obj = {}
     try:
         obj = json.loads(resp.text)
         if "Errors" in obj and len(obj["Errors"]) > 0:

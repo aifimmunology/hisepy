@@ -1,17 +1,19 @@
 import os
 import pyreadr
+import requests
 import subprocess
 from pathlib import Path
 import yaml
 import shutil
 import math
 from hisepy.utils import conda_env_builds
-from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug
+from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug, get_bearer_token_header, guest_hise_server
 import hisepy.common_utils as cu
-from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store
+from hisepy.upload import get_study_spaces, get_default_project, DashAppImg, set_default_project, set_default_store, get_default_store
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not debug() else os.getcwd()
 
 no_study_default = "no study"
 permanent_store = "permanent"
@@ -107,8 +109,7 @@ def do_conda_export(to_directory: str = ""):
     conda_export_dest = os.path.join(to_directory, "environment.yml")
 
     # export to scratch and move to to staging store
-    env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"],
-                             get_ide_env_name())
+    env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"], get_ide_env_name())
     result = subprocess.run(
         ["conda", "env", "export", "-p",
          str(env_dir)],
@@ -128,7 +129,7 @@ def do_conda_export(to_directory: str = ""):
     return conda_export_dest
 
 
-def do_pixi_export(to_directory): 
+def do_pixi_export(to_directory):
     """
     Exports the current Pixi environment to a file
     """
@@ -138,12 +139,12 @@ def do_pixi_export(to_directory):
     if not os.path.isdir(to_directory) and not debug():
         raise ValueError("directory {dir} is not a valid directory".format(
             dir=to_directory))
-        
+
     # pack environment; copy manifests over to scratch
-    env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'],
-            get_ide_env_name())
-    if not os.path.isdir(env_dir) and not debug(): 
-        raise ValueError("directory {dir} is not a valid directory".format(dir=env_dir))
+    env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'], get_ide_env_name())
+    if not os.path.isdir(env_dir) and not debug():
+        raise ValueError(
+            "directory {dir} is not a valid directory".format(dir=env_dir))
     pixi_export_dest = os.path.join(to_directory, "pixi.toml")
     pixi_manifest_src = os.path.join(env_dir, 'pixi.toml')
 
@@ -228,7 +229,7 @@ def get_study_space(id: str):
     """ Returns the given study space, assuming the user has access """
     return cu.parse_hise_response(
         requests.request("GET",
-                         hise_url("tracer", "study_space_path", id),
+                         cu.hise_url("tracer", "study_space_path", id),
                          headers=get_bearer_token_header()))
 
 
@@ -359,7 +360,8 @@ def validate_app_path(app_path: str) -> None:
         raise ValueError(f"Filepath contains whitespace: {app_path}")
 
 
-def validate_files(filenames: list[str]) -> None:
+def validate_files(filenames: list[str],
+                   filedirs: list[str] | None = None) -> None:
     """Ensure all provided files exist, are under /home/jupyter, and contain no spaces."""
     ide_dir = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
     ) else IDE_HOME_DIR
@@ -367,17 +369,33 @@ def validate_files(filenames: list[str]) -> None:
         abs_path = os.path.abspath(path)
         if cu.string_contains_whitespaces(abs_path):
             raise ValueError(f"Whitespace detected in filepath: {abs_path}")
-        if not os.path.exists(abs_path):
+        elif not os.path.exists(abs_path):
             raise FileNotFoundError(f"File not found: {abs_path}")
-        if not abs_path.startswith(ide_dir):
+        elif not abs_path.startswith(ide_dir):
             raise PermissionError(
                 f"File outside allowed directory: {abs_path}")
+        elif not os.path.isfile(abs_path):
+            raise ValueError(f"Filepath is not a file: {abs_path}")
+
+    for path in (filedirs or []):
+        abs_path = os.path.abspath(path)
+        if cu.string_contains_whitespaces(abs_path):
+            raise ValueError(f"Whitespace detected in filepath: {abs_path}")
+        elif not os.path.exists(abs_path):
+            raise FileNotFoundError(f"File not found: {abs_path}")
+        elif not abs_path.startswith(ide_dir):
+            raise PermissionError(
+                f"File outside allowed directory: {abs_path}")
+        elif not os.path.isdir(abs_path):
+            raise ValueError(f"Filepath is not a directory: {abs_path}")
 
 
-def validate_hero_image(hero_image: str) -> None:
+def validate_hero_image(hero_image: str | None) -> str:
     """Validate that the hero image is a PNG file."""
-    if not isinstance(hero_image, str) or cu.get_filetype(hero_image) != "png":
+    if not isinstance(hero_image, str) or cu.get_filetype(
+            hero_image) != "png" or not os.path.isfile(hero_image):
         raise ValueError("Hero image must be a PNG file path string.")
+    return os.path.abspath(hero_image)
 
 
 def validate_upload_data(files, study_space_id, project, title,
