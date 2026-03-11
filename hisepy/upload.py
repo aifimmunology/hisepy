@@ -297,18 +297,20 @@ def save_visualization_app(application_files: list[str],
             HISE Visualization Build Template framework, if known in advance
         build_template_parameters (dict[str, str]): the framework-specific arguments required by the
             HISE Visualization Build Template, if known in advance
+        infer_build_template_arguments (bool): flag for whether this method should try to infer paths
+            for HISE Visualization Build Template arguments
         
     Returns:
         Response from server
     Example:
-        hisepy.save_dash_app(app_filepath='dash_app/app.py',
-                            additional_files=['data/input-1.csv', 'data/input-2.csv'],
-                            input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
+        hisepy.save_visualization_app(application_files='dash_app/app.py',
+                            application_dirs=['data'],
                             study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
                             title="Hello world Dash app",
-                            description="An amazingly complex data visualization",
-                            image="dash_app/thumbnail.png",
-                            input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
+                            png_image="dash_app/thumbnail.png",
+                            data_mount_path='/my_mount_path'
+                            data_source_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
+                            description="An amazingly complex data visualization")
     """
     if len(title) < 10:
         raise RuntimeError('Your title must be at least 10 characters long')
