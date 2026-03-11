@@ -91,7 +91,7 @@ def cache_files(file_ids: list[str] | None = None,
                     dl_paths.append(this_path)
 
                 # Log downloads
-                cu.log_downloaded_files(file_id, sample_ids, log_dir)
+                cu.log_downloaded_files_or_samples(file_id, sample_ids, log_dir)
 
             # don't outright fail, but log the error
             except Exception as e:
