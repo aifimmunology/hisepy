@@ -307,16 +307,16 @@ def save_visualization_app(
     template_params = {}
     for template_var in vbt['buildVariables']:
         varName = template_var['varName']
+        var_value = None
         if isinstance(
                 build_template_parameters,
                 dict) and varName in build_template_parameters and re.search(
                     template_var['matchRegex'],
                     build_template_parameters[varName]):
-            template_params[varName] = build_template_parameters[varName]
-        else:
-            template_params[varName] = get_template_variable(
-                template_var, all_files, all_dirs,
-                infer_build_template_arguments)
+            var_value = build_template_parameters[varName]
+        template_params[varName] = get_template_variable(
+            template_var, all_files, all_dirs, infer_build_template_arguments,
+            var_value)
 
     tmpdirname = tempfile.mkdtemp(dir=CONFIG['STORES']['TEMP_STORE'])
     os.chmod(tmpdirname, 0o777)
@@ -369,11 +369,18 @@ class BuildTemplateVariableType(Enum):
 def get_template_variable(template_var: dict[str,
                                              Any], application_files: set[str],
                           application_dirs: set[str],
-                          infer_build_template_arguments: bool) -> str:
+                          infer_build_template_arguments: bool,
+                          provided_value: str | None) -> str:
+    if provided_value == '' and not template_var['required']:
+        return provided_value
+
     var_type = BuildTemplateVariableType.OTHER
     if template_var['isPath']:
         var_type = BuildTemplateVariableType.DIRECTORY if template_var[
             'directoryStructure'] is not None else BuildTemplateVariableType.FILE
+
+    def get_user_input() -> str:
+        return input(f'Please enter {template_var["friendlyName"]}:')
 
     match var_type:
         case BuildTemplateVariableType.FILE:
@@ -479,7 +486,7 @@ def user_included_directory_structure(
     for name, val in dir_structure.items():
         if isinstance(val, dict):
             dirname = os.path.join(user_dir, name)
-            if not dirname in dirs or not user_included_directory_structure(
+            if not dirname in included_dirs or not user_included_directory_structure(
                     dirname, val, included_files, included_dirs):
                 return False
         elif isinstance(val, str):
