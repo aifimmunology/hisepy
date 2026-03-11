@@ -260,20 +260,56 @@ def retry_ide_commit(id: str):
 
 
 @with_default_logging
-def save_visualization_app(
-        application_files: list[str],
-        application_dirs: list[str],
-        study_space_id: str,
-        title: str,
-        png_image: str,
-        data_mount_path: str,
-        data_source_file_ids: list[str],
-        description: str = '',
-        build_template_name: str = '',
-        build_template_major_version: int = -1,
-        build_template_minor_version: int = -1,
-        build_template_parameters: dict[str, str] | None = None,
-        infer_build_template_arguments: bool = True) -> dict:
+def save_visualization_app(application_files: list[str],
+                           application_dirs: list[str],
+                           study_space_id: str,
+                           title: str,
+                           png_image: str,
+                           data_mount_path: str,
+                           data_source_file_ids: list[str],
+                           description: str = '',
+                           build_template_name: str = '',
+                           build_template_major_version: int = -1,
+                           build_template_minor_version: int = -1,
+                           build_template_parameters: dict[str, str]
+                           | None = None,
+                           infer_build_template_arguments: bool = True) -> str:
+    """
+    Given an app supported by HISE Visualization Build Templates, upload and deploy that
+    app to HISE as a visualization in the given study space.
+
+    Parameters:
+        application_files (list): list of individual files used by your app (e.g., custom CSS).
+            Only files under /home/workspace can be included.
+        application_dirs (list): list of directories used by your app. 
+            Directories specified are for configs or scripts, not input data.
+        study_space_id (str): UUID of study space to save app to
+        title (str): a 10+ character title for the app
+        png_image (str): png thumbnail image for app in study space
+        data_mount_path (str): path of directory where input datasets should be read from 
+        data_source_file_ids list[str] : file IDs in HISE of input data to your app
+        description (str): description of app being uploaded
+        build_template_name (str): the name of the HISE Visualization Build Template framework
+            (i.e. dash, deckgl), if known in advance
+        build_template_major_version (int): the major version number of the desired 
+            HISE Visualization Build Template framework, if known in advance
+        build_template_major_version (int): the minor version number of the desired 
+            HISE Visualization Build Template framework, if known in advance
+        build_template_parameters (dict[str, str]): the framework-specific arguments required by the
+            HISE Visualization Build Template, if known in advance
+        
+    Returns:
+        Response from server
+    Example:
+        hisepy.save_dash_app(app_filepath='dash_app/app.py',
+                            additional_files=['data/input-1.csv', 'data/input-2.csv'],
+                            input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8','0fb06e51-74c4-46be-b92d-5e045232b2d9'],
+                            study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                            title="Hello world Dash app",
+                            description="An amazingly complex data visualization",
+                            image="dash_app/thumbnail.png",
+                            input_sample_ids=['93ea6cb8-a45f-4370-bbfe-d57ba6420882'])
+    """
     if len(title) < 10:
         raise RuntimeError('Your title must be at least 10 characters long')
     elif data_mount_path == '':
@@ -330,7 +366,7 @@ def save_visualization_app(
     with tarfile.open(tarfile_path, 'w:gz') as tar:
         tar.add(tmpdirname, arcname='')
 
-    logger.debug("Uploading hero image: %s", png_image)
+    logger.debug('Uploading hero image: %s', png_image)
     img_resp = save_static_image(image=png_image,
                                  title=title,
                                  study_space_id=study_space_id)
@@ -338,8 +374,8 @@ def save_visualization_app(
     if img_resp.get('error'):
         logger.warning('Error uploading image: %s', img_resp['error'])
 
-    vizapp_workflow_url = hise_url("ide_management", "vizapp_workflow")
-    logger.info("Creating Visualization App workflow: %s", vizapp_workflow_url)
+    vizapp_workflow_url = hise_url('ide_management', 'vizapp_workflow')
+    logger.info('Creating Visualization App workflow: %s', vizapp_workflow_url)
     resp = requests.post(vizapp_workflow_url,
                          json={
                              'artifactsFileName': tarfile_path,
