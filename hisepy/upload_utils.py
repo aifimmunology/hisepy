@@ -367,8 +367,6 @@ def validate_upload_context():
     if ide_is_from_guest_account() and cu.is_legacy_ide():
         if not cu.prompt_yn(CONFIG['PROMPTS']['UPLOAD_AS_GUEST']):
             raise RuntimeError("Upload cancelled by user.")
-    #if not cu.is_valid_upload_kernel():
-    #    raise RuntimeError(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
 
 
 def validate_app_path(app_path: str) -> None:
