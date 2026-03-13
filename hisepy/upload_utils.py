@@ -120,13 +120,15 @@ def do_conda_export(to_directory: str = ""):
         if selected_env not in conda_envs:
             raise RuntimeError(
                 f"Conda environment {selected_env} not found in {CONFIG['STORES']['ENV_STORE']}.")
-    elif len(conda_envs) > 1 and not debug():
+    elif not debug() and len(conda_envs) > 1:
         idx = cu.prompt_from_options(
             "Multiple conda environments found. Please select which one to export.",
             conda_envs,
             True,
         )
         selected_env = conda_envs[idx]
+    elif debug():
+        selected_env = "test_env"
     env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"], selected_env)
 
     result = subprocess.run(
