@@ -219,71 +219,63 @@ def read_files(file_list: list[str] | None = None,
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "read_files")):
                 print("Cancelled read_files call.")
                 return []
+            if is_public:
+                raise ValueError("Query search not supported for public files.")
             obj = ru.post_query(query_dict=query_dict)
 
         else:
-            obj = ru.post_query(file_list=file_list)
+            obj = ru.post_query(file_list=file_list, is_public=is_public)
 
     except Exception as e:
         raise Exception(f"Failed to fetch file descriptors: {e}")
 
     response = []
     ide_name = IDEInstance().podName
-    temp_dir = CONFIG["STORES"]["TEMP_STORE"]
-    home_dir_v2 = CONFIG["IDE"]["HOME_DIR_V2"]
 
     # download file loop
     for idx, f in enumerate(obj):
         try:
-            # Initialize a default hise_file object
-            if "id" not in f:
-                f["id"] = uuid.UUID(int=0)
+            file_id, file_name, desc = ru.parse_file_descriptor_from_hise_file(f)
+            print("Processing file: %s, file_id: %s" % (file_name, file_id))
+            f["id"] = file_id
+            fobj = ru.hise_file(file_id=file_id)
 
-            if "error" in f:
-                fobj = ru.hise_file(f["error"]["File"])
-                fobj.message = f["error"]["Message"]
-                fobj.status = False
-                response.append(fobj)
-                continue
-
-            # parse file metadata
-            file_id, _, desc, availability = ru.parse_file_descriptor_from_hise_file(f)
-
-            if not ru.availability_matches_is_public(file_id, availability, is_public):
-                fobj = ru.hise_file(file_id)
-                fobj.message = "File skipped due to availability settings."
-                fobj.status = False
-                response.append(fobj)
-                continue
-
-            dl_endpoint = ru.get_download_path(file_id, ide_name)
-
-            # method to download files in legacy IDEs
             if cu.is_legacy_ide():
-                fobj = ru.cache_and_convert_file_data(f)
                 log_dir = CONFIG["IDE"]["HOME_DIR"]
-                download_filepath = fobj.path
+                download_dir = os.path.join(
+                    CONFIG["IDE"]["HOME_DIR"],
+                    CONFIG["IDE"]["CACHE_DIR"],
+                    str(file_id),
+                )
+                fname = os.path.basename(file_name)
+                logger.info("Downloading fileID %s -> %s", file_id,
+                            download_dir)
+                ru.cache_file(url=f["url"],
+                            file_name=fname,
+                            file_dir=download_dir)
+
+            # download file to current IDE architecture
             else:
-                # download data to user's ide
-                parsed_dl = cu.parse_hise_response(
-                    requests.get(dl_endpoint, headers=get_bearer_token_header()))
-                download_filepath = os.path.join(home_dir_v2,
-                                                 parsed_dl["Path"])
-
-                # Wait for async download completion
-                ru.wait_for_file(download_filepath)
-
-                fobj = ru.convert_file_data(f, parsed_dl["Path"])
-                log_dir = temp_dir
-
-            # update hise file object
-            desc["file"]["name"] = download_filepath
-            fobj.status = True
-            fobj.descriptors = desc
-            fobj.message = "OK"
+                log_dir = CONFIG["STORES"]["TEMP_STORE"]
+                endpoint = "https://%s/%s/%s/%s" % (
+                    hise_server(),
+                    CONFIG["HYDRATION"]["DOWNLOAD_PATHV2"],
+                    file_id,
+                    ide_name,
+                )
+                dl_resp = cu.parse_hise_response(
+                    requests.request("GET",
+                                    endpoint,
+                                    headers=get_bearer_token_header()))
+                this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
+                        dl_resp["Path"])
+                # update hise file object
+                desc["file"]["name"] = this_path
+                fobj.status = True
+                fobj.descriptors = desc
+                fobj.message = "OK"
 
             # log activity
-            file_id = ru.parse_file_id_from_hise_file(f)
             sample_id = cu.parse_sample_id_from_hise_file(f)
             cu.log_downloaded_files_or_samples(file_id, sample_id, log_dir)
 
