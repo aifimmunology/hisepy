@@ -110,7 +110,7 @@ class TestReader:
                                           query_dict=query_dict_not_dict)
 
     def test_parse_file_descriptor_from_file(self, init_test):
-        file_id, file_name, desc, _ = hpru.parse_file_descriptor_from_hise_file(
+        file_id, file_name, desc = hpru.parse_file_descriptor_from_hise_file(
             self.descriptor_obj)
         assert file_id == 'file_id1', "Failed to parse file id correctly"
         assert file_name == "file_name1", "Failed to parse file name correctly"
