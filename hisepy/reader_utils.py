@@ -306,12 +306,7 @@ def cache_files_using_descriptors(file_descriptors: list[dict]):
             # download file to current IDE architecture
             else:
                 log_dir = CONFIG["STORES"]["TEMP_STORE"]
-                endpoint = "https://%s/%s/%s/%s" % (
-                    hise_server(),
-                    CONFIG["HYDRATION"]["DOWNLOAD_PATHV2"],
-                    file_id,
-                    ide_name,
-                )
+                endpoint = get_download_path(file_id, ide_name)
                 dl_resp = cu.parse_hise_response(
                     requests.request("GET",
                                      endpoint,
@@ -432,7 +427,7 @@ def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
         hise_file (hise_file): hisepy.reader.hise_file object
         file_id (str): original file_id that's passed in to read_files() or cache_files()
     """
-    this_file_id, _, _, _ = parse_file_descriptor_from_hise_file(
+    this_file_id, _, _ = parse_file_descriptor_from_hise_file(
         hise_file)
     if (this_file_id != file_id):
         cu.log_downloaded_files_or_samples(file_id, None, ide_dir, this_file_id, None)
@@ -456,7 +451,7 @@ def is_public_file(availability: str):
 
 def parse_file_descriptor_from_hise_file(hise_file):
     """
-    Takes a hise_file object and returns its file_id, file_name, descriptor object, and availability
+    Takes a hise_file object and returns its file_id, file_name, descriptor object
 
     Parameters:
         hise_file (hise_file): hisepy.reader.hise_file object
@@ -466,14 +461,12 @@ def parse_file_descriptor_from_hise_file(hise_file):
     if type(hise_file['descriptors']) is list:
         this_file_id = hise_file['descriptors'][0]['file']['id']
         this_file_name = hise_file['descriptors'][0]['file']['name']
-        this_availability = hise_file['descriptors'][0]['file']['availability']
         this_desc = hise_file['descriptors'][0]
     elif type(hise_file['descriptors']) is dict:
         this_file_id = hise_file['descriptors']['file']['id']
         this_file_name = hise_file['descriptors']['file']['name']
-        this_availability = hise_file['descriptors']['file']['availability']
         this_desc = hise_file['descriptors']
-    return this_file_id, this_file_name, this_desc, this_availability
+    return this_file_id, this_file_name, this_desc
 
 def parse_file_id_from_hise_file(hise_file):
     """
@@ -499,7 +492,8 @@ def post_query(
     is_public: bool = False
 ) -> list[dict[str, any]]:
     """
-    Submits a POST request to the ledger to retrieve file descriptors based on user's query parameters
+    Submits a POST request to the hydration for query parameters to get file ids
+    Submits a POST request to ledger to get actual file descriptors for those file ids
 
     Parameters:
         file_list (list[str]): list of file ids to retrieve descriptors for
@@ -510,11 +504,11 @@ def post_query(
     Returns:
         list of file descriptor objects that match the query parameters
     """
-    # validate params
-    validate_post_query_params(file_list, query_id, query_dict)
 
     try:
         if query_dict is not None:
+            if is_public:
+                raise ValueError("Query search not supported for public files.")
             payload = query_files(query_dict, is_public)
             if not payload:
                 raise LookupError("Query had no matching results.")
@@ -530,30 +524,24 @@ def post_query(
 
         elif file_list is not None:
             file_list = set(file_list)
-
         else:
             raise ValueError("No valid query parameters provided.")
 
-        # submit GET request
         obj = []
-        for f in file_list:
-            print("getting file descriptor for file: {}".format(f))
-            endpoint = f"https://{hise_server()}/{CONFIG['HYDRATION']['FILE_SEARCH_PATH']}?id={f}"
-            resp_obj = cu.parse_hise_response(requests.get(endpoint, headers=get_bearer_token_header()))
-            obj += resp_obj
-
-        if not isinstance(obj, list):
-            raise TypeError(
-                f"Response is {type(obj).__name__}, expected list.")
-
+        # query for file descriptors using file ids
+        for fid in file_list:
+            user_query = {"id": [fid]}
+            query_instance = MongoQuery(user_query)
+            formatted_query = query_instance.query_dict_to_mongo_query(query_instance.add_prefix_to_query())
+            count = count_payload_entries(formatted_query, is_public)
+            rep_obj = submit_file_descriptor_request(formatted_query, count, is_public)
+            obj.append({"descriptors": list(rep_obj['payload'])})
         return obj
-
     except requests.RequestException as e:
         raise SystemError(
             f"Network error while calling Hydration API: {e}") from e
     except json.JSONDecodeError as e:
         raise ValueError(f"Failed to decode JSON response: {e}") from e
-
 
 def query_files(user_query: dict, is_public: bool = False):
     """
