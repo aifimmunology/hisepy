@@ -109,13 +109,13 @@ def do_conda_export(to_directory: str = ""):
     conda_export_dest = os.path.join(to_directory, "environment.yml")
 
     # export to scratch and move to to staging store
-    conda_envs = list_environments(CONFIG["STORES"]["ENV_STORE"], "conda-meta") if not debug()
+    conda_envs = list_environments(CONFIG["STORES"]["ENV_STORE"], "conda-meta")
     
     # if there's more than 1 environment, and user is using non-default kernel,
     # prompt user to select which one to export
     if len(conda_envs) == 0:
         raise RuntimeError("No conda environments found to export.")
-    elif cu.is_valid_upload_kernel():
+    elif not debug and cu.is_valid_upload_kernel():
         selected_env = get_ide_env_name()
         if selected_env not in conda_envs:
             raise RuntimeError(
