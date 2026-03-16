@@ -109,7 +109,28 @@ def do_conda_export(to_directory: str = ""):
     conda_export_dest = os.path.join(to_directory, "environment.yml")
 
     # export to scratch and move to to staging store
-    env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"], get_ide_env_name())
+    conda_envs = list_environments(CONFIG["STORES"]["ENV_STORE"], "conda-meta")
+    
+    # if there's more than 1 environment, and user is using non-default kernel,
+    # prompt user to select which one to export
+    if len(conda_envs) == 0:
+        raise RuntimeError("No conda environments found to export.")
+    elif not debug and cu.is_valid_upload_kernel():
+        selected_env = get_ide_env_name()
+        if selected_env not in conda_envs:
+            raise RuntimeError(
+                f"Conda environment {selected_env} not found in {CONFIG['STORES']['ENV_STORE']}.")
+    elif not debug() and len(conda_envs) > 1:
+        idx = cu.prompt_from_options(
+            "Multiple conda environments found. Please select which one to export.",
+            conda_envs,
+            True,
+        )
+        selected_env = conda_envs[idx]
+    elif debug():
+        selected_env = "test_env"
+    env_dir = "{}/{}".format(CONFIG["STORES"]["ENV_STORE"], selected_env)
+
     result = subprocess.run(
         ["conda", "env", "export", "-p",
          str(env_dir)],
@@ -281,6 +302,15 @@ def has_packages_in_env_file(env_file_path: str) -> bool:
     return False
 
 
+def list_environments(envs_dir, env_filename):
+    envs = []
+    for name in os.listdir(envs_dir):
+        path = os.path.join(envs_dir, name)
+        if os.path.isdir(path) and os.path.isdir(os.path.join(path, env_filename)):
+            envs.append(name)
+    return envs
+
+
 def resolve_upload_context(study_space_id, project, input_sample_ids,
                            do_prompt):
     """Resolves study space, project, and sample IDs, prompting the user if necessary."""
@@ -339,8 +369,6 @@ def validate_upload_context():
     if ide_is_from_guest_account() and cu.is_legacy_ide():
         if not cu.prompt_yn(CONFIG['PROMPTS']['UPLOAD_AS_GUEST']):
             raise RuntimeError("Upload cancelled by user.")
-    if not cu.is_valid_upload_kernel():
-        raise RuntimeError(CONFIG['PROMPTS']['INVALID_UPLOAD_KERNEL'])
 
 
 def validate_app_path(app_path: str) -> None:
