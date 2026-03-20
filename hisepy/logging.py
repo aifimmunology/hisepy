@@ -36,10 +36,10 @@ class ColorFormatter(logging.Formatter):
     def format(self, record):
         asctime = self.formatTime(record, self.datefmt)
         color = self.LEVEL_COLORS.get(record.levelno, "")
-        
+
         prefix = f"{color}{asctime} {record.levelname}{self.RESET}"
 
-        # replace only the start of the formatted string 
+        # replace only the start of the formatted string
         msg = f"[{record.name}:{record.lineno}] {record.module} {record.process} {record.thread} {record.getMessage()}"
         return f"{prefix} {msg}"
 
@@ -157,11 +157,11 @@ def with_logging(func: Callable[..., Any],
                 "time_elapsed": time.time() - start_time
             })
 
-        # allow runtime overrides 
-        adapter.extra["_override"] = {} 
+        # allow runtime overrides
+        adapter.extra["_override"] = {}
 
-        # ignore classes or objects without __globals__ 
-        if not hasattr(func, "__globals__"): 
+        # ignore classes or objects without __globals__
+        if not hasattr(func, "__globals__"):
             return func(*args, **kwargs)
 
         # temporarily replace global logger reference in the target module
