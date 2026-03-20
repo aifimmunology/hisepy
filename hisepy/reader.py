@@ -1,17 +1,12 @@
 import json
 import os
-import pathlib
-import urllib
+from urllib import response
 import uuid
 import pandas as pd
-import copy
 from termcolor import colored
-import math
 import requests
-import inspect
 from hisepy.instances import IDEInstance
 import hisepy.common_utils as cu
-import time
 import hisepy.formatter as hf
 import hisepy.lookup as hl
 import hisepy.reader_utils as ru
@@ -28,16 +23,15 @@ def cache_files(file_ids: list[str] | None = None,
                 query_id: list[str] | None = None,
                 query_dict: dict[str, any] | None = None) -> list[str]:
     """ Downloads requested files to an IDE
-    
-    Parameters: 
+
+    Parameters:
         file_ids (list): list of file IDs
         query_id (list): list of a single query ID
         query_dict (dict): query in the format of a dict
 
-    Returns: 
+    Returns:
         a list of filepaths that were successfully downloaded
     """
-    start_time = time.time()
 
     ru.validate_download_params(file_ids, query_id, query_dict)
 
@@ -60,7 +54,7 @@ def cache_files(file_ids: list[str] | None = None,
             try:
                 fm = ru.get_file_metadata(file_id)
 
-                # grab file_name 
+                # grab file_name
                 file_name = os.path.basename(fm['name'])
 
                 # grab sample_id from filemetadata
@@ -98,7 +92,7 @@ def cache_files(file_ids: list[str] | None = None,
 
                 # Log downloads
                 cu.log_downloaded_files_or_samples(file_id, sample_ids, log_dir)
-                
+
             # don't outright fail, but log the error
             except Exception as e:
                 logger.error("Unexpected error processing file response: %s", file_id)
@@ -111,12 +105,13 @@ def cache_files(file_ids: list[str] | None = None,
 
 
 @with_default_logging
-def get_file_descriptors(query_dict: dict = None):
-    """ 
+def get_file_descriptors(query_dict: dict = None, is_public: bool = False):
+    """
     Retrieves file descriptors based on user's query.
 
     Parameters:
         query_dict (dict): dictionary that contains query parameters
+        is_public (bool): boolean to determine whether to query public files or not.
     Returns:
         dictionary of data.frame objects
     Examples:
@@ -126,7 +121,9 @@ def get_file_descriptors(query_dict: dict = None):
         df_dict['labResults'] # lab results
         df_dict['specimens'] # specimen df
     """
-    if 'fileType' not in query_dict.keys():
+
+    ## filetype required for non public files
+    if 'fileType' not in query_dict.keys() and is_public == False:
         raise ValueError(
             'fileType field must be in the your query dictionary.')
     if type(query_dict) is not dict:
@@ -137,7 +134,7 @@ def get_file_descriptors(query_dict: dict = None):
 
     # get a list of descriptor objects
     try:
-        obj = ru.query_files(query_dict)
+        obj = ru.query_files(query_dict, is_public)
     except Exception as e:
         raise Exception(f"failed to query for file descriptors: {e}")
 
@@ -164,9 +161,11 @@ def get_file_descriptors(query_dict: dict = None):
             for k, v in collectors.items()
         }
 
-        # attach project info to descriptors
-        dict_df['descriptors'] = hf.attach_project_info_to_df(
-            dict_df['descriptors'])
+        # public files do not have a project guid
+        if "projectGuid" in dict_df["descriptors"].columns:
+            # attach project info to descriptors
+            dict_df['descriptors'] = hf.attach_project_info_to_df(
+                dict_df['descriptors'])
         return dict_df
     except Exception as e:
         raise Exception(f"failed to append all file descriptors: {e}")
@@ -185,7 +184,8 @@ def get_files_for_query(query_id: str):
 def read_files(file_list: list[str] | None = None,
                query_id: list[str] | None = None,
                query_dict: dict[str, any] | None = None,
-               to_df: bool = True):
+               to_df: bool = True,
+               is_public: bool = False):
     """
     Read the contents of a list of file ids into a hise_file object
     Note: users should only use 1 parameter per function call
@@ -195,14 +195,14 @@ def read_files(file_list: list[str] | None = None,
         query_id (str): string value of queryID from Advanced Search
         query_dict (dict): dictionary that allows users to submit a query.
             Note: for each key:value pair, the value must be of type list
-        to_df (bool):  boolean determining whether result should be returned as a data.frame. 
+        to_df (bool):  boolean determining whether result should be returned as a data.frame.
+        is_public (bool): boolean determining whether to query public files or not.
 
     Returns:
         a list of hise_file objects
 
     Example: hp.read_files(file_list=['6cb2f536-2d20-4e66-b04d-327dce6870f4'])
     """
-    start_time = time.time()
 
     # validate params; resolve query method used
     try:
@@ -211,70 +211,71 @@ def read_files(file_list: list[str] | None = None,
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "read_files")):
                 print("Cancelled read_files call.")
                 return []
+            if is_public:
+                raise ValueError("Query ID search not supported for public files.")
             obj = ru.post_query(query_id=query_id[0])
 
         elif query_dict is not None:
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "read_files")):
                 print("Cancelled read_files call.")
                 return []
+            if is_public:
+                raise ValueError("Query search not supported for public files.")
             obj = ru.post_query(query_dict=query_dict)
 
         else:
-            obj = ru.post_query(file_list=file_list)
+            obj = ru.post_query(file_list=file_list, is_public=is_public)
 
     except Exception as e:
         raise Exception(f"Failed to fetch file descriptors: {e}")
 
     response = []
     ide_name = IDEInstance().podName
-    temp_dir = CONFIG["STORES"]["TEMP_STORE"]
-    home_dir_v2 = CONFIG["IDE"]["HOME_DIR_V2"]
 
     # download file loop
     for idx, f in enumerate(obj):
         try:
-            # Initialize a default hise_file object
-            if "id" not in f:
-                f["id"] = uuid.UUID(int=0)
+            file_id, file_name, desc = ru.parse_file_descriptor_from_hise_file(f)
+            print("Processing file: %s, file_id: %s" % (file_name, file_id))
+            f["id"] = file_id
+            fobj = ru.hise_file(file_id=file_id)
 
-            if "error" in f:
-                fobj = hise_file(f["error"]["File"])
-                fobj.message = f["error"]["Message"]
-                fobj.status = False
-                response.append(fobj)
-                continue
-
-            # parse file metadata
-            file_id, file_name, desc = ru.parse_file_descriptor_from_hise_file(
-                f)
-            endpoint = f"https://{hise_server()}/{CONFIG['HYDRATION']['DOWNLOAD_PATHV2']}/{file_id}/{ide_name}"
-
-            # method to download files in legacy IDEs
             if cu.is_legacy_ide():
-                fobj = ru.cache_and_convert_file_data(f)
                 log_dir = CONFIG["IDE"]["HOME_DIR"]
-                download_filepath = fobj.path
+                download_dir = os.path.join(
+                    CONFIG["IDE"]["HOME_DIR"],
+                    CONFIG["IDE"]["CACHE_DIR"],
+                    str(file_id),
+                )
+                fname = os.path.basename(file_name)
+                logger.info("Downloading fileID %s -> %s", file_id,
+                            download_dir)
+                ru.cache_file(url=f["url"],
+                            file_name=fname,
+                            file_dir=download_dir)
+
+            # download file to current IDE architecture
             else:
-                # download data to user's ide
-                parsed_dl = cu.parse_hise_response(
-                    requests.get(endpoint, headers=get_bearer_token_header()))
-                download_filepath = os.path.join(home_dir_v2,
-                                                 parsed_dl["Path"])
-
-                # Wait for async download completion
-                ru.wait_for_file(download_filepath)
-
-                fobj = ru.convert_file_data(f, parsed_dl["Path"])
-                log_dir = temp_dir
-
-            # update hise file object
-            desc["file"]["name"] = download_filepath
-            fobj.status = True
-            fobj.descriptors = desc
-            fobj.message = "OK"
+                log_dir = CONFIG["STORES"]["TEMP_STORE"]
+                endpoint = "https://%s/%s/%s/%s" % (
+                    hise_server(),
+                    CONFIG["HYDRATION"]["DOWNLOAD_PATHV2"],
+                    file_id,
+                    ide_name,
+                )
+                dl_resp = cu.parse_hise_response(
+                    requests.request("GET",
+                                    endpoint,
+                                    headers=get_bearer_token_header()))
+                this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
+                        dl_resp["Path"])
+                # update hise file object
+                desc["file"]["name"] = this_path
+                fobj.status = True
+                fobj.descriptors = desc
+                fobj.message = "OK"
 
             # log activity
-            file_id = ru.parse_file_id_from_hise_file(f)
             sample_id = cu.parse_sample_id_from_hise_file(f)
             cu.log_downloaded_files_or_samples(file_id, sample_id, log_dir)
 
@@ -313,12 +314,12 @@ def read_files(file_list: list[str] | None = None,
 @with_default_logging
 def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
     """
-    Read or search the SampleStatus materialized view. User should specify one 
+    Read or search the SampleStatus materialized view. User should specify one
     or the other of sample_ids or query.
 
     Parameters:
         sample_ids (list): a list of UUIDS to retrieve.
-        query_dict (dict): a dictionary object containing search 
+        query_dict (dict): a dictionary object containing search
             parameters using mongo query language.
         to_df (bool) : If true, returns a data.frame object
 
@@ -368,17 +369,17 @@ def read_subjects(subject_ids: str = None,
                   query_dict: dict = None,
                   to_df: bool = True):
     """
-    Read or search the Subject materialized view.User should specify one or the 
+    Read or search the Subject materialized view.User should specify one or the
     other of subject_ids or query
 
     Parameters:
         subject_ids (list): a list of UUIDS to retrieve
-        query_dict (dict): a dictionary object containing search parameters 
+        query_dict (dict): a dictionary object containing search parameters
             using mongo query language
-        to_df (bool): If true, returns a data.frame 
+        to_df (bool): If true, returns a data.frame
 
     Returns:
-        response payload as a data.frame or JSON 
+        response payload as a data.frame or JSON
 
     """
     ru.validate_samples_subjects_params(subject_ids, query_dict)
@@ -412,16 +413,16 @@ def read_subjects(subject_ids: str = None,
 
 @with_default_logging
 def list_filesets(study_space_id: str) -> pd.DataFrame:
-    """ 
-    Returns a list of filesets for a given study 
+    """
+    Returns a list of filesets for a given study
 
     Parameters:
         study_space_id (str) : a unique identifier for a study in the collaboration space
 
-    Returns: 
+    Returns:
         data.frame with columns ['id', 'studySpaceId', 'title','description','fileIds']
-        
-    Example: 
+
+    Example:
         hp.list_filesets(study_space_id='c39e3ae5-ec11-4f02-b89d-255945c5788e')
     """
     if type(study_space_id) is not str:
@@ -453,16 +454,16 @@ def list_filesets(study_space_id: str) -> pd.DataFrame:
 
 @with_default_logging
 def cache_fileset(fileset_id: str) -> list[str]:
-    """ 
+    """
     Downloads all files pertaining to a fileset to a user's workspace.
 
-    Parameters: 
+    Parameters:
         fileset_id (str) : unique identifier for a fileset in a study
 
     Example:
         hp.cache_fileset(fileset_id='c39e3ae5-ec11-4f02-b89d-255945c5788e')
-    
-    Returns: 
+
+    Returns:
         list of filepaths of downloaded files. Files will be downloaded to /input/.../fileset/<fileset_id>
     """
     # validate
