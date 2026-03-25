@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 import shutil
 import math
+import hisepy.pixi_pack as hpp
 from hisepy.utils import conda_env_builds
 from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug, get_bearer_token_header, guest_hise_server
 import hisepy.common_utils as cu
@@ -161,15 +162,52 @@ def do_pixi_export(to_directory):
         raise ValueError("directory {dir} is not a valid directory".format(
             dir=to_directory))
 
-    # pack environment; copy manifests over to scratch
-    env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'], get_ide_env_name())
+    pixi_envs = list_environments(CONFIG["STORES"]["ENV_STORE"], "pixi.toml")
+
+    # if there's more than 1 environment, and user is using non-default kernel,
+    # prompt user to select which one to export
+    if len(pixi_envs) == 0:
+        raise RuntimeError("No Pixi environments found to export.")
+    elif not debug() and cu.is_valid_upload_kernel():
+        selected_env = get_ide_env_name()
+        if selected_env not in pixi_envs:
+            raise RuntimeError(
+                f"Pixi environment {selected_env} not found in {CONFIG['STORES']['ENV_STORE']}.")
+    else not debug() and len(pixi_envs) > 1:
+        idx = cu.prompt_from_options(
+            "Multiple Pixi environments found. Please select which one to export.",
+            pixi_envs,
+            True,
+        )
+        selected_env = pixi_envs[idx]
+    
+    env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'], selected_env)
     if not os.path.isdir(env_dir) and not debug():
         raise ValueError(
             "directory {dir} is not a valid directory".format(dir=env_dir))
-    pixi_export_dest = os.path.join(to_directory, "pixi.toml")
-    pixi_manifest_src = os.path.join(env_dir, 'pixi.toml')
 
-    shutil.copy(pixi_manifest_src, pixi_export_dest)
+    # now we have the selected environment, but need to check if there's an environment table within pixi.toml
+    pixi_manifest_src = os.path.join(env_dir, 'pixi.toml')
+    pixi_data = hpp.load_pixi_toml(pixi_manifest_src)
+    pixi_envs = get_environments(pixi_data)
+    if pixi_envs:
+        pixi_env_names = list(pixi_envs.keys())
+        if len(pixi_env_names) == 1:
+            selected_feature = pixi_env_names[0]
+            print(f"Only one environment found: {selected_env}")
+        else:
+            print("Multiple environments detected within {} :\n".format(selected_env))
+            env_idx = cu.prompt_from_options("Please select an environment",
+                                                         pixi_env_names,
+                                                         True)
+            selected_feature = pixi_env_names[env_idx]
+
+            # resolve chained features and update pixi.toml to only include the selected environment and its dependencies
+            deps = hpp.resolve_pixi_feature_chain(pixi_data, selected_feature)
+            hpp.write_new_pixi(data, deps, pixi_export_dest) # write to scratch
+    else:
+        pixi_export_dest = os.path.join(to_directory, "pixi.toml")
+        shutil.copy(pixi_manifest_src, pixi_export_dest)
     return pixi_export_dest
 
 
