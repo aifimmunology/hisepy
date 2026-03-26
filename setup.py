@@ -25,6 +25,10 @@ setup(
     url='https://github.com/aifimmunology/hisepy',
     packages=['hisepy'],
     install_requires=[],
+    use_scm_version={
+        "write_to": "hisepy/version.py",
+    },
+    setup_requires=["setuptools_scm"],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
     classifiers=[
