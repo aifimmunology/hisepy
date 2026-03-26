@@ -333,9 +333,6 @@ def write_new_pixi(data: dict, deps: dict, output_path: str):
     # Add resolved dependencies
     new_data["dependencies"] = deps
 
-    # convert sets before writing
-    new_data = cu.convert_sets(new_data)
-
     # Write file
     with open(output_path, "wb") as f:
         tomli_w.dump(new_data, f)
