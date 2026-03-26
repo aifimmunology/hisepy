@@ -77,7 +77,17 @@ def convert_notebook_to_python(notebook_path, output_path=None):
     print("converted notebook to python script: {}".format(output_path))
     return
 
-
+def convert_sets(obj):
+    """Recursively convert sets to lists for TOML serialization."""
+    if isinstance(obj, dict):
+        return {k: convert_sets(v) for k, v in obj.items()}
+    elif isinstance(obj, set):
+        return list(obj)
+    elif isinstance(obj, list):
+        return [convert_sets(v) for v in obj]
+    else:
+        return obj
+        
 def copy_files(src, dst):
     """ Copies file src to dst """
     if not os.path.exists(src):
