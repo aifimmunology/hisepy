@@ -173,7 +173,7 @@ def do_pixi_export(to_directory):
         if selected_env not in pixi_envs:
             raise RuntimeError(
                 f"Pixi environment {selected_env} not found in {CONFIG['STORES']['ENV_STORE']}.")
-    else not debug() and len(pixi_envs) > 1:
+    elif not debug() and len(pixi_envs) > 1:
         idx = cu.prompt_from_options(
             "Multiple Pixi environments found. Please select which one to export.",
             pixi_envs,
@@ -188,25 +188,21 @@ def do_pixi_export(to_directory):
 
     # now we have the selected environment, but need to check if there's an environment table within pixi.toml
     pixi_manifest_src = os.path.join(env_dir, 'pixi.toml')
+    pixi_export_dest = os.path.join(to_directory, "pixi.toml")
     pixi_data = hpp.load_pixi_toml(pixi_manifest_src)
-    pixi_envs = get_environments(pixi_data)
-    if pixi_envs:
+    pixi_envs = hpp.get_pixi_environments(pixi_data)
+    if len(pixi_envs) > 1:
         pixi_env_names = list(pixi_envs.keys())
-        if len(pixi_env_names) == 1:
-            selected_feature = pixi_env_names[0]
-            print(f"Only one environment found: {selected_env}")
-        else:
-            print("Multiple environments detected within {} :\n".format(selected_env))
-            env_idx = cu.prompt_from_options("Please select an environment",
-                                                         pixi_env_names,
-                                                         True)
-            selected_feature = pixi_env_names[env_idx]
+        print("Multiple environments detected within {} :\n".format(selected_env))
+        env_idx = cu.prompt_from_options("Please select an environment",
+                                                        pixi_env_names,
+                                                        True)
+        selected_feature = pixi_env_names[env_idx]
 
-            # resolve chained features and update pixi.toml to only include the selected environment and its dependencies
-            deps = hpp.resolve_pixi_feature_chain(pixi_data, selected_feature)
-            hpp.write_new_pixi(data, deps, pixi_export_dest) # write to scratch
+        # resolve chained features and update pixi.toml to only include the selected environment and its dependencies
+        deps = hpp.resolve_pixi_dependencies(pixi_data, selected_feature)
+        hpp.write_new_pixi(pixi_data, deps, pixi_export_dest) # write to scratch
     else:
-        pixi_export_dest = os.path.join(to_directory, "pixi.toml")
         shutil.copy(pixi_manifest_src, pixi_export_dest)
     return pixi_export_dest
 
@@ -344,7 +340,9 @@ def list_environments(envs_dir, env_filename):
     envs = []
     for name in os.listdir(envs_dir):
         path = os.path.join(envs_dir, name)
-        if os.path.isdir(path) and os.path.isdir(os.path.join(path, env_filename)):
+
+        # check that the environment file exists within the directory
+        if os.path.isdir(path) and (os.path.isfile(os.path.join(path, env_filename)) or os.path.isdir(os.path.join(path, env_filename))):
             envs.append(name)
     return envs
 
