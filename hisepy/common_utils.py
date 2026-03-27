@@ -77,7 +77,6 @@ def convert_notebook_to_python(notebook_path, output_path=None):
     print("converted notebook to python script: {}".format(output_path))
     return
 
-
 def copy_files(src, dst):
     """ Copies file src to dst """
     if not os.path.exists(src):
