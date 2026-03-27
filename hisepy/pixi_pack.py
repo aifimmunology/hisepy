@@ -84,6 +84,10 @@ def build_github_repo(url : str, version_tag : str) -> Path:
 def get_pixi_env_dir():
     return Path(sys.prefix.split("/.pixi")[0])
 
+
+def get_pixi_environments(data: dict):
+    return data.get("environments", {})
+
 @with_default_logging
 def install_github_package_to_pixi_env(url : str, version_tag : str): 
     """
@@ -138,6 +142,62 @@ def install_wheels_to_env(wheel_file):
         check=True,
     )
     return True 
+
+
+def load_pixi_toml(path: str):
+    with open(path, "rb") as f:
+        return tomllib.load(f)
+
+
+def resolve_pixi_feature_chain(data: dict, feature_names: list):
+    """
+    Recursively resolve feature chaining.
+    Example:
+      dev -> ["lint"]
+      lint -> ["format"]
+    """
+    resolved = set()
+    stack = list(feature_names)
+
+    feature_table = data.get("feature", {})
+
+    while stack:
+        feat = stack.pop()
+        if feat in resolved:
+            continue
+
+        resolved.add(feat)
+
+        # Check if this feature references other features
+        nested = feature_table.get(feat, {}).get("features", [])
+        if nested:
+            stack.extend(nested)
+
+    return resolved
+
+
+def resolve_pixi_dependencies(data: dict, selected_env: str):
+    deps = {}
+
+    # Base dependencies
+    deps.update(data.get("dependencies", {}))
+
+    envs = data.get("environments", {})
+    feature_names = envs.get(selected_env, [])
+
+    # Resolve chained features
+    all_features = resolve_pixi_feature_chain(data, feature_names)
+
+    for feature in all_features:
+        feature_deps = (
+            data.get("feature", {})
+                .get(feature, {})
+                .get("dependencies", {})
+        )
+        deps.update(feature_deps)
+
+    return deps
+
 
 @with_default_logging
 def save_custom_pixi_environment(env_name : str, description : str, 
@@ -252,3 +312,27 @@ def validate_install_github_package_params(url : str, version_tag : str):
     if not pixi_toml.exists():
         raise FileNotFoundError(f"pixi.toml not found at {pixi_toml}")
     return True
+
+def write_new_pixi(data: dict, deps: dict, output_path: str):
+    new_data = {}
+
+    # Preserve workspace/project
+    if "workspace" in data:
+        new_data["workspace"] = data["workspace"]
+    elif "project" in data:
+        new_data["project"] = data["project"]
+
+    # Preserve tasks
+    if "tasks" in data:
+        new_data["tasks"] = data["tasks"]
+
+    # Preserve system requirements
+    if "system-requirements" in data:
+        new_data["system-requirements"] = data["system-requirements"]
+
+    # Add resolved dependencies
+    new_data["dependencies"] = deps
+
+    # Write file
+    with open(output_path, "wb") as f:
+        tomli_w.dump(new_data, f)
