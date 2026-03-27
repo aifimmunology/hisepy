@@ -233,15 +233,18 @@ def cache_file(url: str, file_name: str, file_dir: str):
                         chunk_size=CONFIG['IDE']["DOWNLOAD_CHUNK_SIZE"]):
                     file.write(chunk)
 
-def availability_matches_is_public(file_id: str, availability: str, is_public: bool):
+def availability_matches_is_public(file_id: str, is_public: bool):
+    fm = get_file_metadata(file_id)
+    availability = fm.get("availability", "unknown")
+
     # file is public but user did not set is_public to True
     if is_public_file(availability) and not is_public:
-        logger.warning(f"File {file_id} is public and will be skipped. Set is_public=True to download this file.")
+        print(f"File {file_id} is public and will be skipped. Set is_public=True to download this file.")
         return False
 
     # file is not public but user set is_public to True
     if not is_public_file(availability) and is_public:
-        logger.warning(f"File {file_id} is not a public file and will be skipped. Do not set is_public or set is_public=False to download this file.")
+        print(f"File {file_id} is not a public file and will be skipped. Do not set is_public or set is_public=False to download this file.")
         return False
     return True
 
@@ -418,6 +421,22 @@ def get_file_metadata(file_id: str):
 
     return resp
 
+def check_file_availability(file_id: str, is_public: bool):
+    """
+    Checks if a file is available for download based on its availability status and the user's is_public flag
+
+    Parameters:
+        file_id (str): file_id of the file to check
+        is_public (bool): whether the user is trying to access public files or not
+    Returns:
+        bool: True if the file is available for download, False otherwise
+    """
+    metadata = get_file_metadata(file_id)
+    availability = metadata.get("availability", "unknown")
+    if availability == "unknown":
+        logger.warning(f"Could not determine availability for file {file_id}. Proceeding with download, but it may fail if the file is not public.")
+        return True
+    return availability_matches_is_public(file_id, availability, is_public)
 
 def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
     """

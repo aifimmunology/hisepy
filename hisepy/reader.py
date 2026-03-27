@@ -206,6 +206,7 @@ def read_files(file_list: list[str] | None = None,
 
     # validate params; resolve query method used
     try:
+        checked_file_list = []
         ru.validate_download_params(file_list, query_id, query_dict)
         if query_id is not None:
             if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "read_files")):
@@ -224,7 +225,11 @@ def read_files(file_list: list[str] | None = None,
             obj = ru.post_query(query_dict=query_dict)
 
         else:
-            obj = ru.post_query(file_list=file_list, is_public=is_public)
+            for file_id in file_list:
+                match = ru.availability_matches_is_public(file_id, is_public)
+                if match:
+                    checked_file_list.append(file_id)
+            obj = ru.post_query(file_list=checked_file_list, is_public=is_public)
 
     except Exception as e:
         raise Exception(f"Failed to fetch file descriptors: {e}")
@@ -280,8 +285,8 @@ def read_files(file_list: list[str] | None = None,
             cu.log_downloaded_files_or_samples(file_id, sample_id, log_dir)
 
             # attempt to log replica files for guest accounts
-            if file_list:
-                ru.log_replica_file_download(f, file_list[idx], log_dir)
+            if checked_file_list:
+                ru.log_replica_file_download(f, checked_file_list[idx], log_dir)
 
             response.append(fobj)
 
