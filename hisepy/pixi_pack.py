@@ -247,8 +247,24 @@ def save_custom_pixi_environment(env_name : str, description : str,
             shutil.copy2(wheel, tmpdir_path / wheel.name)
             additional_packages.append(tmpdir_path / wheel.name)
 
-        # export pixi manifest
-        cu.copy_files(f"{path_to_env}/pixi.toml", toml_path)
+        # if there are features, prompt user to select which features to include in the export
+        pixi_data = load_pixi_toml(path_to_env / "pixi.toml")
+        pixi_envs = get_pixi_environments(pixi_data)
+        if len(pixi_envs) > 1:
+            pixi_env_names = list(pixi_envs.keys())
+            print("Multiple environments detected within {} :\n".format(selected_env))
+            env_idx = cu.prompt_from_options("Please select an environment",
+                                                            pixi_env_names,
+                                                            True)
+            selected_feature = pixi_env_names[env_idx]
+
+            # resolve chained features and update pixi.toml to only include the selected environment and its dependencies
+            deps = resolve_pixi_dependencies(pixi_data, selected_feature)
+
+            write_new_pixi(pixi_data, deps, toml_path) # write to scratch
+        else: 
+            # export pixi manifest
+            cu.copy_files(f"{path_to_env}/pixi.toml", toml_path)
 
         # prep request
         params = {
