@@ -5,6 +5,14 @@ MATERIALIZED_VIEW:
     - file
     - sample
     - subject
+  PUBLIC_QUERYABLE_FIELDS:
+    - file
+  PUBLIC_QUERYABLE_FIELD_TYPES:
+    - file
+    - sample
+    - subject
+    - release
+    - asset
   EMR: emr
   LAB: lab
 
@@ -55,7 +63,7 @@ PROJECT_FOLDER:
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
 
 PUBLISHING:
-  PUBLISHING_FILE_SEARCH: publishing/file/q
+  FILE_SEARCH_PATH: publishing/file/q
 
 # hydration endpoints
 HYDRATION:

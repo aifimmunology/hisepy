@@ -79,7 +79,8 @@ class hise_file:
 # create their own query w/ different operators
 class MongoQuery:  # class to handle mongo query language translation
 
-    def __init__(self, query_dict):
+    def __init__(self, query_dict, is_public=False):
+        self.is_public = is_public
         if self.validate_query_dict(query_dict):
             self.query_dict = query_dict
 
@@ -92,7 +93,7 @@ class MongoQuery:  # class to handle mongo query language translation
         """ Takes user's query and adds the appropriate prefix to the field_names """
         # create data.frame of all queryable fields
         new_query_dict = self.query_dict.copy()
-        q_df = hl.lookup_queryable_fields()
+        q_df = hl.lookup_queryable_fields(is_public=self.is_public)
         q_df = q_df.loc[
             ~q_df[['field_type', 'field']].duplicated(),
         ]
@@ -125,7 +126,7 @@ class MongoQuery:  # class to handle mongo query language translation
         # TODO: this part of the validation is gonna need to be able to handle
         # generalized metadata scheme in the near future
         user_field_names = set(query_dict.keys())
-        acceptable_fields = hl.list_queryable_fields()
+        acceptable_fields = hl.list_queryable_fields(is_public=self.is_public)
         setdiff = user_field_names.difference(acceptable_fields)
         if setdiff != set() and not debug():
             raise Exception("""The following field names are invalid: {uf}. \n
@@ -382,7 +383,7 @@ def get_file_descriptor_endpoint(is_public: bool):
     """
     if is_public:
         return "https://{s}/{de}".format(
-            s=hise_server(), de=CONFIG['PUBLISHING']['PUBLISHING_FILE_SEARCH'])
+            s=hise_server(), de=CONFIG['PUBLISHING']['FILE_SEARCH_PATH'])
     else:
         return "https://{s}/{de}".format(
             s=hise_server(), de=CONFIG['LEDGER']['FILE_SEARCH_PATH'])
@@ -533,7 +534,7 @@ def post_query(
         # query for file descriptors using file ids
         for fid in file_list:
             user_query = {"id": [fid]}
-            query_instance = MongoQuery(user_query)
+            query_instance = MongoQuery(user_query, is_public=is_public)
             formatted_query = query_instance.query_dict_to_mongo_query(query_instance.add_prefix_to_query())
             count = count_payload_entries(formatted_query, is_public)
             rep_obj = submit_file_descriptor_request(formatted_query, count, is_public)
@@ -558,7 +559,7 @@ def query_files(user_query: dict, is_public: bool = False):
         query_files(user_query={'cohortGuid' : ['FH1']})
     """
 
-    query_instance = MongoQuery(user_query)
+    query_instance = MongoQuery(user_query, is_public=is_public)
     formatted_query = query_instance.query_dict_to_mongo_query(
         query_instance.add_prefix_to_query())
 
