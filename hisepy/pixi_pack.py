@@ -252,7 +252,7 @@ def save_custom_pixi_environment(env_name : str, description : str,
         pixi_envs = get_pixi_environments(pixi_data)
         if len(pixi_envs) > 1:
             pixi_env_names = list(pixi_envs.keys())
-            print("Multiple environments detected within {} :\n".format(selected_env))
+            print("Multiple environments detected within {} :\n".format(path_to_env))
             env_idx = cu.prompt_from_options("Please select an environment",
                                                             pixi_env_names,
                                                             True)
