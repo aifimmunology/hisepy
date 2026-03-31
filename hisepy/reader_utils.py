@@ -421,23 +421,6 @@ def get_file_metadata(file_id: str):
 
     return resp
 
-def check_file_availability(file_id: str, is_public: bool):
-    """
-    Checks if a file is available for download based on its availability status and the user's is_public flag
-
-    Parameters:
-        file_id (str): file_id of the file to check
-        is_public (bool): whether the user is trying to access public files or not
-    Returns:
-        bool: True if the file is available for download, False otherwise
-    """
-    metadata = get_file_metadata(file_id)
-    availability = metadata.get("availability", "unknown")
-    if availability == "unknown":
-        logger.warning(f"Could not determine availability for file {file_id}. Proceeding with download, but it may fail if the file is not public.")
-        return True
-    return availability_matches_is_public(file_id, availability, is_public)
-
 def log_replica_file_download(hise_file, file_id: str, ide_dir: str):
     """
     Creates another log entry. If a file was downloaded in a guest workspace, then the replica fileID is logged
