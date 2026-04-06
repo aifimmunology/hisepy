@@ -414,8 +414,9 @@ def get_template_variable(template_var: dict[str,
 
     var_type = BuildTemplateVariableType.OTHER
     if template_var['isPath']:
-        var_type = BuildTemplateVariableType.DIRECTORY if template_var[
-            'directoryStructure'] is not None else BuildTemplateVariableType.FILE
+        ds = template_var['directoryStructure']
+        var_type = BuildTemplateVariableType.DIRECTORY if isinstance(
+            ds, dict) and len(ds) > 0 else BuildTemplateVariableType.FILE
 
     def get_user_input() -> str:
         return input(f'Please enter {template_var["friendlyName"]}:')
