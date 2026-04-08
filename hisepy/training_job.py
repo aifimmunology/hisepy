@@ -151,10 +151,10 @@ def start_training_run(
     else:
         raise Exception("Provider must be either 'ray' or 'beaker'")
 
-    if use_conda:
+    if use_conda and image_id is not None:
         # write environment.yml file to temp directory
         job_obj.create_env_yaml()
-    else:
+    elif not use_conda and image_id is not None:
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
 
