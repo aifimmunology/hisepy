@@ -28,7 +28,7 @@ import tomli_w
 logger = logging.getLogger(__name__)
 
 
-def build_github_repo(url : str, version_tag : str) -> Path: 
+def build_github_repo(url: str, version_tag: str) -> Path:
     """ 
         Clones a github repo and attempts to build and create a .whl file. 
         If successful, it will copy it over to the IDE's Pixi environment
@@ -56,8 +56,8 @@ def build_github_repo(url : str, version_tag : str) -> Path:
             check=True,
         )
 
-        # build a whl, copy whl to pixi env dir 
-        # error out if whl can't be generated 
+        # build a whl, copy whl to pixi env dir
+        # error out if whl can't be generated
         subprocess.run(
             ["python", "-m", "pip", "install", "--quiet", "build"],
             check=True,
@@ -81,6 +81,7 @@ def build_github_repo(url : str, version_tag : str) -> Path:
         shutil.copy2(wheel_path, dest_wheel)
     return dest_wheel
 
+
 def get_pixi_env_dir():
     return Path(sys.prefix.split("/.pixi")[0])
 
@@ -88,8 +89,9 @@ def get_pixi_env_dir():
 def get_pixi_environments(data: dict):
     return data.get("environments", {})
 
+
 @with_default_logging
-def install_github_package_to_pixi_env(url : str, version_tag : str): 
+def install_github_package_to_pixi_env(url: str, version_tag: str):
     """
     Install a package from github to an existing pixi environment
 
@@ -107,11 +109,11 @@ def install_github_package_to_pixi_env(url : str, version_tag : str):
     wheel_dir.mkdir(exist_ok=True)
 
     try:
-        # validate params 
+        # validate params
         validate_install_github_package_params(url, version_tag)
 
         # create unique task name based on repo name
-        print("building github repo...") 
+        print("building github repo...")
         # clone repo to scratch, checkout tag, build it, and copy it over
         built_wheel = build_github_repo(url, version_tag)
 
@@ -120,28 +122,24 @@ def install_github_package_to_pixi_env(url : str, version_tag : str):
         update_install_wheel_task(built_wheel)
 
     except Exception as e:
-        raise SystemError(
-            f"Failed to build github package: {e}"
-        ) 
-        
-     # now install the packages using the pixi task command  
-    try: 
+        raise SystemError(f"Failed to build github package: {e}")
+
+    # now install the packages using the pixi task command
+    try:
         print("installing github package to environment...")
         install_wheels_to_env(built_wheel)
-    except Exception as e: 
-        raise SystemError(
-            f"Failed to install github package {url}: {e}"
-        )
+    except Exception as e:
+        raise SystemError(f"Failed to install github package {url}: {e}")
     return True
 
 
-def install_wheels_to_env(wheel_file): 
+def install_wheels_to_env(wheel_file):
 
     subprocess.run(
         ["pip", "install", wheel_file],
         check=True,
     )
-    return True 
+    return True
 
 
 def load_pixi_toml(path: str):
@@ -189,19 +187,16 @@ def resolve_pixi_dependencies(data: dict, selected_env: str):
     all_features = resolve_pixi_feature_chain(data, feature_names)
 
     for feature in all_features:
-        feature_deps = (
-            data.get("feature", {})
-                .get(feature, {})
-                .get("dependencies", {})
-        )
+        feature_deps = (data.get("feature",
+                                 {}).get(feature, {}).get("dependencies", {}))
         deps.update(feature_deps)
 
     return deps
 
 
 @with_default_logging
-def save_custom_pixi_environment(env_name : str, description : str, 
-                                 languages : list[str]): 
+def save_custom_pixi_environment(env_name: str, description: str,
+                                 languages: list[str]):
     """
     Save a custom Pixi environment with additional metadata. 
 
@@ -213,7 +208,7 @@ def save_custom_pixi_environment(env_name : str, description : str,
         dict: Response from the HISE API after saving the environment
     """
 
-    # validate parameters 
+    # validate parameters
     validate_save_custom_env_params(env_name, description, languages)
 
     # grab env path from PIXI_PROJECT_MANIFEST env var
@@ -224,20 +219,18 @@ def save_custom_pixi_environment(env_name : str, description : str,
         )
 
     wheel_dir = pixi_env_dir / "python-packages"
-    # prompt user 
+    # prompt user
     if not cu.prompt_user(CONFIG["PROMPTS"]["SAVE_CUSTOM_ENV"].format("pixi"),
-                            pixi_env_dir):
-        raise RuntimeError(
-            "User cancelled saving the custom Pixi environment"
-        )
+                          pixi_env_dir):
+        raise RuntimeError("User cancelled saving the custom Pixi environment")
     path_to_env = pixi_env_dir
     logger.info(f"saving activate Pixi environment at {path_to_env}")
 
-    # grep all files in /wheels 
+    # grep all files in /wheels
     wheel_files = list(wheel_dir.glob("*.whl"))
 
     # export manifest file to temporary directory
-    with tempfile.TemporaryDirectory(prefix="env_export_") as tmpdir: 
+    with tempfile.TemporaryDirectory(prefix="env_export_") as tmpdir:
         tmpdir_path = Path(tmpdir)
         toml_path = tmpdir_path / "pixi.toml"
 
@@ -252,17 +245,17 @@ def save_custom_pixi_environment(env_name : str, description : str,
         pixi_envs = get_pixi_environments(pixi_data)
         if len(pixi_envs) > 1:
             pixi_env_names = list(pixi_envs.keys())
-            print("Multiple environments detected within {} :\n".format(path_to_env))
+            print("Multiple environments detected within {} :\n".format(
+                path_to_env))
             env_idx = cu.prompt_from_options("Please select an environment",
-                                                            pixi_env_names,
-                                                            True)
+                                             pixi_env_names, True)
             selected_feature = pixi_env_names[env_idx]
 
             # resolve chained features and update pixi.toml to only include the selected environment and its dependencies
             deps = resolve_pixi_dependencies(pixi_data, selected_feature)
 
-            write_new_pixi(pixi_data, deps, toml_path) # write to scratch
-        else: 
+            write_new_pixi(pixi_data, deps, toml_path)  # write to scratch
+        else:
             # export pixi manifest
             cu.copy_files(f"{path_to_env}/pixi.toml", toml_path)
 
@@ -278,20 +271,20 @@ def save_custom_pixi_environment(env_name : str, description : str,
 
         files = []
         with open(toml_path, "rb") as f:
-            files.append(("file", (toml_path.name, f, "application/octet-stream")))
+            files.append(
+                ("file", (toml_path.name, f, "application/octet-stream")))
 
             # additional packages (list of paths)
             for pkg_path in additional_packages:  # list of Path objects or strings
                 pkg_path = Path(pkg_path)
                 f = open(pkg_path, "rb")
-                files.append(
-                    ("additionalPackages", (pkg_path.name, f, "application/octet-stream"))
-                )
+                files.append(("additionalPackages",
+                              (pkg_path.name, f, "application/octet-stream")))
 
             url = cu.hise_url("ide_management", "save_custom_conda_env")
             resp = hreq.hise_post(url, data=params, files=files)
-            
-            # attach workflow to log entry 
+
+            # attach workflow to log entry
             logger.extra["_override"]['workflow'] = resp['WorkflowId']
             return resp
 
@@ -312,12 +305,14 @@ def update_install_wheel_task(dest_wheel):
 
     if new_wheel_ref not in existing_wheels:
         existing_wheels.add(new_wheel_ref)
-    tasks["install-github-python-pkg"] = "pip install " + " ".join(sorted(existing_wheels))
+    tasks["install-github-python-pkg"] = "pip install " + " ".join(
+        sorted(existing_wheels))
 
     pixi_toml.write_text(tomli_w.dumps(data))
     return True
 
-def validate_install_github_package_params(url : str, version_tag : str): 
+
+def validate_install_github_package_params(url: str, version_tag: str):
     pixi_toml = get_pixi_env_dir() / 'pixi.toml'
     if not url.startswith("https://github.com/"):
         raise ValueError("url must be a GitHub https URL")
@@ -328,6 +323,7 @@ def validate_install_github_package_params(url : str, version_tag : str):
     if not pixi_toml.exists():
         raise FileNotFoundError(f"pixi.toml not found at {pixi_toml}")
     return True
+
 
 def write_new_pixi(data: dict, deps: dict, output_path: str):
     new_data = {}

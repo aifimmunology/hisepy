@@ -79,7 +79,6 @@ def convert_dict_to_df(df, dict_val, col_name, add_prefix=True):
     return pd.concat([df, dict_df_tmp], axis=1)
 
 
-
 def convert_list_to_df(df, list_val, col_name):
     # if there's just 1 entry, convert it to a data.frame
     if len(list_val) == 1 and type(list_val[0]) is not dict:
@@ -308,10 +307,9 @@ def reshape_descriptors(this_desc):
         "survey": surv_df,
     }
 
-
     # public files don't have a projectGuid
     if "projectGuid" in dict_df["descriptors"].columns:
-         # Extract projectGuid once
+        # Extract projectGuid once
         this_proj_guid = dict_df["descriptors"]["projectGuid"].iat[0]
 
         # Attach projectGuid to all relevant DataFrames at once

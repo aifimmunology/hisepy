@@ -37,15 +37,19 @@ def cache_files(file_ids: list[str] | None = None,
 
     # backwards compatibility for query_id and query_dict parameters, which used to be non-list types
     if query_id:
-        if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "cache_files")):
+        if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format(
+                "query_id", "cache_files")):
             logger.info("Cancelled cache_files call.")
             return []
-        return ru.cache_files_using_descriptors(ru.post_query(query_id=query_id[0]))
+        return ru.cache_files_using_descriptors(
+            ru.post_query(query_id=query_id[0]))
     elif query_dict:
-        if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "cache_files")):
+        if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format(
+                "query_dict", "cache_files")):
             logger.info("Cancelled cache_files call.")
             return []
-        return ru.cache_files_using_descriptors(ru.post_query(query_dict=query_dict))
+        return ru.cache_files_using_descriptors(
+            ru.post_query(query_dict=query_dict))
     else:
         dl_paths: List[str] = []
         fail_files: List[str] = []
@@ -70,8 +74,8 @@ def cache_files(file_ids: list[str] | None = None,
                     logger.info("Downloading fileID %s -> %s", file_id,
                                 download_dir)
                     ru.cache_file(url=f["url"],
-                                file_name=fname,
-                                file_dir=download_dir)
+                                  file_name=fname,
+                                  file_dir=download_dir)
 
                 # download file to current IDE architecture
                 else:
@@ -84,18 +88,20 @@ def cache_files(file_ids: list[str] | None = None,
                     )
                     dl_resp = cu.parse_hise_response(
                         requests.request("GET",
-                                        endpoint,
-                                        headers=get_bearer_token_header()))
+                                         endpoint,
+                                         headers=get_bearer_token_header()))
                     this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
-                                            dl_resp["Path"])
+                                             dl_resp["Path"])
                     dl_paths.append(this_path)
 
                 # Log downloads
-                cu.log_downloaded_files_or_samples(file_id, sample_ids, log_dir)
+                cu.log_downloaded_files_or_samples(file_id, sample_ids,
+                                                   log_dir)
 
             # don't outright fail, but log the error
             except Exception as e:
-                logger.error("Unexpected error processing file response: %s", file_id)
+                logger.error("Unexpected error processing file response: %s",
+                             file_id)
                 fail_files.append(str(file_id))
 
         if fail_files:
@@ -209,19 +215,23 @@ def read_files(file_list: list[str] | None = None,
         checked_file_list = []
         ru.validate_download_params(file_list, query_id, query_dict)
         if query_id is not None:
-            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_id", "read_files")):
+            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format(
+                    "query_id", "read_files")):
                 print("Cancelled read_files call.")
                 return []
             if is_public:
-                raise ValueError("Query ID search not supported for public files.")
+                raise ValueError(
+                    "Query ID search not supported for public files.")
             obj = ru.post_query(query_id=query_id[0])
 
         elif query_dict is not None:
-            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format("query_dict", "read_files")):
+            if not cu.prompt_user(CONFIG["PROMPTS"]["QUERY_ID_READ"].format(
+                    "query_dict", "read_files")):
                 print("Cancelled read_files call.")
                 return []
             if is_public:
-                raise ValueError("Query search not supported for public files.")
+                raise ValueError(
+                    "Query search not supported for public files.")
             obj = ru.post_query(query_dict=query_dict)
 
         else:
@@ -229,7 +239,8 @@ def read_files(file_list: list[str] | None = None,
                 match = ru.availability_matches_is_public(file_id, is_public)
                 if match:
                     checked_file_list.append(file_id)
-            obj = ru.post_query(file_list=checked_file_list, is_public=is_public)
+            obj = ru.post_query(file_list=checked_file_list,
+                                is_public=is_public)
 
     except Exception as e:
         raise Exception(f"Failed to fetch file descriptors: {e}")
@@ -240,7 +251,8 @@ def read_files(file_list: list[str] | None = None,
     # download file loop
     for idx, f in enumerate(obj):
         try:
-            file_id, file_name, desc = ru.parse_file_descriptor_from_hise_file(f)
+            file_id, file_name, desc = ru.parse_file_descriptor_from_hise_file(
+                f)
             print("Processing file: %s, file_id: %s" % (file_name, file_id))
             f["id"] = file_id
             fobj = ru.hise_file(file_id=file_id)
@@ -256,8 +268,8 @@ def read_files(file_list: list[str] | None = None,
                 logger.info("Downloading fileID %s -> %s", file_id,
                             download_dir)
                 ru.cache_file(url=f["url"],
-                            file_name=fname,
-                            file_dir=download_dir)
+                              file_name=fname,
+                              file_dir=download_dir)
 
             # download file to current IDE architecture
             else:
@@ -270,10 +282,10 @@ def read_files(file_list: list[str] | None = None,
                 )
                 dl_resp = cu.parse_hise_response(
                     requests.request("GET",
-                                    endpoint,
-                                    headers=get_bearer_token_header()))
+                                     endpoint,
+                                     headers=get_bearer_token_header()))
                 this_path = os.path.join(CONFIG["IDE"]["HOME_DIR_V2"],
-                        dl_resp["Path"])
+                                         dl_resp["Path"])
                 # update hise file object
                 desc["file"]["name"] = this_path
                 fobj.status = True
@@ -286,7 +298,8 @@ def read_files(file_list: list[str] | None = None,
 
             # attempt to log replica files for guest accounts
             if checked_file_list:
-                ru.log_replica_file_download(f, checked_file_list[idx], log_dir)
+                ru.log_replica_file_download(f, checked_file_list[idx],
+                                             log_dir)
 
             response.append(fobj)
 
@@ -362,7 +375,8 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
 
         dict_df = hf.sample_to_df(obj["payload"])
         dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
-        cu.log_downloaded_files_or_samples(sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
+        cu.log_downloaded_files_or_samples(
+            sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
         return dict_df
 
     except Exception as e:
@@ -501,8 +515,8 @@ def cache_fileset(fileset_id: str) -> list[str]:
 
         # log file ids
         for f in list(fileset_obj[0]['fileIds'].keys()):
-            cu.log_downloaded_files_or_samples(file_id=f,
-                                    ide_dir=CONFIG['STORES']['TEMP_STORE'])
+            cu.log_downloaded_files_or_samples(
+                file_id=f, ide_dir=CONFIG['STORES']['TEMP_STORE'])
 
         # return the user all the files that were downloaded
         output_file_paths = cu.list_all_filepaths(
