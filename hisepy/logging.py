@@ -17,18 +17,23 @@ LOGGING_CONFIG = None
 PROC_INFO = "/proc/1/fd/1"  # path for container stdout logs
 PROC_ERROR = "/proc/1/fd/2"  # path for container stderr logs
 
+if debug():
+    #log errors locally
+    PROC_INFO = "/tmp/sdk_info"
+    PROC_ERROR = "/tmp/sdk_error"
 
 LEVEL_COLORS = {
-    "INFO": "\033[32m",    # Green
-    "WARNING": "\033[33m", # Yellow
-    "ERROR": "\033[31m",   # Red
+    "INFO": "\033[32m",  # Green
+    "WARNING": "\033[33m",  # Yellow
+    "ERROR": "\033[31m",  # Red
 }
+
 
 class ColorFormatter(logging.Formatter):
     LEVEL_COLORS = {
-        logging.INFO: "\033[32m",      # Green
-        logging.WARNING: "\033[33m",   # Yellow
-        logging.ERROR: "\033[31m",     # Red
+        logging.INFO: "\033[32m",  # Green
+        logging.WARNING: "\033[33m",  # Yellow
+        logging.ERROR: "\033[31m",  # Red
         logging.CRITICAL: "\033[41m",  # Red background (optional)
     }
     RESET = "\033[0m"
@@ -43,21 +48,25 @@ class ColorFormatter(logging.Formatter):
         msg = f"[{record.name}:{record.lineno}] {record.module} {record.process} {record.thread} {record.getMessage()}"
         return f"{prefix} {msg}"
 
+
 # The default logging level is set to 'INFO'
 logging.config.dictConfig({
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'console': {
-            '()': ColorFormatter, # color scheme according to LEVEL COLORS
-            'format': '%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s',
+            '()':
+            ColorFormatter,  # color scheme according to LEVEL COLORS
+            'format':
+            '%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s',
         },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'console',
-            'stream': 'ext://sys.stdout',  # Force stdout (no red background in JupyterLab)
+            'stream':
+            'ext://sys.stdout',  # Force stdout (no red background in JupyterLab)
         },
     },
     'loggers': {
@@ -114,7 +123,7 @@ class ErrorHandler(logging.Handler):
                              time_elapsed=getattr(record, "time_elapsed",
                                                   None),
                              severity="error",
-                            workflow=getattr(record, "workflow", ""))
+                             workflow=getattr(record, "workflow", ""))
         with open(PROC_ERROR, "a") as f:
             f.write(json.dumps(log_entry.as_dict()) + "\n")
 
@@ -188,10 +197,9 @@ def with_logging(func: Callable[..., Any],
             # extract override fields
             override = adapter.extra.get("_override", {})
 
-
-
             time_elapsed = time.time() - start_time
-            data = LogEntry(method_name=override.get("method_name", func.__name__),
+            data = LogEntry(method_name=override.get("method_name",
+                                                     func.__name__),
                             parameters=parameters,
                             success=success,
                             message=str(msg),
