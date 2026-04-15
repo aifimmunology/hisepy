@@ -619,13 +619,13 @@ def get_input_samples(files):
     """Extracts sample IDs and kit GUIDs from the list of files."""
     sample_ids = {}
     sample_kit_guids = {}
-    for f in files:
-        if file_sample_id_key in f and f[file_sample_id_key] is not None:
-            for f in f[file_sample_id_key]:
-                sample_ids[f] = True
-        if file_kit_guid_key in f and f[file_kit_guid_key] is not None:
-            for f in f[file_kit_guid_key]:
-                sample_kit_guids[f] = True
+    for file_item in files:
+        if file_sample_id_key in file_item and file_item[file_sample_id_key] is not None:
+            for sample_id in file_item[file_sample_id_key]:
+                sample_ids[sample_id] = True
+        if file_kit_guid_key in file_item and file_item[file_kit_guid_key] is not None:
+            for kit_guid in file_item[file_kit_guid_key]:
+                sample_kit_guids[kit_guid] = True
     sample_id_filter = None
     sample_kit_filter = None
     for key in sample_ids:
