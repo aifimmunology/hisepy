@@ -24,7 +24,7 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
 @with_default_logging
-def lookup_queryable_fields(field_type='all', is_public = False) -> pd.DataFrame:
+def lookup_queryable_fields(field_type='all', is_public=False) -> pd.DataFrame:
     """
     Returns fields users can query on depending on the collection type.
     Acceptable values are either 'file', 'sample', or 'subject'
@@ -39,13 +39,15 @@ def lookup_queryable_fields(field_type='all', is_public = False) -> pd.DataFrame
 
     endpoint = ""
     if is_public:
-        valid_types = CONFIG["MATERIALIZED_VIEW"]["PUBLIC_QUERYABLE_FIELDS"] + ["all"]
+        valid_types = CONFIG["MATERIALIZED_VIEW"][
+            "PUBLIC_QUERYABLE_FIELDS"] + ["all"]
         if field_type not in valid_types:
             raise ValueError(
                 f"Invalid field_type '{field_type}'. Must be one of {valid_types}."
             )
         endpoint = "PUBLISHING"
-        collection_fields = CONFIG["MATERIALIZED_VIEW"]["PUBLIC_QUERYABLE_FIELDS"]
+        collection_fields = CONFIG["MATERIALIZED_VIEW"][
+            "PUBLIC_QUERYABLE_FIELDS"]
     else:
         valid_types = CONFIG["MATERIALIZED_VIEW"]["QUERYABLE_FIELDS"] + ["all"]
         if field_type not in valid_types:
@@ -180,8 +182,5 @@ def list_queryable_fields(is_public=False):
     else:
         fields = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
 
-    id_fields = [
-        '{}.id'.format(i)
-        for i in fields
-    ]
+    id_fields = ['{}.id'.format(i) for i in fields]
     return df['field'].unique().tolist() + id_fields
