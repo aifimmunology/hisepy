@@ -77,6 +77,7 @@ def convert_notebook_to_python(notebook_path, output_path=None):
     print("converted notebook to python script: {}".format(output_path))
     return
 
+
 def copy_files(src, dst):
     """ Copies file src to dst """
     if not os.path.exists(src):
@@ -138,7 +139,9 @@ def current_notebook():
 
     # check for whitespaces
     if string_contains_whitespaces(notebooks[0]):
-        raise ValueError("The current notebook has whitespaces in its name, which is not supported. Please rename the notebook to remove any whitespaces and try again. The notebook with whitespaces is: {}".format(notebooks[0]))
+        raise ValueError(
+            "The current notebook has whitespaces in its name, which is not supported. Please rename the notebook to remove any whitespaces and try again. The notebook with whitespaces is: {}"
+            .format(notebooks[0]))
     return notebooks[0]
 
 
@@ -223,6 +226,15 @@ def get_organization():
 
     # get org guid
     return account_info[0]['organization']['guid']
+
+
+def get_samples_for_query(query_dict: dict):
+    url = hise_url('ledger', 'sample_path', 'filter')
+    sample_info = parse_hise_response(
+        requests.post(url,
+                      headers=get_bearer_token_header(),
+                      data=json.dumps({"filter": query_dict})))
+    return sample_info if sample_info is not None else []
 
 
 def get_ide_package_manager():
@@ -468,10 +480,10 @@ def list_files_and_dirs(directory):
 
 
 def log_downloaded_files_or_samples(file_id: str = None,
-                         sample_ids: list = None,
-                         ide_dir: str = None,
-                         replica_file_id: str = None,
-                         replica_sample_id: str = None):
+                                    sample_ids: list = None,
+                                    ide_dir: str = None,
+                                    replica_file_id: str = None,
+                                    replica_sample_id: str = None):
     """
     Attaches fileId for the project folder file that was downloaded
 
@@ -480,7 +492,9 @@ def log_downloaded_files_or_samples(file_id: str = None,
     """
     # fileID must not be null at least
     if file_id is None and sample_ids is None:
-        raise ValueError("must pass in at least a file_id or sample_ids to log downloaded file/sample")
+        raise ValueError(
+            "must pass in at least a file_id or sample_ids to log downloaded file/sample"
+        )
 
     # if null, assume ide directory is (/home/jupyter)
     if ide_dir is None:
@@ -506,7 +520,8 @@ def log_downloaded_files_or_samples(file_id: str = None,
             data={
                 'fileId': [file_id],
                 'replicaFileId': [replica_file_id],
-                'sampleId': sample_ids if isinstance(sample_ids, str) else [sample_ids],
+                'sampleId':
+                sample_ids if isinstance(sample_ids, str) else [sample_ids],
                 'replicaSampleId': [replica_sample_id],
                 'downloadSourceDir': [download_workdir],
                 'downloadTimeStamp': [str(datetime.datetime.now())]

@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 import shutil
 import math
+import uuid
 import hisepy.pixi_pack as hpp
 from hisepy.utils import conda_env_builds
 from hisepy.auth import IDEInstance, ide_is_from_guest_account, debug, get_bearer_token_header, guest_hise_server
@@ -16,21 +17,27 @@ _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not debug() else os.getcwd()
 
+if debug():
+    CONFIG['STORES']['TEMP_STORE'] = "/tmp"
+    CONFIG['STORES']['ENV_STORE'] = "/tmp"
+
 no_study_default = "no study"
 permanent_store = "permanent"
 project_store = "project"
 valid_upload_stores = [permanent_store, project_store]
 
+file_key = "file"
+file_type_key = "file_type"
+file_sample_id_key = "input_sample_ids"
+file_kit_guid_key = "input_sample_kit_guids"
 
-def build_upload_payload(files, file_types, title, store, destination, project,
-                         study_space_id, input_file_ids, input_sample_ids,
-                         home_dir, inst):
+
+def build_upload_payload(files, title, store, destination, project,
+                         study_space_id, input_file_ids, home_dir, inst,
+                         no_file_set):
     """Builds the structured payload for upload."""
-    if file_types is None:
-        file_types = []
     qargs = {
         "title": title,
-        "fileType": [],
         "saveIDE": True,
         "store": store,
         "destination": destination,
@@ -38,15 +45,15 @@ def build_upload_payload(files, file_types, title, store, destination, project,
         "instanceGuid": inst.id,
         "inputFileIds": input_file_ids,
         "project": project,
-        "sampleIds": input_sample_ids,
         "notebook": cu.current_notebook(),
         "homedir": home_dir,
+        "noFileSet": no_file_set
     }
 
     if study_space_id and study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
 
-    qargs.update(gen_upload_body(files, file_types))
+    qargs.update(gen_upload_body(files))
     return qargs
 
 
@@ -111,16 +118,17 @@ def do_conda_export(to_directory: str = ""):
 
     # export to scratch and move to to staging store
     conda_envs = list_environments(CONFIG["STORES"]["ENV_STORE"], "conda-meta")
-    
+
     # if there's more than 1 environment, and user is using non-default kernel,
     # prompt user to select which one to export
-    if len(conda_envs) == 0:
-        raise RuntimeError("No conda environments found to export.")
+    if len(conda_envs) == 0 and not debug:
+        RuntimeError("No conda environments found to export.")
     elif not debug and cu.is_valid_upload_kernel():
         selected_env = get_ide_env_name()
         if selected_env not in conda_envs:
             raise RuntimeError(
-                f"Conda environment {selected_env} not found in {CONFIG['STORES']['ENV_STORE']}.")
+                f"Conda environment {selected_env} not found in {CONFIG['STORES']['ENV_STORE']}."
+            )
     elif not debug() and len(conda_envs) > 1:
         idx = cu.prompt_from_options(
             "Multiple conda environments found. Please select which one to export.",
@@ -144,9 +152,10 @@ def do_conda_export(to_directory: str = ""):
 
     # check that the environment file isn't empty
     if not has_packages_in_env_file(conda_export_dest):
-        raise ValueError(
-            "Environment file is empty, please ensure that the conda environment is active and not empty."
-        )
+        if not debug():
+            raise ValueError(
+                "Environment file is empty, please ensure that the conda environment is active and not empty."
+            )
 
     return conda_export_dest
 
@@ -172,7 +181,8 @@ def do_pixi_export(to_directory):
         selected_env = get_ide_env_name()
         if selected_env not in pixi_envs:
             raise RuntimeError(
-                f"Pixi environment {selected_env} not found in {CONFIG['STORES']['ENV_STORE']}.")
+                f"Pixi environment {selected_env} not found in {CONFIG['STORES']['ENV_STORE']}."
+            )
     elif not debug() and len(pixi_envs) > 1:
         idx = cu.prompt_from_options(
             "Multiple Pixi environments found. Please select which one to export.",
@@ -180,7 +190,7 @@ def do_pixi_export(to_directory):
             True,
         )
         selected_env = pixi_envs[idx]
-    
+
     env_dir = "{}/{}".format(CONFIG['STORES']['ENV_STORE'], selected_env)
     if not os.path.isdir(env_dir) and not debug():
         raise ValueError(
@@ -193,15 +203,16 @@ def do_pixi_export(to_directory):
     pixi_envs = hpp.get_pixi_environments(pixi_data)
     if len(pixi_envs) > 1:
         pixi_env_names = list(pixi_envs.keys())
-        print("Multiple environments detected within {} :\n".format(selected_env))
+        print("Multiple environments detected within {} :\n".format(
+            selected_env))
         env_idx = cu.prompt_from_options("Please select an environment",
-                                                        pixi_env_names,
-                                                        True)
+                                         pixi_env_names, True)
         selected_feature = pixi_env_names[env_idx]
 
         # resolve chained features and update pixi.toml to only include the selected environment and its dependencies
         deps = hpp.resolve_pixi_dependencies(pixi_data, selected_feature)
-        hpp.write_new_pixi(pixi_data, deps, pixi_export_dest) # write to scratch
+        hpp.write_new_pixi(pixi_data, deps,
+                           pixi_export_dest)  # write to scratch
     else:
         shutil.copy(pixi_manifest_src, pixi_export_dest)
     return pixi_export_dest
@@ -248,13 +259,23 @@ def flatten_sample_column(col):
     return result
 
 
-def gen_upload_body(files, filetypes=[]):
+def gen_upload_body(files):
     body = {"files": []}
     for i, f in enumerate(files):
-        if not os.path.exists(f):
-            raise ValueError("%s is not a valid file." % f)
-        ft = filetypes[i] if len(filetypes) > i else cu.get_filetype(f)
-        body["files"].append({"name": os.path.abspath(f), "type": ft})
+        if not os.path.exists(f[file_key]):
+            raise ValueError("%s is not a valid file." % f[file_key])
+        ft = f[file_type_key] if file_type_key in f else cu.get_filetype(
+            f[file_key])
+        body["files"].append({
+            "name":
+            os.path.abspath(f[file_key]),
+            "type":
+            ft,
+            "inputSampleIds":
+            f[file_sample_id_key] if file_sample_id_key in f else None,
+            "inputSampleKitGuids":
+            f[file_kit_guid_key] if file_kit_guid_key in f else None
+        })
     return body
 
 
@@ -342,22 +363,42 @@ def list_environments(envs_dir, env_filename):
         path = os.path.join(envs_dir, name)
 
         # check that the environment file exists within the directory
-        if os.path.isdir(path) and (os.path.isfile(os.path.join(path, env_filename)) or os.path.isdir(os.path.join(path, env_filename))):
+        if os.path.isdir(path) and (
+                os.path.isfile(os.path.join(path, env_filename))
+                or os.path.isdir(os.path.join(path, env_filename))):
             envs.append(name)
     return envs
 
 
-def resolve_upload_context(study_space_id, project, input_sample_ids,
-                           do_prompt):
+def resolve_upload_context(study_space_id, project, files, do_prompt):
     """Resolves study space, project, and sample IDs, prompting the user if necessary."""
     if study_space_id is None:
         study_space_id = select_study_space(project)
 
-    if not input_sample_ids and do_prompt:
-        input_sample_ids = select_input_samples()
-    elif not input_sample_ids: 
-        input_sample_ids = []
-        
+    hasSamples = False
+    for f in files:
+        if type(f) is not dict:
+            raise ValueError(
+                "Files must be provided in the format of a list of dictionaries with 'name' keys."
+            )
+        if file_sample_id_key in f:
+            if f[file_sample_id_key] is not None and len(
+                    f[file_sample_id_key]) > 0:
+                hasSamples = True
+                break
+        if file_kit_guid_key in f:
+            if f[file_kit_guid_key] is not None and len(
+                    f[file_kit_guid_key]) > 0:
+                hasSamples = True
+                break
+
+    if not hasSamples:
+        samples = select_input_samples()
+        uus, kgs = split_uuids(samples)
+        for f in files:
+            f[file_sample_id_key] = uus
+            f[file_kit_guid_key] = kgs
+
     if project:
         if do_prompt:
             check_default_project(project)
@@ -369,13 +410,12 @@ def resolve_upload_context(study_space_id, project, input_sample_ids,
             )
 
     check_project_against_study_space(project, study_space_id)
-    return study_space_id, project, input_sample_ids
+    return study_space_id, project
 
 
 def select_input_samples():
     provided_samples = cu.prompt_for_input(
-        "Please provide input of comma separated sample ids for the files being uploaded. If you do not have any sample ids, press enter: "
-    )
+        CONFIG["PROMPTS"]["PROVIDE_SAMPLES"])
     # Check for empty input
     if provided_samples is None or provided_samples == "":
         return []
@@ -383,7 +423,6 @@ def select_input_samples():
     if '"' in provided_samples:
         provided_samples = provided_samples.replace('"', '')
     sampleIds = [s.strip() for s in provided_samples.split(",")]
-    return sampleIds
 
 
 def select_study_space(proj):
@@ -466,11 +505,11 @@ def validate_upload_data(files, study_space_id, project, title,
                          input_file_ids):
     files_not_found = []
     for f in files:
-        if cu.string_contains_whitespaces(f):
+        if cu.string_contains_whitespaces(f[file_key]):
             raise ValueError(
                 "{} contains whitespace(s). Please rename this file by removing all whitespaces"
                 .format(f))
-        if not os.path.exists(f):
+        if not os.path.exists(f[file_key]):
             files_not_found.append(f)
     if len(files_not_found) > 0:
         raise ValueError(
@@ -485,7 +524,7 @@ def validate_upload_data(files, study_space_id, project, title,
         raise ValueError("Title must be at least 10 characters")
 
     # check if any files are within /home/workspace/private
-    files_in_private = cu.files_within_private(files)
+    files_in_private = cu.files_within_private([f[file_key] for f in files])
     if len(files_in_private) > 0:
         raise ValueError(
             "The following files are in your private folder: {}. These files cannot be uploaded from their current location. Please move to another directory and try again"
@@ -495,27 +534,35 @@ def validate_upload_data(files, study_space_id, project, title,
 
 
 def validate_upload_parameters(**kwargs):
-    files, file_types, destination, store = (kwargs['files'],
-                                             kwargs['file_types'],
-                                             kwargs['destination'],
-                                             kwargs['store'])
+    files, destination, store = (kwargs['files'], kwargs['destination'],
+                                 kwargs['store'])
     if not files:
         raise ValueError("No files specified for upload.")
+    if len(files) == 0:
+        raise ValueError("At least one file must be specified for upload.")
+    for f in files:
+        if file_key not in f:
+            raise ValueError(
+                f"Each file entry must contain a '{file_key}' key.")
+        elif not os.path.exists(f[file_key]):
+            raise FileNotFoundError(f"File not found: {f[file_key]}")
+
     if cu.string_contains_whitespaces(destination):
         raise ValueError(
             f"Destination path contains whitespace: {destination}")
-    if file_types and len(file_types) != len(files):
-        raise ValueError("file_types must have one entry per file.")
     if store and store not in valid_upload_stores:
         raise ValueError(
             f"Invalid store: {store}. Must be one of {valid_upload_stores}.")
 
 
-def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
-                              ide_dir):
+def validate_upload_input_ids(input_file_ids: list, files: list, ide_dir):
     """ Checks that files associated with a result have
         been seen in a user's IDE
     """
+    #    if debug():
+    #        #skip me
+    #        return
+
     cache_file_path = '{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
 
@@ -535,13 +582,13 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
                 f not in cache_df['replicaFileId'].unique()):
             invalid_file_ids += [f]
 
-    
     sample_ids_set = flatten_sample_column(cache_df['sampleId'])
     replica_ids_set = flatten_sample_column(cache_df['replicaSampleId'])
+    input_samples = get_input_samples(files)
 
     # Find invalid sample IDs
     invalid_sample_ids = [
-        s for s in input_sample_ids
+        s for s in input_samples
         if s not in sample_ids_set and s not in replica_ids_set
     ]
 
@@ -551,7 +598,37 @@ def validate_upload_input_ids(input_file_ids: list, input_sample_ids: list,
             .format(invalid_file_ids))
     if len(invalid_sample_ids) > 0:
         raise ValueError(
-            "The following sample Ids were not downloaded in this IDE. You cannot refernce a file in a result without downloading it first. {}"
+            "The following sample Ids were not downloaded in this IDE. You cannot reference a file in a result without downloading it first. {}"
             .format(invalid_sample_ids))
 
     return
+
+
+def split_uuids(items):
+    uuids, others = [], []
+    for item in items:
+        try:
+            uuid.UUID(item)
+            uuids.append(item)
+        except ValueError:
+            others.append(item)
+    return uuids, others
+
+
+def get_input_samples(files):
+    """Extracts sample IDs and kit GUIDs from the list of files."""
+    sample_kit_guids = {}
+    sample_ids = []
+    for f in files:
+        if file_sample_id_key in f and f[file_sample_id_key] is not None:
+            for f in f[file_sample_id_key]:
+                sample_ids.append(f)
+        if file_kit_guid_key in f and f[file_kit_guid_key] is not None:
+            for f in f[file_kit_guid_key]:
+                sample_kit_guids[f] = True
+    if len(sample_kit_guids) > 0:
+        filter = {"sampleKitGuid": {"$in": list(sample_kit_guids.keys())}}
+        samples = cu.get_samples_for_query(filter)
+        for s in samples:
+            sample_ids.append(s["id"])
+    return sample_ids

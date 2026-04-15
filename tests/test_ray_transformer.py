@@ -5,9 +5,10 @@ import sys
 import textwrap
 import pytest
 from pathlib import Path
-import tempfile 
+import tempfile
 
-sys.path.insert(0, '../')  # Adjust path as needed to locate your RayTransformer
+sys.path.insert(0,
+                '../')  # Adjust path as needed to locate your RayTransformer
 from hisepy.ray_transformer import RayTransformer
 from hisepy.ray_transformer import is_ray_remote_decorator, get_ray_remote_targets, remove_ray_remote_decorator, modify_ray_remote_decorator
 
@@ -16,13 +17,14 @@ class TestRayTransformer(unittest.TestCase):
 
     def normalize(self, code: str) -> str:
         """Utility to normalize code strings for comparison."""
-        return "\n".join(line.strip() for line in code.strip().splitlines() if line.strip())
+        return "\n".join(line.strip() for line in code.strip().splitlines()
+                         if line.strip())
 
     def test_base_transformation(self):
         source_code = '''
 def compute(x):
     return x * 2
-'''    
+'''
         expected_transformed = '''import ray
 ray.init()
 @ray.remote
@@ -34,9 +36,11 @@ def compute(x):
         new_tree = transformer.visit(tree)
         ast.fix_missing_locations(new_tree)
 
-        transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
-        self.assertEqual(self.normalize(transformed_code), self.normalize(expected_transformed))
-        
+        transformed_code = "import ray\nray.init()\n" + astor.to_source(
+            new_tree)
+        self.assertEqual(self.normalize(transformed_code),
+                         self.normalize(expected_transformed))
+
     def test_list_comprehension_transformation(self):
         source_code = '''
 def compute(x):
@@ -63,9 +67,10 @@ def do_the_thing(inputs):
         new_tree = transformer.visit(tree)
         ast.fix_missing_locations(new_tree)
 
-        transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
-        self.assertEqual(self.normalize(transformed_code), self.normalize(expected_transformed))
-
+        transformed_code = "import ray\nray.init()\n" + astor.to_source(
+            new_tree)
+        self.assertEqual(self.normalize(transformed_code),
+                         self.normalize(expected_transformed))
 
     def test_class_actor_transformation(self):
         source_code = '''
@@ -89,9 +94,10 @@ class MyWorker:
         new_tree = transformer.visit(tree)
         ast.fix_missing_locations(new_tree)
 
-        transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
-        self.assertEqual(self.normalize(transformed_code), self.normalize(expected_transformed))
-
+        transformed_code = "import ray\nray.init()\n" + astor.to_source(
+            new_tree)
+        self.assertEqual(self.normalize(transformed_code),
+                         self.normalize(expected_transformed))
 
     def test_class_actor_main_transformation(self):
         source_code = '''
@@ -135,28 +141,41 @@ def main():
         new_tree = transformer.visit(tree)
         ast.fix_missing_locations(new_tree)
 
-        transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
-        self.assertEqual(self.normalize(transformed_code), self.normalize(expected_transformed))
+        transformed_code = "import ray\nray.init()\n" + astor.to_source(
+            new_tree)
+        self.assertEqual(self.normalize(transformed_code),
+                         self.normalize(expected_transformed))
+
 
 def test_is_ray_remote_decorator_name():
     node = ast.Name(id="ray", ctx=ast.Load())
     assert is_ray_remote_decorator(node) is True
 
+
 def test_is_ray_remote_decorator_attribute():
-    node = ast.Attribute(value=ast.Name(id="ray", ctx=ast.Load()), attr="remote", ctx=ast.Load())
+    node = ast.Attribute(value=ast.Name(id="ray", ctx=ast.Load()),
+                         attr="remote",
+                         ctx=ast.Load())
     assert is_ray_remote_decorator(node) is True
 
+
 def test_is_ray_remote_decorator_call():
-    func = ast.Attribute(value=ast.Name(id="ray", ctx=ast.Load()), attr="remote", ctx=ast.Load())
+    func = ast.Attribute(value=ast.Name(id="ray", ctx=ast.Load()),
+                         attr="remote",
+                         ctx=ast.Load())
     node = ast.Call(func=func, args=[], keywords=[])
     assert is_ray_remote_decorator(node) is True
+
 
 def test_is_ray_remote_decorator_false_for_other_name():
     node = ast.Name(id="not_ray", ctx=ast.Load())
     assert is_ray_remote_decorator(node) is False
 
+
 def test_is_ray_remote_decorator_false_for_other_attribute():
-    node = ast.Attribute(value=ast.Name(id="x", ctx=ast.Load()), attr="something", ctx=ast.Load())
+    node = ast.Attribute(value=ast.Name(id="x", ctx=ast.Load()),
+                         attr="something",
+                         ctx=ast.Load())
     assert is_ray_remote_decorator(node) is False
 
 
@@ -172,6 +191,7 @@ def test_get_ray_remote_targets_function(tmp_path: Path):
     file_path.write_text(code)
     assert get_ray_remote_targets(str(file_path)) == [("foo", "function", {})]
 
+
 def test_get_ray_remote_targets_class(tmp_path: Path):
     code = textwrap.dedent("""
         import ray
@@ -184,6 +204,7 @@ def test_get_ray_remote_targets_class(tmp_path: Path):
     file_path.write_text(code)
     assert get_ray_remote_targets(str(file_path)) == [("Worker", "class", {})]
 
+
 def test_get_ray_remote_targets_with_arguments(tmp_path: Path):
     code = textwrap.dedent("""
         import ray
@@ -194,7 +215,10 @@ def test_get_ray_remote_targets_with_arguments(tmp_path: Path):
     """)
     file_path = tmp_path / "test3.py"
     file_path.write_text(code)
-    assert get_ray_remote_targets(str(file_path)) == [("bar", "function", {"num_cpus": 2})]
+    assert get_ray_remote_targets(str(file_path)) == [("bar", "function", {
+        "num_cpus": 2
+    })]
+
 
 def test_get_ray_remote_targets_multiple(tmp_path: Path):
     code = textwrap.dedent("""
@@ -211,6 +235,7 @@ def test_get_ray_remote_targets_multiple(tmp_path: Path):
     result = get_ray_remote_targets(str(file_path))
     assert ("foo", "function", {}) in result
     assert ("Worker", "class", {"num_gpus": 1}) in result
+
 
 def test_get_ray_remote_targets_invalid_syntax(tmp_path: Path):
     file_path = tmp_path / "broken.py"
@@ -237,6 +262,7 @@ def test_get_ray_remote_targets_other_library_remote(tmp_path: Path):
 
 class TestRayModifier(unittest.TestCase):
     """Test cases for modifying Ray remote decorators in Python code."""
+
     def setUp(self):
         self.sample_code = """
 import ray
@@ -256,7 +282,8 @@ class Trainer:
 """
 
     def test_remove_single_function(self):
-        with tempfile.NamedTemporaryFile("w+", suffix=".py", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile("w+", suffix=".py",
+                                         delete=False) as tmp:
             tmp.write(self.sample_code)
             tmp.flush()
 
@@ -264,47 +291,78 @@ class Trainer:
             tree = ast.parse(new_code)
 
             # foo should no longer have any ray.remote decorators
-            foo_node = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "foo"][0]
-            assert all(not is_ray_remote_decorator(d) for d in foo_node.decorator_list)
+            foo_node = [
+                n for n in tree.body
+                if isinstance(n, ast.FunctionDef) and n.name == "foo"
+            ][0]
+            assert all(not is_ray_remote_decorator(d)
+                       for d in foo_node.decorator_list)
 
             # bar should still have its decorator
-            bar_node = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "bar"][0]
-            assert any(is_ray_remote_decorator(d) for d in bar_node.decorator_list)
+            bar_node = [
+                n for n in tree.body
+                if isinstance(n, ast.FunctionDef) and n.name == "bar"
+            ][0]
+            assert any(
+                is_ray_remote_decorator(d) for d in bar_node.decorator_list)
 
     def test_remove_multiple_targets(self):
-        with tempfile.NamedTemporaryFile("w+", suffix=".py", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile("w+", suffix=".py",
+                                         delete=False) as tmp:
             tmp.write(self.sample_code)
             tmp.flush()
 
-            new_code = remove_ray_remote_decorator(tmp.name, ["foo", "Trainer"])
+            new_code = remove_ray_remote_decorator(tmp.name,
+                                                   ["foo", "Trainer"])
             tree = ast.parse(new_code)
 
             # foo should have no decorator
-            foo_node = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "foo"][0]
-            assert all(not is_ray_remote_decorator(d) for d in foo_node.decorator_list)
+            foo_node = [
+                n for n in tree.body
+                if isinstance(n, ast.FunctionDef) and n.name == "foo"
+            ][0]
+            assert all(not is_ray_remote_decorator(d)
+                       for d in foo_node.decorator_list)
 
             # Trainer class should have no decorator
-            trainer_node = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "Trainer"][0]
-            assert all(not is_ray_remote_decorator(d) for d in trainer_node.decorator_list)
+            trainer_node = [
+                n for n in tree.body
+                if isinstance(n, ast.ClassDef) and n.name == "Trainer"
+            ][0]
+            assert all(not is_ray_remote_decorator(d)
+                       for d in trainer_node.decorator_list)
 
             # bar should still have its decorator
-            bar_node = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "bar"][0]
-            assert any(is_ray_remote_decorator(d) for d in bar_node.decorator_list)
+            bar_node = [
+                n for n in tree.body
+                if isinstance(n, ast.FunctionDef) and n.name == "bar"
+            ][0]
+            assert any(
+                is_ray_remote_decorator(d) for d in bar_node.decorator_list)
 
     def test_modify_ray_remote_decorator(self):
-        with tempfile.NamedTemporaryFile("w+", suffix=".py", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile("w+", suffix=".py",
+                                         delete=False) as tmp:
             tmp.write(self.sample_code)
             tmp.flush()
 
-            new_code = modify_ray_remote_decorator(tmp.name, "bar", {'num_cpus':4})
+            new_code = modify_ray_remote_decorator(tmp.name, "bar",
+                                                   {'num_cpus': 4})
             tree = ast.parse(new_code)
 
             # bar should now have num_cpus=4
-            bar_node = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "bar"][0]
-            assert any(is_ray_remote_decorator(d) and d.keywords[0].arg == 'num_cpus' and d.keywords[0].value.n == 4 for d in bar_node.decorator_list)
-            
+            bar_node = [
+                n for n in tree.body
+                if isinstance(n, ast.FunctionDef) and n.name == "bar"
+            ][0]
+            assert any(
+                is_ray_remote_decorator(d) and d.keywords[0].arg == 'num_cpus'
+                and d.keywords[0].value.n == 4
+                for d in bar_node.decorator_list)
+
 
 class TestRayTransformer(unittest.TestCase):
+
     def setUp(self):
         # Original script to be transformed
         self.original_code = '''
@@ -378,8 +436,8 @@ def main():
 
     def normalize(self, code: str) -> str:
         code = code.replace("'", '"')  # unify single and double quotes
-        return "\n".join(line.strip() for line in code.strip().splitlines() if line.strip())
-
+        return "\n".join(line.strip() for line in code.strip().splitlines()
+                         if line.strip())
 
     def test_transformation(self):
         transformer = RayTransformer()
@@ -388,9 +446,8 @@ def main():
         new_tree = transformer.visit(tree)
         ast.fix_missing_locations(new_tree)
 
-        transformed_code = "import ray\nray.init()\n" + astor.to_source(new_tree)
+        transformed_code = "import ray\nray.init()\n" + astor.to_source(
+            new_tree)
         # Normalize whitespace for comparison
-        self.assertEqual(
-            self.normalize(transformed_code),
-            self.normalize(self.expected_code)
-        )
+        self.assertEqual(self.normalize(transformed_code),
+                         self.normalize(self.expected_code))
