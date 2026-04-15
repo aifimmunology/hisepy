@@ -228,6 +228,15 @@ def get_organization():
     return account_info[0]['organization']['guid']
 
 
+def get_samples_for_query(query_dict: dict):
+    url = hise_url('ledger', 'sample_path', 'filter')
+    sample_info = parse_hise_response(
+        requests.post(url,
+                      headers=get_bearer_token_header(),
+                      data=json.dumps({"filter": query_dict})))
+    return sample_info if sample_info is not None else []
+
+
 def get_ide_package_manager():
     # get ide; condaPackID
     ide = IDEInstance()

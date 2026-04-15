@@ -559,9 +559,9 @@ def validate_upload_input_ids(input_file_ids: list, files: list, ide_dir):
     """ Checks that files associated with a result have
         been seen in a user's IDE
     """
-    if debug():
-        #skip me
-        return
+    #    if debug():
+    #        #skip me
+    #        return
 
     cache_file_path = '{h}/{c}'.format(h=ide_dir,
                                        c=CONFIG['IDE']['CACHE_LOG_NAME'])
@@ -587,8 +587,8 @@ def validate_upload_input_ids(input_file_ids: list, files: list, ide_dir):
     input_samples = get_input_samples(files)
 
     # Find invalid sample IDs
-    invalid_sample_tuples = [
-        s for s in input_samples
+    invalid_sample_ids = [
+        s["id"] for s in input_samples
         if s["id"] not in sample_ids_set and s["id"] not in replica_ids_set
     ]
 
@@ -598,7 +598,7 @@ def validate_upload_input_ids(input_file_ids: list, files: list, ide_dir):
             .format(invalid_file_ids))
     if len(invalid_sample_ids) > 0:
         raise ValueError(
-            "The following sample Ids were not downloaded in this IDE. You cannot refernce a file in a result without downloading it first. {}"
+            "The following sample Ids were not downloaded in this IDE. You cannot reference a file in a result without downloading it first. {}"
             .format(invalid_sample_ids))
 
     return
@@ -617,23 +617,42 @@ def split_uuids(items):
 
 def get_input_samples(files):
     """Extracts sample IDs and kit GUIDs from the list of files."""
-    sample_tuples = []
-    sample_ids = []
-    sample_kit_guids = []
+    sample_ids = {}
+    sample_kit_guids = {}
     for f in files:
-        if f[file_sample_id_key] is not None:
-            sample_ids += f[file_sample_id_key]
-        if f[file_kit_guid_key] is not None:
-            sample_kit_guids += f[file_kit_guid_key]
-    filter = {
-        "$or": [{
-            "id": {
-                "$in": sample_ids
+        if file_sample_id_key in f and f[file_sample_id_key] is not None:
+            for f in f[file_sample_id_key]:
+                sample_ids[f] = True
+        if file_kit_guid_key in f and f[file_kit_guid_key] is not None:
+            for f in f[file_kit_guid_key]:
+                sample_kit_guids[f] = True
+    sample_id_filter = None
+    sample_kit_filter = None
+    for key in sample_ids:
+        if sample_id_filter is None:
+            sample_id_filter = {"$in": [key]}
+        else:
+            sample_id_filter["$in"].append(key)
+    for key in sample_kit_guids:
+        if sample_kit_filter is None:
+            sample_kit_filter = {"$in": [key]}
+        else:
+            sample_kit_filter["$in"].append(key)
+    filter = None
+    if sample_id_filter:
+        if sample_kit_filter:
+            filter = {
+                "$or": [{
+                    "id": sample_id_filter
+                }, {
+                    "sampleKitGuid": sample_kit_filter
+                }]
             }
-        }, {
-            "sampleKitGuid": {
-                "$in": sample_kit_guids
-            }
-        }]
-    }
+        else:
+            filter = {"id": sample_id_filter}
+    elif sample_kit_filter:
+        filter = {"sampleKitGuid": sample_kit_filter}
+    else:
+        return []
+
     return cu.get_samples_for_query(filter)

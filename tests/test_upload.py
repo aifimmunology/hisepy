@@ -243,17 +243,23 @@ class TestUploader():
         cache_df = pd.DataFrame({
             "fileId": ["f1", "f2"],
             'replicaFileId': ['fr1', 'fr2'],
-            "sampleId": ["s1", "s2"],
+            "sampleId": ['s1', 's2'],
             'replicaSampleId': ['sr1', 'sr2']
         })
         pyreadr.write_rds(cache_file, cache_df)
-        assert validate_upload_input_ids(['f1', 'f2'], ['s1', 's2'],
-                                         self.wd) is None
+        files = [{
+            "file": 'whatever.csv',
+            "input_sample_ids": ['s1', 's2']
+        }, {
+            "file": 'okay.txt',
+            "input_sample_ids": ['s1', 's2']
+        }]
+        assert validate_upload_input_ids(['f1', 'f2'], files, self.wd) is None
 
         # Test error for missing file id
         with pytest.raises(ValueError), \
             patch('hisepy.auth.debug', return_value=1):
-            validate_upload_input_ids(['abc'], ['s1', 's2'], self.wd)
+            validate_upload_input_ids(['f1', 'f3'], files, self.wd)
 
     def test_validate_upload_data(self):
         # create a temporary file
@@ -261,7 +267,9 @@ class TestUploader():
         os.system(f"touch {file_path}")
 
         # test successful validation
-        assert validate_upload_data(files=[file_path],
+        assert validate_upload_data(files=[{
+            "file": file_path
+        }],
                                     study_space_id='study123',
                                     project='proj',
                                     title='a cool title',
@@ -269,13 +277,17 @@ class TestUploader():
 
         # test error for missing file
         with pytest.raises(ValueError):
-            validate_upload_data(files=[file_path],
+            validate_upload_data(files=[{
+                "file": file_path
+            }],
                                  study_space_id='study123',
                                  project='proj',
                                  title='a cool title',
                                  input_file_ids=[])
 
-            validate_upload_data(files=[file_path],
+            validate_upload_data(files=[{
+                "file": file_path
+            }],
                                  study_space_id=None,
                                  project=None,
                                  title='a cool title',
@@ -289,17 +301,27 @@ class TestUploader():
         os.system(f"touch {self.wd}/file1.txt")
         os.system(f"touch {self.wd}/file2.txt")
 
-        assert gen_upload_body(
-            [f"{self.wd}/file1.txt", f"{self.wd}/file2.txt"],
-            ["txt", "txt"]) == {
-                "files": [{
-                    "name": f"{self.wd}/file1.txt",
-                    "type": "txt"
-                }, {
-                    "name": f"{self.wd}/file2.txt",
-                    "type": "txt"
-                }]
-            }
+        assert gen_upload_body([{
+            "file": f"{self.wd}/file1.txt",
+            "file_type": "txt",
+            "input_sample_ids": ["s1", "s2"],
+            "input_sample_kit_guids": ["sk1", "sk2"]
+        }, {
+            "file": f"{self.wd}/file2.txt",
+            "file_type": "csv"
+        }]) == {
+            "files": [{
+                "name": f"{self.wd}/file1.txt",
+                "type": "txt",
+                "inputSampleIds": ["s1", "s2"],
+                "inputSampleKitGuids": ["sk1", "sk2"]
+            }, {
+                "name": f"{self.wd}/file2.txt",
+                "type": "csv",
+                "inputSampleIds": None,
+                "inputSampleKitGuids": None
+            }]
+        }
 
         # clean up temporary files
         os.system(f"rm {self.wd}/file1.txt")
