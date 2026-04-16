@@ -11,6 +11,7 @@ import hisepy.common_utils as cu
 import hisepy.formatter as fmt
 import hisepy.reader as hpr
 import hisepy.ray_transformer as rt
+import hisepy.ai_ray_transformer as airt
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
 from hisepy.upload import get_default_project
 from hisepy.upload_utils import do_conda_export, get_ide_env_name, check_default_project
@@ -398,31 +399,14 @@ class TrainingJob:
         # transform script to conform to Ray
         converted_script = '{}/{}'.format(
             self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE'])
-        rt.transform_to_ray(python_script_to_convert,
+        airt.transform_to_ray(python_script_to_convert,
                             converted_script,
-                            num_gpus=self.worker_gpu_count
-                            if self.worker_count > 0 else self.head_gpu_count,
-                            num_cpus=self.worker_cpu_count
-                            if self.worker_count > 0 else self.head_cpu_count)
-
-        # get list of ray remote targets
-        ray_remote_targets = rt.get_ray_remote_targets(converted_script)
-        target_names = [f[0] for f in ray_remote_targets]
-
-        while True:
-            # Prompt user for methods to remove decorators from
-            rm_target = cu.prompt_from_options(
-                "The following methods currently use Ray decorators: {}. "
-                "Please select the methods from which you want to remove the Ray decorators"
-                .format(target_names), target_names + ["None"])
-
-            if not rm_target or rm_target == "None":
-                # Exit loop if user chose no method
-                break
-
-            # Remove ray decorators from the selected targets
-            rt.remove_ray_remote_decorator(converted_script, rm_target,
-                                           converted_script)
+                            cpu_count=self.worker_cpu_count
+                                if self.worker_count > 0 else self.head_cpu_count,
+                            gpu_count=self.worker_gpu_count
+                                if self.worker_count > 0 else self.head_gpu_count,
+                            memory_size=self.worker_memory_size,
+                            worker_count=self.worker_count)
 
         # prompt user on transformation, asking if they want to edit ray decorators
         # if the user selected targets, edit the ray decorators of those targets
