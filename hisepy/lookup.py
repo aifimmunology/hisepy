@@ -24,30 +24,43 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 
 
 @with_default_logging
-def lookup_queryable_fields(field_type='all') -> pd.DataFrame:
+def lookup_queryable_fields(field_type='all', is_public=False) -> pd.DataFrame:
     """
-    Returns fields users can query on depending on the collection type. 
+    Returns fields users can query on depending on the collection type.
     Acceptable values are either 'file', 'sample', or 'subject'
 
     Parameters:
         field_type (str): field_type that determines what fields to return
     Returns:
         data.frame containing all the field names users could query on
-    Example: 
+    Example:
         hp.lookup_queryable_fields(field_type='subject')
     """
 
-    valid_types = CONFIG["MATERIALIZED_VIEW"]["QUERYABLE_FIELDS"] + ["all"]
-    if field_type not in valid_types:
-        raise ValueError(
-            f"Invalid field_type '{field_type}'. Must be one of {valid_types}."
-        )
-
-    collection_fields = CONFIG["MATERIALIZED_VIEW"]["QUERYABLE_FIELDS"]
+    endpoint = ""
+    if is_public:
+        valid_types = CONFIG["MATERIALIZED_VIEW"][
+            "PUBLIC_QUERYABLE_FIELDS"] + ["all"]
+        if field_type not in valid_types:
+            raise ValueError(
+                f"Invalid field_type '{field_type}'. Must be one of {valid_types}."
+            )
+        endpoint = "PUBLISHING"
+        collection_fields = CONFIG["MATERIALIZED_VIEW"][
+            "PUBLIC_QUERYABLE_FIELDS"]
+    else:
+        valid_types = CONFIG["MATERIALIZED_VIEW"]["QUERYABLE_FIELDS"] + ["all"]
+        if field_type not in valid_types:
+            raise ValueError(
+                f"Invalid field_type '{field_type}'. Must be one of {valid_types}."
+            )
+        endpoint = "LEDGER"
+        collection_fields = CONFIG["MATERIALIZED_VIEW"]["QUERYABLE_FIELDS"]
     all_fields = []
 
     for collection in collection_fields:
-        url = f"https://{hise_server()}/{CONFIG['LEDGER'][f'{collection.upper()}_SEARCH_PATH']}?field_names=true"
+
+        url = f"https://{hise_server()}/{CONFIG[endpoint][f'{collection.upper()}_SEARCH_PATH']}?field_names=true"
 
         try:
             fields = hreq.hise_post(url, data=json.dumps({"Filter": {}}))
@@ -62,10 +75,18 @@ def lookup_queryable_fields(field_type='all') -> pd.DataFrame:
             if '.' in f and f.split('.')[0] in {collection, 'cohort'}
         ]
 
+        # remove file type if public
+        if is_public:
+            user_fields = [f for f in user_fields if f != "fileType"]
+
         try:
             df = pd.DataFrame({"field": user_fields, "field_type": collection})
             df = df.loc[~df["field"].isin(["cohort", "sampleGuid"])]
             df.loc[df["field"] == "cohortGuid", "field_type"] = "cohort"
+
+            # add name field for release collection if public
+            if is_public:
+                df.loc[df["field"] == "name", "field_type"] = "release"
 
             if collection == "sample":
                 df = pd.concat([
@@ -102,9 +123,9 @@ def lookup_unique_entries(field: str) -> list:
         field (str): queryable field (e.g fileType, subjectGuid)
     Returns:
         all unique values for a given field that you can pass in when creating a query
-    Examples: 
+    Examples:
         hp.lookup_unique_entries('fileType')
-        hp.lookup_unique_entries('cohortGuid') 
+        hp.lookup_unique_entries('cohortGuid')
     """
     try:
         # fetch all queryable fields
@@ -146,16 +167,20 @@ def lookup_unique_entries(field: str) -> list:
         raise RuntimeError(f"Error in lookup_unique_entries: {e}") from e
 
 
-def list_queryable_fields():
-    ''' Returns a list of fields user can use to create a query 
+def list_queryable_fields(is_public=False):
+    ''' Returns a list of fields user can use to create a query
     '''
-    df = lookup_queryable_fields()
+    df = lookup_queryable_fields(is_public=is_public)
     df = df.loc[
         (~df['field_type'].isin(['emr', 'lab'])
          & ~df['field'].isin(['cohort'])),
     ]
-    id_fields = [
-        '{}.id'.format(i)
-        for i in CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
-    ]
+
+    fields = ""
+    if is_public:
+        fields = CONFIG['MATERIALIZED_VIEW']['PUBLIC_QUERYABLE_FIELD_TYPES']
+    else:
+        fields = CONFIG['MATERIALIZED_VIEW']['QUERYABLE_FIELDS']
+
+    id_fields = ['{}.id'.format(i) for i in fields]
     return df['field'].unique().tolist() + id_fields

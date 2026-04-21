@@ -105,13 +105,13 @@ def save_custom_conda_environment(env_name: str, description: str,
             url = cu.hise_url("ide_management", "save_custom_conda_env")
             resp = hreq.hise_post(url, data=params, files=files)
 
-            # attach workflow to log entry 
+            # attach workflow to log entry
             logger.extra["_override"]['workflow'] = resp['WorkflowId']
             return resp
 
 
 def validate_save_custom_env_params(env_name: str, description: str,
-                              languages: list[str]):
+                                    languages: list[str]):
     """
     Validate parameters for saving a custom conda environment.
 
