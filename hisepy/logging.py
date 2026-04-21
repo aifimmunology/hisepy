@@ -90,6 +90,7 @@ class LogEntry:
                       ) if not debug() else "testuser@alleninstitute.org"
     method_name: str = ""
     ide: str = field(default_factory=ide_instance_guid)
+    package_manager : str = field(default_factory=cu.get_ide_package_manager)
     sdk_version: str = field(default_factory=cu.get_sdk_version)
     parameters: dict[str, any] = field(default_factory=dict)
     success: bool = True
