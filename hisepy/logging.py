@@ -195,28 +195,40 @@ def with_logging(func: Callable[..., Any],
                           exc_info=True)
             raise
         finally:
-            # extract override fields
             override = adapter.extra.get("_override", {})
 
             time_elapsed = time.time() - start_time
-            data = LogEntry(method_name=override.get("method_name",
-                                                     func.__name__),
-                            parameters=parameters,
-                            success=success,
-                            message=str(msg),
-                            time_elapsed=time_elapsed,
-                            severity="info",
-                            workflow=override.get("workflow", ""))
+            final_success = override.get("success", success)
+            final_message = override.get("message", msg)
+
+            data = LogEntry(
+                method_name=override.get("method_name", func.__name__),
+                parameters=parameters,
+                success=final_success,
+                message=str(final_message),
+                time_elapsed=time_elapsed,
+                severity=override.get("severity", "info"),
+                workflow=override.get("workflow", "")
+            )
+
             with open(PROC_INFO, "a") as f:
                 f.write(json.dumps(data.as_dict()) + "\n")
 
-            # always restore the original logger
+            # restore logger
             if original_logger is not None:
                 func.__globals__["logger"] = original_logger
 
-            adapter.info(
-                f"Finished {func.__name__}, success={success}, time_elapsed={time_elapsed:.3f}s"
-            )
+            # log final status
+            if not final_success:
+                adapter.warning(
+                    f"{func.__name__} completed with issues: {final_message} "
+                    f"(time_elapsed={time_elapsed:.3f}s)"
+                )
+            else:
+                adapter.info(
+                    f"Finished {func.__name__} successfully "
+                    f"(time_elapsed={time_elapsed:.3f}s)"
+                )
 
     return wrapper
 

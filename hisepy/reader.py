@@ -107,6 +107,12 @@ def cache_files(file_ids: list[str] | None = None,
         if fail_files:
             logger.warning("Some files failed to download: %s", fail_files)
 
+            logger.extra["_override"].update({
+                "success": False,
+                "message": f"Partial failure: {len(fail_files)} files failed",
+                "severity": "error"  
+            })
+
         return dl_paths
 
 
@@ -307,16 +313,22 @@ def read_files(file_list: list[str] | None = None,
         except Exception as e:
             print(colored(f"Failed to process file {f.get('id')}: {e}", "red"))
             logger.error(f"Failed to process file {f.get('id')}: {e}")
+
+
             ru.append_error_response(response, f, str(e), idx)
 
     # let the user know what files failed to download
     failed_files = [
         str(f.id) for f in response if not getattr(f, "status", False)
     ]
+    
     if failed_files:
-        print(
-            colored(f"The following files failed to download: {failed_files}",
-                    "red"))
+        # log partial error information in logger.extra so that error handler can log it correctly
+            logger.extra["_override"].update({
+                "success": False,
+                "message": f"Partial failure: {len(fail_files)} files failed",
+                "severity": "error"  
+            })
 
     # finally reshape to data.frame, if requested
     try:
