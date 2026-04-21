@@ -17,18 +17,23 @@ LOGGING_CONFIG = None
 PROC_INFO = "/proc/1/fd/1"  # path for container stdout logs
 PROC_ERROR = "/proc/1/fd/2"  # path for container stderr logs
 
+if debug():
+    #log errors locally
+    PROC_INFO = "/tmp/sdk_info"
+    PROC_ERROR = "/tmp/sdk_error"
 
 LEVEL_COLORS = {
-    "INFO": "\033[32m",    # Green
-    "WARNING": "\033[33m", # Yellow
-    "ERROR": "\033[31m",   # Red
+    "INFO": "\033[32m",  # Green
+    "WARNING": "\033[33m",  # Yellow
+    "ERROR": "\033[31m",  # Red
 }
+
 
 class ColorFormatter(logging.Formatter):
     LEVEL_COLORS = {
-        logging.INFO: "\033[32m",      # Green
-        logging.WARNING: "\033[33m",   # Yellow
-        logging.ERROR: "\033[31m",     # Red
+        logging.INFO: "\033[32m",  # Green
+        logging.WARNING: "\033[33m",  # Yellow
+        logging.ERROR: "\033[31m",  # Red
         logging.CRITICAL: "\033[41m",  # Red background (optional)
     }
     RESET = "\033[0m"
@@ -43,21 +48,25 @@ class ColorFormatter(logging.Formatter):
         msg = f"[{record.name}:{record.lineno}] {record.module} {record.process} {record.thread} {record.getMessage()}"
         return f"{prefix} {msg}"
 
+
 # The default logging level is set to 'INFO'
 logging.config.dictConfig({
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'console': {
-            '()': ColorFormatter, # color scheme according to LEVEL COLORS
-            'format': '%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s',
+            '()':
+            ColorFormatter,  # color scheme according to LEVEL COLORS
+            'format':
+            '%(asctime)s %(levelname)s [%(name)s:%(lineno)s] %(module)s %(process)d %(thread)d %(message)s',
         },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'console',
-            'stream': 'ext://sys.stdout',  # Force stdout (no red background in JupyterLab)
+            'stream':
+            'ext://sys.stdout',  # Force stdout (no red background in JupyterLab)
         },
     },
     'loggers': {
@@ -81,6 +90,7 @@ class LogEntry:
                       ) if not debug() else "testuser@alleninstitute.org"
     method_name: str = ""
     ide: str = field(default_factory=ide_instance_guid)
+    package_manager : str = field(default_factory=cu.get_ide_package_manager)
     sdk_version: str = field(default_factory=cu.get_sdk_version)
     parameters: dict[str, any] = field(default_factory=dict)
     success: bool = True
@@ -114,7 +124,7 @@ class ErrorHandler(logging.Handler):
                              time_elapsed=getattr(record, "time_elapsed",
                                                   None),
                              severity="error",
-                            workflow=getattr(record, "workflow", ""))
+                             workflow=getattr(record, "workflow", ""))
         with open(PROC_ERROR, "a") as f:
             f.write(json.dumps(log_entry.as_dict()) + "\n")
 
@@ -185,29 +195,40 @@ def with_logging(func: Callable[..., Any],
                           exc_info=True)
             raise
         finally:
-            # extract override fields
             override = adapter.extra.get("_override", {})
 
-
-
             time_elapsed = time.time() - start_time
-            data = LogEntry(method_name=override.get("method_name", func.__name__),
-                            parameters=parameters,
-                            success=success,
-                            message=str(msg),
-                            time_elapsed=time_elapsed,
-                            severity="info",
-                            workflow=override.get("workflow", ""))
+            final_success = override.get("success", success)
+            final_message = override.get("message", msg)
+
+            data = LogEntry(
+                method_name=override.get("method_name", func.__name__),
+                parameters=parameters,
+                success=final_success,
+                message=str(final_message),
+                time_elapsed=time_elapsed,
+                severity=override.get("severity", "info"),
+                workflow=override.get("workflow", "")
+            )
+
             with open(PROC_INFO, "a") as f:
                 f.write(json.dumps(data.as_dict()) + "\n")
 
-            # always restore the original logger
+            # restore logger
             if original_logger is not None:
                 func.__globals__["logger"] = original_logger
 
-            adapter.info(
-                f"Finished {func.__name__}, success={success}, time_elapsed={time_elapsed:.3f}s"
-            )
+            # log final status
+            if not final_success:
+                adapter.warning(
+                    f"{func.__name__} completed with issues: {final_message} "
+                    f"(time_elapsed={time_elapsed:.3f}s)"
+                )
+            else:
+                adapter.info(
+                    f"Finished {func.__name__} successfully "
+                    f"(time_elapsed={time_elapsed:.3f}s)"
+                )
 
     return wrapper
 

@@ -119,11 +119,11 @@ class IDEInstance:
 
 
 def ide_instance_guid():
-    if not debug():
-        iguid = os.getenv("IDE_INSTANCE_GUID")
-    else:
-        iguid = TEST_IDE_GUID
+    iguid = os.getenv("IDE_INSTANCE_GUID")
     if iguid is None:
+        if debug():
+            return TEST_IDE_GUID
+
         raise Exception(
             "The IDE Instance guid is not set. This IDE is misconfigured. Please contact support"
         )
@@ -133,6 +133,9 @@ def ide_instance_guid():
 def instance_account_guid():
     iguid = os.getenv("INSTANCE_ACCOUNT_GUID")
     if iguid is None:
+        if debug():
+            return defaultLocalAccountGuid
+
         raise Exception(
             " The Account GUID is not set. This IDE is misconfigured. Please contact support"
         )
@@ -211,7 +214,7 @@ def get_bearer_token_header():
     if token_gen is not None:
         token = os.popen(token_gen).read().rstrip()
         headers = {
-            "InstanceAccountGuid": defaultLocalAccountGuid,
+            "InstanceAccountGuid": instance_account_guid(),
             # Rather than look at whether we're running locally, just set both auth headers
             # for dev:
             "Authorization": "Bearer %s" % token,
@@ -233,6 +236,8 @@ def get_audience():
     if os.path.exists(afile):
         with open(afile, 'r') as f:
             return f.readline().strip()
+    if debug():
+        return os.getenv("AUTH_CLIENT_ID")
     return None
 
 

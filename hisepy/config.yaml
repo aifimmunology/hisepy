@@ -5,6 +5,14 @@ MATERIALIZED_VIEW:
     - file
     - sample
     - subject
+  PUBLIC_QUERYABLE_FIELDS:
+    - file
+  PUBLIC_QUERYABLE_FIELD_TYPES:
+    - file
+    - sample
+    - subject
+    - release
+    - asset
   EMR: emr
   LAB: lab
 
@@ -24,7 +32,8 @@ PROMPTS:
   SAVE_CUSTOM_ENV: "You are about to save a custom {} environment. This will save your current active environment"
   RAY_INIT_EXISTS: "A ray.init() call is detected within your training job script, and will be submitted without modification"
   FAST_MODE_UPLOAD: "You are uploading in fast mode. This will skip checking that your environment can build, and will speed up the entire upload process. Do you want to continue?"
-
+  PROVIDE_SAMPLES: "Please provide input of comma separated sample ids or sample kit guids for the files being uploaded. If you do not have any samples, press enter: "
+  
 # Authorization config
 AUTHORIZE:
   METADATA_SERVER_ROOT : http://metadata.google.internal/computeMetadata/v1/instance
@@ -55,7 +64,7 @@ PROJECT_FOLDER:
   PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
 
 PUBLISHING:
-  PUBLISHING_FILE_SEARCH: publishing/file/q
+  FILE_SEARCH_PATH: publishing/file/q
 
 # hydration endpoints
 HYDRATION:
@@ -92,7 +101,8 @@ LEDGER:
   FILE_SEARCH_PATH : ledger/file/q
   RESULT_FILE_SEARCH_PATH: ledger/resultfile
   FILE_METADATA_PATH: ledger/file
-
+  SAMPLE_PATH: ledger/sample
+  
 # tracer endpoints
 TRACER:
   TRACER_NAME : tracer
