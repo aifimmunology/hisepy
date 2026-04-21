@@ -11,13 +11,9 @@ else:
     with open(os.path.join(_here, 'README.rst'), encoding='utf-8') as f:
         long_description = f.read()
 
-version = {}
-with open(os.path.join(_here, 'hisepy', 'version.py')) as f:
-    exec(f.read(), version)
 
 setup(
     name='hisepy',
-    version=version['__version__'],
     description=('.'),
     long_description=long_description,
     author='Paul Mariz',
