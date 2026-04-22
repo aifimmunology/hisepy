@@ -930,7 +930,7 @@ def upload_files(
         title (str): 10+ character title for upload result
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
-        file_types (str): filetype of uploaded files
+        file_types (list): filetype of uploaded files. If specified, list must be same length as files list and filetypes will be associated in order. If not specified, filetypes will be inferred based on file extension.
         store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
         destination (str): Destination folder for the files
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
