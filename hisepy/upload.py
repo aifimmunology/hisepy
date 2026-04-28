@@ -11,7 +11,7 @@ import subprocess
 import tarfile
 import tempfile
 from enum import Enum
-from IPython.display import HTML, display  # TODO: Add ipython to requirements.txt
+from IPython.display import HTML, display
 from pathlib import Path
 from typing import Any
 
@@ -776,7 +776,7 @@ def save_visualization(pl_obj: plotly.graph_objs.Figure,
 
     # conda environment validation
     global save_visualization_conda_env_checked
-    if not auth.debug() and not save_visualization_conda_env_checked:
+    if not debug() and not save_visualization_conda_env_checked:
         if do_conda_build_check and not conda_env_builds():
             raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
         save_visualization_conda_env_checked = True
