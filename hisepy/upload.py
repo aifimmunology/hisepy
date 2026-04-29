@@ -33,6 +33,9 @@ CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR'] if not debug() else os.getcwd()
 UPLOAD_HARVEST_LOWER_BOUND = CONFIG['TOOLCHAIN'][
     'UPLOAD_HARVEST_LOWER_BOUND_MB']
+TMP_DIR = '/home/workspace/temp'
+if debug():
+    TMP_DIR = "/tmp"
 
 
 class DashAppImg:
@@ -145,12 +148,14 @@ class DashAppImg:
         tarball_path = os.path.join(self.work_dir, "dash_app.tar.gz")
 
         logger.info("Uploading Dash app bundle and dependencies...")
-        upload_resp = upload_files(
-            files=[tarball_path],
+        upload_resp = upload_files_internal(
+            files=[{
+                hpu.file_key: tarball_path,
+                hpu.file_sample_id_key: self.input_sample_ids
+            }],
             study_space_id=self.study_space_id,
             title=self.title,
             input_file_ids=self.input_file_ids,
-            input_sample_ids=self.input_sample_ids,
             store=hpu.permanent_store,
             do_prompt=False,
             do_conda_build_check=self.do_conda_build_check,
@@ -323,7 +328,7 @@ def save_visualization_app(application_files: list[str],
     png_image = hpu.validate_hero_image(png_image)
     hpu.get_study_space(study_space_id)
     hpu.validate_upload_input_ids(input_file_ids=data_source_file_ids,
-                                  input_sample_ids=[],
+                                  files=[],
                                   ide_dir=CONFIG['STORES']['TEMP_STORE'])
 
     if not data_mount_path.startswith('/'):
@@ -664,9 +669,7 @@ def save_dash_app(app_filepath: str,
 
     log_dir = CONFIG['STORES']['TEMP_STORE'] if not cu.is_legacy_ide(
     ) else IDE_HOME_DIR
-    if not debug():
-        hpu.validate_upload_input_ids(input_file_ids, input_sample_ids,
-                                      log_dir)
+    hpu.validate_upload_input_ids(input_file_ids, [], log_dir)
 
     # validate environment can build
     global save_dash_conda_env_checked
@@ -772,7 +775,9 @@ def save_visualization(pl_obj: plotly.graph_objs.Figure,
     pl_obj.write_image(tmp_img_file)
 
     # validate upload ids
-    hpu.validate_upload_input_ids(input_file_ids, input_sample_ids, log_dir)
+    # mock up files to check samples
+    mock_files = [{hpc.file_sample_id_key: i} for i in input_sample_ids]
+    hpu.validate_upload_input_ids(input_file_ids, mock_files, log_dir)
 
     # conda environment validation
     global save_visualization_conda_env_checked
@@ -803,14 +808,16 @@ def save_visualization(pl_obj: plotly.graph_objs.Figure,
         json.dump(exp_obj["data"], f)
 
     # upload data
-    upload_result = upload_files(
-        files=[tmp_data_file],
+    upload_result = upload_files_internal(
+        files=[{
+            hpu.file_key: tmp_data_file,
+            hpu.file_sample_id_key: input_sample_ids,
+            hpu.file_type_key: dataframe_file_type
+        }],
         study_space_id=study_space_id,
         project=project,
         title=title,
         input_file_ids=input_file_ids,
-        input_sample_ids=input_sample_ids,
-        file_types=[dataframe_file_type],
         store=hpu.permanent_store,
         destination=destination,
         do_prompt=False,
@@ -873,7 +880,9 @@ def save_static_image(image, title, study_space_id=None):
         'bytes': (image, open(image,
                               'rb'), "image/%s" % (cu.get_filetype(image)))
     }
-    hpu.validate_upload_data(files=[image],
+    hpu.validate_upload_data(files=[{
+        file_key: image
+    }],
                              study_space_id=study_space_id,
                              project=None,
                              title=title,
@@ -896,18 +905,21 @@ def set_default_store(store=None):
 
 
 @with_default_logging
-def upload_files(files: list,
-                 study_space_id: str = None,
-                 project: str | None = None,
-                 title: str | None = None,
-                 input_file_ids: list[str] | None = None,
-                 input_sample_ids: list[str] | None = None,
-                 file_types: list[str] | None = None,
-                 store: str | None = None,
-                 destination: str = "",
-                 do_prompt: bool = True,
-                 do_conda_build_check: bool = True,
-                 use_fast_mode: bool | None = None):
+def upload_files(
+    files: list,
+    study_space_id: str = None,
+    project: str | None = None,
+    title: str | None = None,
+    input_file_ids: list[str] | None = None,
+    input_sample_ids: list[str] | None = None,
+    file_types: list[str] | None = None,
+    store: str | None = None,
+    destination: str = "",
+    do_prompt: bool = True,
+    do_conda_build_check: bool = True,
+    use_fast_mode: bool | None = None,
+    no_file_set: bool = False,
+):
     """
     Uploads files to a store and records their provenance in HISE, but V3
 
@@ -918,12 +930,13 @@ def upload_files(files: list,
         title (str): 10+ character title for upload result
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
-        file_types (str): filetype of uploaded files
+        file_types (list): filetype of uploaded files. If specified, list must be same length as files list and filetypes will be associated in order. If not specified, filetypes will be inferred based on file extension.
         store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
         destination (str): Destination folder for the files
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
         do_conda_build_check (bool): If true, create and build the active Conda environment.
         use_fast_mode (bool): If true, speed up the upload flow by skipping the step that builds the IDE environment.
+        no_file_set (bool): If true, skip the automatic creation of a fileset for the uploaded files
     Returns:
         dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
     Example:
@@ -932,52 +945,132 @@ def upload_files(files: list,
                         title='a upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
+    file_map = []
+    for i, file in enumerate(files):
+        f = {hpu.file_key: file, hpu.file_sample_id_key: input_sample_ids}
+        if file_types is not None and len(file_types) > i:
+            f[hpu.file_type_key] = file_types[i]
+        file_map.append(f)
+
+    upload_files_internal(files=file_map,
+                          study_space_id=study_space_id,
+                          project=project,
+                          title=title,
+                          input_file_ids=input_file_ids,
+                          store=store,
+                          destination=destination,
+                          do_prompt=do_prompt,
+                          do_conda_build_check=do_conda_build_check,
+                          use_fast_mode=use_fast_mode,
+                          no_file_set=no_file_set)
+
+
+@with_default_logging
+def upload_file_map(files: list,
+                    study_space_id: str = None,
+                    project: str | None = None,
+                    title: str | None = None,
+                    input_file_ids: list[str] | None = None,
+                    store: str | None = None,
+                    destination: str = "",
+                    do_prompt: bool = True,
+                    do_conda_build_check: bool = True,
+                    use_fast_mode: bool | None = None,
+                    no_file_set: bool = False):
+    """
+    Uploads files to a store and records their provenance in HISE, but V3
+
+    Parameters:
+        files (list): a list of dictionary objects containing the following fields:
+                      file: absolute filepath of file to be uploaded
+                      file_type: (optional, can be inferred) the result file type of the file
+                      input_sample_ids: optional list of input sample guids
+                      input_sample_kit_guids: list of sample kit guids (instead of sample guids)
+        study_space_id (str): ID that pertains to a study in the collaboration space (optional)
+        project (str): project short name (required if study space is not specified, defaults to the ide's default setting
+        title (str): 10+ character title for upload result
+        input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
+        store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
+        destination (str): Destination folder for the files
+        do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
+        do_conda_build_check (bool): If true, create and build the active Conda environment.
+        use_fast_mode (bool): If true, speed up the upload flow by skipping the step that builds the IDE environment.
+        no_file_set (bool): If true, skip the automatic creation of a fileset for the uploaded files    
+    Returns:
+        dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
+    Example:
+        hp.upload_file_map(files=[{"file": '/home/jupyter/upload_file.csv',
+                                   "file_type": "csv",
+                                   "input_sample_kit_guids": ["SK1", "SK2"]}],
+                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                        title='a upload title',
+                        input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
+    """
+    upload_files_internal(files=files,
+                          study_space_id=study_space_id,
+                          project=project,
+                          title=title,
+                          input_file_ids=input_file_ids,
+                          store=store,
+                          destination=destination,
+                          do_prompt=do_prompt,
+                          do_conda_build_check=do_conda_build_check,
+                          use_fast_mode=use_fast_mode,
+                          no_file_set=no_file_set)
+
+
+@with_default_logging
+def upload_files_internal(files: list,
+                          study_space_id: str = None,
+                          project: str | None = None,
+                          title: str | None = None,
+                          input_file_ids: list[str] | None = None,
+                          store: str | None = None,
+                          destination: str = "",
+                          do_prompt: bool = True,
+                          do_conda_build_check: bool = True,
+                          use_fast_mode: bool | None = None,
+                          no_file_set: bool | None = None):
+
     # override logEntry to denote fast_mode was used
     if use_fast_mode:
         logger.info("user has chosen fast_mode for upload_files")
         logger.extra["_override"]['method_name'] = "upload_files_fast_mode"
-
     # validations
     hpu.validate_upload_context()
     hpu.validate_upload_parameters(
         files=files,
-        file_types=file_types,
         destination=destination,
         store=store,
         project=project,
         study_space_id=study_space_id,
         do_prompt=do_prompt,
     )
-
     # setup
     inst = IDEInstance()
     home_dir, file_log_dir = hpu.get_workspace_dirs()
-    study_space_id, project, input_sample_ids = hpu.resolve_upload_context(
-        study_space_id, project, input_sample_ids, do_prompt)
+    study_space_id, project = hpu.resolve_upload_context(
+        study_space_id, project, files, do_prompt)
 
     if ide_is_from_guest_account():
         input_file_ids = cu.replica_files_used(input_file_ids or [],
                                                file_log_dir)
-    hpu.validate_upload_input_ids(input_file_ids, input_sample_ids,
-                                  file_log_dir)
+    hpu.validate_upload_input_ids(input_file_ids, files, file_log_dir)
     hpu.validate_upload_data(files, study_space_id, project, title,
                              file_log_dir)
 
     # build payload
-    tmpdir = tempfile.mkdtemp(dir='/home/workspace/temp', prefix="env_export_")
-    qargs = hpu.build_upload_payload(
-        files=files,
-        file_types=file_types,
-        title=title,
-        store=store or get_default_store(),
-        destination=destination,
-        project=project,
-        study_space_id=study_space_id,
-        input_file_ids=input_file_ids or [],
-        input_sample_ids=input_sample_ids or [],
-        home_dir=home_dir,
-        inst=inst,
-    )
+    tmpdir = tempfile.mkdtemp(dir=TMP_DIR, prefix="env_export_")
+    qargs = hpu.build_upload_payload(files=files,
+                                     title=title,
+                                     store=store or get_default_store(),
+                                     destination=destination,
+                                     project=project,
+                                     study_space_id=study_space_id,
+                                     input_file_ids=input_file_ids or [],
+                                     home_dir=home_dir,
+                                     inst=inst,
+                                     no_file_set=no_file_set)
 
     # get conda pack to determine whether to use pixi or conda
     package_manager = cu.get_ide_package_manager()
