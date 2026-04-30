@@ -1010,6 +1010,9 @@ def upload_files(files: list,
     if use_fast_mode:
         if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
             qargs['useFastMode'] = True
+        else: 
+            logger.info("User declined to use fast_mode after prompt; canceling upload_files call.")
+            return
 
     global upload_files_conda_env_checked
     if not upload_files_conda_env_checked:
