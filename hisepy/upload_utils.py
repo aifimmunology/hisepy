@@ -391,11 +391,18 @@ def select_study_space(proj):
     if proj is not None:
         pguid = cu.project_shortname_to_guid(proj)
     options = [{"name": no_study_default, "id": no_study_default}]
-    for sp in get_study_spaces():
-        if pguid is None or sp["projectGuid"] == pguid:
-            options.append(sp)
-    idx = cu.prompt_from_options("Select a study space",
-                                 [d["name"] for d in options], True)
+
+    # a user might not have acess to any study spaces, so we should handle that case as well
+    studies = get_study_spaces()
+    if studies is not None and len(studies) > 0:
+        for sp in get_study_spaces():
+            if pguid is None or sp["projectGuid"] == pguid:
+                options.append(sp)
+        idx = cu.prompt_from_options("Select a study space",
+                                    [d["name"] for d in options], True)
+    else:
+        print("No study spaces found or accessible for this account. Proceeding without associating with a study space.")
+        idx = 0
     return options[idx]["id"]
 
 
