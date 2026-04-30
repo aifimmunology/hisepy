@@ -952,7 +952,7 @@ def upload_files(
             f[hpu.file_type_key] = file_types[i]
         file_map.append(f)
 
-    upload_files_internal(files=file_map,
+    return upload_files_internal(files=file_map,
                           study_space_id=study_space_id,
                           project=project,
                           title=title,
@@ -1006,7 +1006,7 @@ def upload_file_map(files: list,
                         title='a upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
-    upload_files_internal(files=files,
+    return upload_files_internal(files=files,
                           study_space_id=study_space_id,
                           project=project,
                           title=title,
