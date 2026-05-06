@@ -114,9 +114,9 @@ def do_conda_export(to_directory: str = ""):
     
     # if there's more than 1 environment, and user is using non-default kernel,
     # prompt user to select which one to export
-    if len(conda_envs) == 0:
-        raise RuntimeError("No conda environments found to export.")
-    elif not debug and cu.is_valid_upload_kernel():
+    if len(conda_envs) == 0 and not debug:
+        RuntimeError("No conda environments found to export.")
+    elif not debug() and cu.is_valid_upload_kernel():
         selected_env = get_ide_env_name()
         if selected_env not in conda_envs:
             raise RuntimeError(
