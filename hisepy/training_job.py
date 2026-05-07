@@ -151,9 +151,12 @@ def start_training_run(
     else:
         raise Exception("Provider must be either 'ray' or 'beaker'")
 
+
     if use_conda:
         # write environment.yml file to temp directory
         job_obj.create_env_yaml()
+    elif cu.get_ide_package_manager() == "pixi" and use_conda == False:
+        job_obj.copy_pixi_manifest_to_temp()
     else:
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
@@ -269,7 +272,7 @@ class TrainingJob:
 
         # initialize attributes
         self.provider = provider
-        self.package_manager = "conda" if use_conda else "pip"
+        self.package_manager = self._determine_package_manager()
         self.head_cpu_count = head_cpu_count
         self.head_gpu_count = head_gpu_count
         self.head_memory_size = head_memory_size
@@ -372,6 +375,14 @@ class TrainingJob:
                 raise Exception("training_job_file_path does not exist")
         return
 
+    def _determine_package_manager(self): 
+        if self.use_conda: 
+            return "conda"
+        elif cu.get_ide_package_manager() == "pixi" and self.use_conda == False:
+            return "pixi"
+        else: 
+            return "pip"
+
     def get_job(self):
         return cu.parse_hise_response(
             requests.get(self.__url, headers=get_bearer_token_header()))
@@ -471,6 +482,11 @@ class TrainingJob:
                 raise Exception(
                     "additional_files must be a list of files or directories")
         return
+
+    def copy_pixi_manifest_to_temp(self):
+        shutil.copy('{}/{}/{}'.format(CONFIG['STORES']['ENV_STORE'], get_ide_env_name(), "pixi.toml"),
+                    '{}/{}'.format(self.work_dir, "pixi.toml"))
+        return 
 
     def create_training_job_image(self):
         with tarfile.open(self.artifacts_path, 'w:gz') as tar:
