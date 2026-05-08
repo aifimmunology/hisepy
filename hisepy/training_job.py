@@ -478,7 +478,7 @@ class TrainingJob:
         return
 
     def create_env_yaml(self):
-        conda_export_dest = do_conda_export(self.work_dir)
+        conda_export_dest = do_conda_export(self.work_dir)[0]
         # remove hisepy from exported yaml file, if it exists
         process = subprocess.run(
             "sed -i '/hisepy==*/d' {}".format(conda_export_dest),

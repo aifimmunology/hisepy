@@ -165,7 +165,7 @@ class TestUploader():
         with patch('hisepy.upload_utils.get_ide_env_name', return_value="test_env") as gce, \
         patch('hisepy.upload_utils.has_packages_in_env_file', return_value=True), \
         patch('hisepy.upload_utils.list_environments', return_value=["test_env"]):
-            export_path = do_conda_export()
+            export_path = do_conda_export()[0]
             expected_env_dir = f"{CONFIG['STORES']['ENV_STORE']}/{gce()}"
             expected_command = f"conda env export -p {expected_env_dir} > {CONFIG['STORES']['TEMP_STORE']}/environment.yml"
 
