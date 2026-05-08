@@ -157,7 +157,7 @@ def do_conda_export(to_directory: str = ""):
                 "Environment file is empty, please ensure that the conda environment is active and not empty."
             )
 
-    return conda_export_dest
+    return conda_export_dest, env_dir
 
 
 def do_pixi_export(to_directory):
@@ -218,10 +218,10 @@ def do_pixi_export(to_directory):
     return pixi_export_dest
 
 
-def ensure_conda_env_ready(do_check: bool):
+def ensure_conda_env_ready(do_check: bool, conda_dir: str = None):
     if not do_check or debug():
         return
-    if not conda_env_builds():
+    if not conda_env_builds(conda_dir):
         raise RuntimeError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
 
 
