@@ -255,12 +255,12 @@ def retry_ide_commit(id: str):
             cu.hise_url("ide_management",
                         "upload_file_v3_path",
                         id,
-                        args={"condaEnvironmentFile": hpu.do_conda_export()}))
+                        args={"condaEnvironmentFile": hpu.do_conda_export()[0]}))
     else:
         url = cu.hise_url("ide_management",
                           "upload_file_v3_path",
                           id,
-                          args={"condaEnvironmentFile": hpu.do_conda_export()})
+                          args={"condaEnvironmentFile": hpu.do_conda_export()[0]})
     return cu.parse_hise_response(requests.put(url))
 
 
@@ -1077,7 +1077,8 @@ def upload_files_internal(files: list,
     qargs['packageManager'] = package_manager
     if not cu.is_legacy_ide():
         if package_manager == "conda":
-            qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
+            conda_export_info = hpu.do_conda_export(tmpdir)
+            qargs["condaEnvironmentFile"] = conda_export_info[0]
         elif package_manager == "pixi":
             qargs["condaEnvironmentFile"] = hpu.do_pixi_export(tmpdir)
 
@@ -1109,7 +1110,7 @@ def upload_files_internal(files: list,
     global upload_files_conda_env_checked
     if not upload_files_conda_env_checked:
         if not use_fast_mode and package_manager == "conda":  # check the conda environment if user isn't not running fast_mode
-            hpu.ensure_conda_env_ready(do_conda_build_check)
+            hpu.ensure_conda_env_ready(do_conda_build_check, conda_export_info[1])
             upload_files_conda_env_checked = True
 
     # upload thy files
