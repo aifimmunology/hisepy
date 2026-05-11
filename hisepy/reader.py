@@ -100,8 +100,7 @@ def cache_files(file_ids: list[str] | None = None,
 
             # don't outright fail, but log the error
             except Exception as e:
-                logger.error("Unexpected error processing file response: %s",
-                             file_id)
+                logger.error("Unexpected error processing file, %s. Error response: %s", file_id, e)
                 fail_files.append(str(file_id))
 
         if fail_files:
@@ -311,7 +310,6 @@ def read_files(file_list: list[str] | None = None,
 
         # log the error, as we're not raising an error and not outright stopping the function call
         except Exception as e:
-            print(colored(f"Failed to process file {f.get('id')}: {e}", "red"))
             logger.error(f"Failed to process file {f.get('id')}: {e}")
 
 
