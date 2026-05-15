@@ -384,6 +384,10 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
             return obj['payload']
 
         dict_df = hf.sample_to_df(obj["payload"])
+
+        # grab fetched samples 
+        if sample_ids is None:
+            sample_ids = dict_df['metadata']['id'].tolist()
         dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
         cu.log_downloaded_files_or_samples(
             sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
