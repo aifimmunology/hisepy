@@ -96,9 +96,10 @@ def start_training_run(
     # create a training_job temp directory
     training_job_temp_dir = CONFIG['JOB_ORCHESTRATE'][
         'ARTIFACTS_PATH']  # '/home/workspace/.artifacts'
-    if not os.path.exists(training_job_temp_dir):
-        os.makedirs(training_job_temp_dir)
-
+    if os.path.exists(training_job_temp_dir):
+        shutil.rmtree(training_job_temp_dir)
+    os.makedirs(training_job_temp_dir)
+    
     # set destination project if not already set
     if project is None:
         project = get_default_project()
