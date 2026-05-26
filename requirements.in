@@ -19,3 +19,4 @@ tomli-w==1.2.0
 ray==2.52.1
 astor==0.8.1
 ipython==9.5.0
+google-genai==1.73.1
