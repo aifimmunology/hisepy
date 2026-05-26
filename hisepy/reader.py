@@ -321,12 +321,13 @@ def read_files(file_list: list[str] | None = None,
     ]
     
     if failed_files:
+        logger.warning("Some files failed to download: %s", failed_files)
         # log partial error information in logger.extra so that error handler can log it correctly
-            logger.extra["_override"].update({
-                "success": False,
-                "message": f"Partial failure: {len(fail_files)} files failed",
-                "severity": "error"  
-            })
+        logger.extra["_override"].update({
+            "success": False,
+            "message": f"Partial failure: {len(failed_files)} files failed",
+            "severity": "error"  
+        })
 
     # finally reshape to data.frame, if requested
     try:
