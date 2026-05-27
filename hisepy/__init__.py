@@ -11,7 +11,7 @@ from .project_folder import (list_project_folders,
                              download_from_project_folder)
 from .reader import (read_files, read_subjects, read_samples,
                      get_file_descriptors, cache_fileset, list_filesets,
-                     cache_files, get_files_for_query)
+                     cache_files, get_files_for_query, get_ide_artifacts)
 from .scheduler import (notebook_job, schedule_notebook, get_notebook_job,
                         clear_notebook_job)
 from .upload import (save_static_image, save_visualization, load_visualization,
@@ -51,7 +51,7 @@ __all__ = [
     'retry_ide_commit', 'save_static_image', 'save_visualization',
     'load_visualization', 'get_result_files', 'get_study_spaces', 'get_trace',
     'get_files_for_query', 'save_dash_app', 'list_filesets', 'cache_fileset',
-    'save_abstraction', 'set_default_store', 'set_default_project',
-    'get_default_store', 'get_default_project', 'set_memory_limit',
-    'get_memory_usage', 'save_visualization_app'
+    'get_ide_artifacts', 'save_abstraction', 'set_default_store',
+    'set_default_project', 'get_default_store', 'get_default_project',
+    'set_memory_limit', 'get_memory_usage', 'save_visualization_app'
 ]
