@@ -11,6 +11,7 @@ import hisepy.common_utils as cu
 import hisepy.formatter as fmt
 import hisepy.reader as hpr
 import hisepy.ray_transformer as rt
+import hisepy.ai_ray_transformer as airt
 from hisepy.auth import get_bearer_token_header, HiseUser, IDEInstance, ide_instance_guid
 from hisepy.upload import get_default_project
 from hisepy.upload_utils import do_conda_export, get_ide_env_name, check_default_project
@@ -95,9 +96,10 @@ def start_training_run(
     # create a training_job temp directory
     training_job_temp_dir = CONFIG['JOB_ORCHESTRATE'][
         'ARTIFACTS_PATH']  # '/home/workspace/.artifacts'
-    if not os.path.exists(training_job_temp_dir):
-        os.makedirs(training_job_temp_dir)
-
+    if os.path.exists(training_job_temp_dir):
+        shutil.rmtree(training_job_temp_dir)
+    os.makedirs(training_job_temp_dir)
+    
     # set destination project if not already set
     if project is None:
         project = get_default_project()
@@ -151,10 +153,13 @@ def start_training_run(
     else:
         raise Exception("Provider must be either 'ray' or 'beaker'")
 
-    if use_conda and image_id is not None:
+
+    if use_conda and image_id is None:
         # write environment.yml file to temp directory
         job_obj.create_env_yaml()
-    elif not use_conda and image_id is not None:
+    elif cu.get_ide_package_manager() == "pixi" and use_conda == False and image_id is None:
+        job_obj.copy_pixi_manifest_to_temp()
+    elif use_conda == False and image_id is None:
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
 
@@ -269,7 +274,7 @@ class TrainingJob:
 
         # initialize attributes
         self.provider = provider
-        self.package_manager = "conda" if use_conda else "pip"
+        self.package_manager = self._determine_package_manager()
         self.head_cpu_count = head_cpu_count
         self.head_gpu_count = head_gpu_count
         self.head_memory_size = head_memory_size
@@ -372,6 +377,14 @@ class TrainingJob:
                 raise Exception("training_job_file_path does not exist")
         return
 
+    def _determine_package_manager(self): 
+        if self.use_conda: 
+            return "conda"
+        elif cu.get_ide_package_manager() == "pixi" and self.use_conda == False:
+            return "pixi"
+        else: 
+            return "pip"
+
     def get_job(self):
         return cu.parse_hise_response(
             requests.get(self.__url, headers=get_bearer_token_header()))
@@ -398,31 +411,14 @@ class TrainingJob:
         # transform script to conform to Ray
         converted_script = '{}/{}'.format(
             self.work_dir, CONFIG['TEMP_FILES']['JOB_ENTRYPOINT_FILE'])
-        rt.transform_to_ray(python_script_to_convert,
+        airt.transform_to_ray(python_script_to_convert,
                             converted_script,
-                            num_gpus=self.worker_gpu_count
-                            if self.worker_count > 0 else self.head_gpu_count,
-                            num_cpus=self.worker_cpu_count
-                            if self.worker_count > 0 else self.head_cpu_count)
-
-        # get list of ray remote targets
-        ray_remote_targets = rt.get_ray_remote_targets(converted_script)
-        target_names = [f[0] for f in ray_remote_targets]
-
-        while True:
-            # Prompt user for methods to remove decorators from
-            rm_target = cu.prompt_from_options(
-                "The following methods currently use Ray decorators: {}. "
-                "Please select the methods from which you want to remove the Ray decorators"
-                .format(target_names), target_names + ["None"])
-
-            if not rm_target or rm_target == "None":
-                # Exit loop if user chose no method
-                break
-
-            # Remove ray decorators from the selected targets
-            rt.remove_ray_remote_decorator(converted_script, rm_target,
-                                           converted_script)
+                            cpu_count=self.worker_cpu_count
+                                if self.worker_count > 0 else self.head_cpu_count,
+                            gpu_count=self.worker_gpu_count
+                                if self.worker_count > 0 else self.head_gpu_count,
+                            memory_size=self.worker_memory_size,
+                            worker_count=self.worker_count)
 
         # prompt user on transformation, asking if they want to edit ray decorators
         # if the user selected targets, edit the ray decorators of those targets
@@ -472,13 +468,18 @@ class TrainingJob:
                     "additional_files must be a list of files or directories")
         return
 
+    def copy_pixi_manifest_to_temp(self):
+        shutil.copy('{}/{}/{}'.format(CONFIG['STORES']['ENV_STORE'], get_ide_env_name(), "pixi.toml"),
+                    '{}/{}'.format(self.work_dir, "pixi.toml"))
+        return 
+
     def create_training_job_image(self):
         with tarfile.open(self.artifacts_path, 'w:gz') as tar:
             tar.add(self.work_dir, arcname='artifacts')
         return
 
     def create_env_yaml(self):
-        conda_export_dest = do_conda_export(self.work_dir)
+        conda_export_dest = do_conda_export(self.work_dir)[0]
         # remove hisepy from exported yaml file, if it exists
         process = subprocess.run(
             "sed -i '/hisepy==*/d' {}".format(conda_export_dest),

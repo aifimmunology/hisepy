@@ -11,7 +11,7 @@ import subprocess
 import tarfile
 import tempfile
 from enum import Enum
-from IPython.display import HTML, display  # TODO: Add ipython to requirements.txt
+from IPython.display import HTML, display
 from pathlib import Path
 from typing import Any
 
@@ -255,12 +255,12 @@ def retry_ide_commit(id: str):
             cu.hise_url("ide_management",
                         "upload_file_v3_path",
                         id,
-                        args={"condaEnvironmentFile": hpu.do_conda_export()}))
+                        args={"condaEnvironmentFile": hpu.do_conda_export()[0]}))
     else:
         url = cu.hise_url("ide_management",
                           "upload_file_v3_path",
                           id,
-                          args={"condaEnvironmentFile": hpu.do_conda_export()})
+                          args={"condaEnvironmentFile": hpu.do_conda_export()[0]})
     return cu.parse_hise_response(requests.put(url))
 
 
@@ -781,7 +781,7 @@ def save_visualization(pl_obj: plotly.graph_objs.Figure,
 
     # conda environment validation
     global save_visualization_conda_env_checked
-    if not auth.debug() and not save_visualization_conda_env_checked:
+    if not debug() and not save_visualization_conda_env_checked:
         if do_conda_build_check and not conda_env_builds():
             raise SystemError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
         save_visualization_conda_env_checked = True
@@ -952,7 +952,7 @@ def upload_files(
             f[hpu.file_type_key] = file_types[i]
         file_map.append(f)
 
-    upload_files_internal(files=file_map,
+    return upload_files_internal(files=file_map,
                           study_space_id=study_space_id,
                           project=project,
                           title=title,
@@ -1006,7 +1006,7 @@ def upload_file_map(files: list,
                         title='a upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
-    upload_files_internal(files=files,
+    return upload_files_internal(files=files,
                           study_space_id=study_space_id,
                           project=project,
                           title=title,
@@ -1077,7 +1077,8 @@ def upload_files_internal(files: list,
     qargs['packageManager'] = package_manager
     if not cu.is_legacy_ide():
         if package_manager == "conda":
-            qargs["condaEnvironmentFile"] = hpu.do_conda_export(tmpdir)
+            conda_export_info = hpu.do_conda_export(tmpdir)
+            qargs["condaEnvironmentFile"] = conda_export_info[0]
         elif package_manager == "pixi":
             qargs["condaEnvironmentFile"] = hpu.do_pixi_export(tmpdir)
 
@@ -1102,11 +1103,14 @@ def upload_files_internal(files: list,
     if use_fast_mode:
         if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
             qargs['useFastMode'] = True
+        else: 
+            logger.info("User declined to use fast_mode after prompt; canceling upload_files call.")
+            return
 
     global upload_files_conda_env_checked
     if not upload_files_conda_env_checked:
         if not use_fast_mode and package_manager == "conda":  # check the conda environment if user isn't not running fast_mode
-            hpu.ensure_conda_env_ready(do_conda_build_check)
+            hpu.ensure_conda_env_ready(do_conda_build_check, conda_export_info[1])
             upload_files_conda_env_checked = True
 
     # upload thy files

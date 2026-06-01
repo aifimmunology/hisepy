@@ -123,7 +123,7 @@ def do_conda_export(to_directory: str = ""):
     # prompt user to select which one to export
     if len(conda_envs) == 0 and not debug:
         RuntimeError("No conda environments found to export.")
-    elif not debug and cu.is_valid_upload_kernel():
+    elif not debug() and cu.is_valid_upload_kernel():
         selected_env = get_ide_env_name()
         if selected_env not in conda_envs:
             raise RuntimeError(
@@ -157,7 +157,7 @@ def do_conda_export(to_directory: str = ""):
                 "Environment file is empty, please ensure that the conda environment is active and not empty."
             )
 
-    return conda_export_dest
+    return conda_export_dest, env_dir
 
 
 def do_pixi_export(to_directory):
@@ -218,10 +218,10 @@ def do_pixi_export(to_directory):
     return pixi_export_dest
 
 
-def ensure_conda_env_ready(do_check: bool):
+def ensure_conda_env_ready(do_check: bool, conda_dir: str = None):
     if not do_check or debug():
         return
-    if not conda_env_builds():
+    if not conda_env_builds(conda_dir):
         raise RuntimeError(CONFIG['PROMPTS']['CONDA_ENV_BUILD'])
 
 
@@ -430,11 +430,20 @@ def select_study_space(proj):
     if proj is not None:
         pguid = cu.project_shortname_to_guid(proj)
     options = [{"name": no_study_default, "id": no_study_default}]
-    for sp in get_study_spaces():
-        if pguid is None or sp["projectGuid"] == pguid:
-            options.append(sp)
-    idx = cu.prompt_from_options("Select a study space",
-                                 [d["name"] for d in options], True)
+
+    # a user might not have acess to any study spaces, so we should handle that case as well
+    studies = get_study_spaces()
+    if studies is not None and len(studies) > 0:
+        for sp in get_study_spaces():
+            if pguid is None or sp["projectGuid"] == pguid:
+                options.append(sp)
+        idx = cu.prompt_from_options("Select a study space",
+                                     [d["name"] for d in options], True)
+    else:
+        print(
+            "No study spaces found or accessible for this account. Proceeding without associating with a study space."
+        )
+        idx = 0
     return options[idx]["id"]
 
 
@@ -465,11 +474,13 @@ def validate_app_path(app_path: str) -> None:
 
 def validate_files(filenames: list[str],
                    filedirs: list[str] | None = None) -> None:
-    """Ensure all provided files exist, are under /home/jupyter, and contain no spaces."""
+    """Ensure all provided files exist, are under /home/jupyter, don't repeat, and contain no spaces."""
     ide_dir = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
     ) else IDE_HOME_DIR
+    seen = {}
     for path in filenames or []:
         abs_path = os.path.abspath(path)
+        base_file = os.path.basename(path)
         if cu.string_contains_whitespaces(abs_path):
             raise ValueError(f"Whitespace detected in filepath: {abs_path}")
         elif not os.path.exists(abs_path):
@@ -477,8 +488,18 @@ def validate_files(filenames: list[str],
         elif not abs_path.startswith(ide_dir):
             raise PermissionError(
                 f"File outside allowed directory: {abs_path}")
+        elif abs_path.startswith(CONFIG["STORES"]["ENV_STORE"]):
+            raise PermissionError(
+                f"File in directory reserved for environment files: {abs_path}"
+            )
         elif not os.path.isfile(abs_path):
             raise ValueError(f"Filepath is not a file: {abs_path}")
+        elif base_file in seen:
+            raise ValueError(
+                f"File {base_file} appears twice in this upload request. Local filepaths are not preserved in upload, so files must have different names."
+            )
+        else:
+            seen[base_file] = True
 
     for path in (filedirs or []):
         abs_path = os.path.abspath(path)
