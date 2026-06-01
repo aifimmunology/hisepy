@@ -2,6 +2,9 @@ import json
 import os
 from urllib import response
 import uuid
+import mimetypes
+import re
+from urllib.parse import unquote
 import pandas as pd
 from termcolor import colored
 import requests
@@ -16,6 +19,72 @@ from hisepy.upload_utils import valid_upload_stores
 
 _here = os.path.abspath(os.path.dirname(__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
+_CONTENT_DISPOSITION_ENCODED_FILENAME_PATTERN = r"filename\*=UTF-8''([^;]+)"
+
+
+def _filename_from_response_headers(resp, default_name: str) -> str:
+    header = resp.headers.get("Content-Disposition", "")
+    file_name = None
+
+    match = re.search(_CONTENT_DISPOSITION_ENCODED_FILENAME_PATTERN,
+                      header,
+                      flags=re.IGNORECASE)
+    if match:
+        file_name = unquote(match.group(1))
+    else:
+        match = re.search(r'filename="?([^";]+)"?', header, flags=re.IGNORECASE)
+        if match:
+            file_name = match.group(1)
+
+    if not file_name:
+        content_type = resp.headers.get("Content-Type", "").split(";")[0].strip()
+        extension = mimetypes.guess_extension(
+            content_type) if content_type else ""
+        file_name = f"{default_name}{extension}"
+
+    normalized_name = file_name.replace("\\", "/")
+    if normalized_name.startswith("/") or re.match(r"^[A-Za-z]:", normalized_name):
+        raise SystemError(f"Unsafe filename in response headers: {file_name}")
+    if any(part == ".." for part in normalized_name.split("/")):
+        raise SystemError(f"Unsafe filename in response headers: {file_name}")
+
+    safe_name = os.path.basename(file_name).strip()
+    if "\x00" in safe_name:
+        raise SystemError(f"Unsafe filename in response headers: {file_name}")
+    if safe_name in ("", ".", ".."):
+        raise SystemError(f"Unable to parse a valid filename from response headers: {file_name}")
+
+    return safe_name
+
+
+def _download_ide_artifact(identifier: str, artifact_type: str) -> str:
+    endpoint = cu.hise_url(
+        "ide_management",
+        "ide_path",
+        resource=f"download/{identifier}/{artifact_type}")
+    resp = requests.get(endpoint,
+                        headers=get_bearer_token_header(),
+                        stream=True)
+
+    if resp.status_code != 200:
+        raise SystemError(
+            f"{resp.request.method} request to {resp.url} returned with status {resp.status_code}. {resp.text}"
+        )
+
+    file_name = _filename_from_response_headers(resp, artifact_type)
+    cwd = os.path.abspath(os.getcwd())
+    save_path = os.path.abspath(os.path.join(cwd, file_name))
+    if os.path.commonpath([cwd, save_path]) != cwd:
+        raise SystemError(f"Unsafe download destination: {save_path}")
+    if os.path.exists(save_path):
+        raise FileExistsError(
+            f"Refusing to overwrite existing file: {save_path}. Please remove it and retry."
+        )
+
+    with open(save_path, "wb") as f:
+        for chunk in resp.iter_content(CONFIG["IDE"]["DOWNLOAD_CHUNK_SIZE"]):
+            f.write(chunk)
+    return save_path
 
 
 @with_default_logging
@@ -100,8 +169,7 @@ def cache_files(file_ids: list[str] | None = None,
 
             # don't outright fail, but log the error
             except Exception as e:
-                logger.error("Unexpected error processing file response: %s",
-                             file_id)
+                logger.error("Unexpected error processing file, %s. Error response: %s", file_id, e)
                 fail_files.append(str(file_id))
 
         if fail_files:
@@ -311,7 +379,6 @@ def read_files(file_list: list[str] | None = None,
 
         # log the error, as we're not raising an error and not outright stopping the function call
         except Exception as e:
-            print(colored(f"Failed to process file {f.get('id')}: {e}", "red"))
             logger.error(f"Failed to process file {f.get('id')}: {e}")
 
 
@@ -323,12 +390,13 @@ def read_files(file_list: list[str] | None = None,
     ]
     
     if failed_files:
+        logger.warning("Some files failed to download: %s", failed_files)
         # log partial error information in logger.extra so that error handler can log it correctly
-            logger.extra["_override"].update({
-                "success": False,
-                "message": f"Partial failure: {len(fail_files)} files failed",
-                "severity": "error"  
-            })
+        logger.extra["_override"].update({
+            "success": False,
+            "message": f"Partial failure: {len(failed_files)} files failed",
+            "severity": "error"  
+        })
 
     # finally reshape to data.frame, if requested
     try:
@@ -339,6 +407,34 @@ def read_files(file_list: list[str] | None = None,
     except Exception as e:
         raise RuntimeError(
             f"Failed to reshape file descriptors as data.frame: {e}")
+
+
+@with_default_logging
+def get_ide_artifacts(ide: str | None = None,
+                      trace: str | None = None) -> list[str]:
+    """
+    Downloads IDE notebook and environment artifacts for an ide or trace UUID.
+    Exactly one of `ide` or `trace` must be provided.
+
+    Parameters:
+        ide (str): ide UUID
+        trace (str): trace UUID
+    Returns:
+        list[str]: downloaded filepaths
+    """
+    if (ide is None) == (trace is None):
+        raise ValueError("Specify exactly one of `ide` or `trace`.")
+
+    artifact_id = ide if ide is not None else trace
+    try:
+        uuid.UUID(artifact_id)
+    except ValueError:
+        raise ValueError("`ide` or `trace` must be a valid UUID.")
+
+    return [
+        _download_ide_artifact(artifact_id, "notebook"),
+        _download_ide_artifact(artifact_id, "environment")
+    ]
 
 
 @with_default_logging
@@ -386,6 +482,10 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
             return obj['payload']
 
         dict_df = hf.sample_to_df(obj["payload"])
+
+        # grab fetched samples 
+        if sample_ids is None:
+            sample_ids = dict_df['metadata']['id'].tolist()
         dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
         cu.log_downloaded_files_or_samples(
             sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
