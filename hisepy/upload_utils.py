@@ -438,9 +438,11 @@ def select_study_space(proj):
             if pguid is None or sp["projectGuid"] == pguid:
                 options.append(sp)
         idx = cu.prompt_from_options("Select a study space",
-                                    [d["name"] for d in options], True)
+                                     [d["name"] for d in options], True)
     else:
-        print("No study spaces found or accessible for this account. Proceeding without associating with a study space.")
+        print(
+            "No study spaces found or accessible for this account. Proceeding without associating with a study space."
+        )
         idx = 0
     return options[idx]["id"]
 
@@ -472,11 +474,13 @@ def validate_app_path(app_path: str) -> None:
 
 def validate_files(filenames: list[str],
                    filedirs: list[str] | None = None) -> None:
-    """Ensure all provided files exist, are under /home/jupyter, and contain no spaces."""
+    """Ensure all provided files exist, are under /home/jupyter, don't repeat, and contain no spaces."""
     ide_dir = CONFIG['IDE']['HOME_DIR_V2'] if not cu.is_legacy_ide(
     ) else IDE_HOME_DIR
+    seen = {}
     for path in filenames or []:
         abs_path = os.path.abspath(path)
+        base_file = os.path.basename(path)
         if cu.string_contains_whitespaces(abs_path):
             raise ValueError(f"Whitespace detected in filepath: {abs_path}")
         elif not os.path.exists(abs_path):
@@ -484,8 +488,18 @@ def validate_files(filenames: list[str],
         elif not abs_path.startswith(ide_dir):
             raise PermissionError(
                 f"File outside allowed directory: {abs_path}")
+        elif abs_path.startswith(CONFIG["STORES"]["ENV_STORE"]):
+            raise PermissionError(
+                f"File in directory reserved for environment files: {abs_path}"
+            )
         elif not os.path.isfile(abs_path):
             raise ValueError(f"Filepath is not a file: {abs_path}")
+        elif base_file in seen:
+            raise ValueError(
+                f"File {base_file} appears twice in this upload request. Local filepaths are not preserved in upload, so files must have different names."
+            )
+        else:
+            seen[base_file] = True
 
     for path in (filedirs or []):
         abs_path = os.path.abspath(path)
