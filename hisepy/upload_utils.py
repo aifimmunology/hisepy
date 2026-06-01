@@ -488,6 +488,10 @@ def validate_files(filenames: list[str],
         elif not abs_path.startswith(ide_dir):
             raise PermissionError(
                 f"File outside allowed directory: {abs_path}")
+        elif abs_path.startswith(CONFIG["STORES"]["ENV_STORE"]):
+            raise PermissionError(
+                f"File in directory reserved for environment files: {abs_path}"
+            )
         elif not os.path.isfile(abs_path):
             raise ValueError(f"Filepath is not a file: {abs_path}")
         elif base_file in seen:
