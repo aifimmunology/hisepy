@@ -154,12 +154,12 @@ def start_training_run(
         raise Exception("Provider must be either 'ray' or 'beaker'")
 
 
-    if use_conda:
+    if use_conda and image_id is None:
         # write environment.yml file to temp directory
         job_obj.create_env_yaml()
-    elif cu.get_ide_package_manager() == "pixi" and use_conda == False:
+    elif cu.get_ide_package_manager() == "pixi" and use_conda == False and image_id is None:
         job_obj.copy_pixi_manifest_to_temp()
-    else:
+    elif use_conda == False and image_id is None:
         # write requirements.txt file to temp directory
         job_obj.create_req_txt()
 
