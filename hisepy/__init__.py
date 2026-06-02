@@ -1,3 +1,9 @@
+
+try:
+    from .version import version as __version__
+except ImportError:
+    # Fallback if the package was not installed via setuptools
+    __version__ = "unknown"
 from .formatter import (hise_file_to_df, subject_to_df, sample_to_df)
 from .lookup import (lookup_queryable_fields, lookup_unique_entries)
 from .project_store import (list_project_stores, list_files_in_project_store,
