@@ -1,7 +1,4 @@
 from __future__ import annotations
-
-import os
-
 from google import genai
 from jupyter_ai_persona_manager import (
     BasePersona,
