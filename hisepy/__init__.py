@@ -41,6 +41,7 @@ from .conda_pack import (save_custom_conda_environment)
 from .pixi_pack import (save_custom_pixi_environment,
                         install_github_package_to_pixi_env)
 from .reader_utils import (hise_file, query_files)
+from .ai_persona import (initialize_ai_persona)
 
 # if somebody does "from somepackage import *", this is what they will
 # be able to access:
@@ -59,5 +60,5 @@ __all__ = [
     'get_files_for_query', 'save_dash_app', 'list_filesets', 'cache_fileset',
     'get_ide_artifacts', 'save_abstraction', 'set_default_store',
     'set_default_project', 'get_default_store', 'get_default_project',
-    'set_memory_limit', 'get_memory_usage', 'save_visualization_app'
+    'set_memory_limit', 'get_memory_usage', 'save_visualization_app', 'initialize_ai_persona'
 ]
