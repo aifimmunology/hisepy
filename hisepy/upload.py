@@ -881,7 +881,7 @@ def save_static_image(image, title, study_space_id=None):
                               'rb'), "image/%s" % (cu.get_filetype(image)))
     }
     hpu.validate_upload_data(files=[{
-        file_key: image
+        "file": image
     }],
                              study_space_id=study_space_id,
                              project=None,
