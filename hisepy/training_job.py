@@ -274,6 +274,7 @@ class TrainingJob:
 
         # initialize attributes
         self.provider = provider
+        self.use_conda = use_conda
         self.package_manager = self._determine_package_manager()
         self.head_cpu_count = head_cpu_count
         self.head_gpu_count = head_gpu_count
