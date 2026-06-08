@@ -345,9 +345,9 @@ def hise_file_to_df(list_of_hise_files):
                 errors_df,
                 pd.DataFrame(
                     data={
-                        'filetype': [list_of_hise_files[0].filetype],
-                        'id': [list_of_hise_files[0].id],
-                        'message': [list_of_hise_files[0].message]
+                        'filetype': [list_of_hise_files[i].filetype],
+                        'id': [list_of_hise_files[i].id],
+                        'message': [list_of_hise_files[i].message]
                     })
             ],
                                   ignore_index=True)
