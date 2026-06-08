@@ -175,7 +175,7 @@ def append_error_response(response: list, file_meta: dict, message: str,
                           idx: int):
     """Append an error placeholder hise_file to the response list."""
     try:
-        fobj = hise_file(file_id=file_meta['descriptors']['file']['id'])
+        fobj = hise_file(file_id=file_meta.get('id'))
     except Exception:
         fobj = hise_file(uuid.UUID(int=0))
     fobj.status = False

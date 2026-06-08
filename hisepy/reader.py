@@ -381,9 +381,7 @@ def read_files(file_list: list[str] | None = None,
         except Exception as e:
             logger.error(f"Failed to process file {f.get('id')}: {e}")
 
-
             ru.append_error_response(response, f, str(e), idx)
-
     # let the user know what files failed to download
     failed_files = [
         str(f.id) for f in response if not getattr(f, "status", False)
