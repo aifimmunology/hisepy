@@ -68,13 +68,11 @@ def lookup_queryable_fields(field_type='all', is_public=False) -> pd.DataFrame:
             raise SystemError(
                 f"Failed to retrieve field names for collection '{collection}': {e}"
             )
-
         # keep only fields that have a '.' and belong to the current collection or cohort
         user_fields = [
             f.split('.')[1] for f in fields
             if '.' in f and f.split('.')[0] in {collection, 'cohort'}
         ]
-
         # remove file type if public
         if is_public:
             user_fields = [f for f in user_fields if f != "fileType"]
@@ -106,7 +104,11 @@ def lookup_queryable_fields(field_type='all', is_public=False) -> pd.DataFrame:
 
     all_fields_df = pd.concat(all_fields, ignore_index=True).drop_duplicates()
 
+    # attach projectGuid to data.frame 
+    project_df = pd.DataFrame({'field': ['projectGuid'], 'field_type': ['']})
+    all_fields_df = pd.concat([all_fields_df, project_df], ignore_index=True)
     if field_type == "all":
+
         return all_fields_df
 
     # return only requested field type and cohort fields
@@ -175,7 +177,6 @@ def list_queryable_fields(is_public=False):
         (~df['field_type'].isin(['emr', 'lab'])
          & ~df['field'].isin(['cohort'])),
     ]
-
     fields = ""
     if is_public:
         fields = CONFIG['MATERIALIZED_VIEW']['PUBLIC_QUERYABLE_FIELD_TYPES']
