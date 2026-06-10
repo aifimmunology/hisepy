@@ -108,8 +108,9 @@ class MongoQuery:  # class to handle mongo query language translation
             if k in id_fields:
                 continue
             prefix = q_df.loc[q_df['field'].eq(k), 'field_type'].unique()[0]
-            new_query_dict.update(
-                {'{}.{}'.format(prefix, k): new_query_dict[k]})
+            if prefix != "": 
+                new_query_dict.update(
+                    {'{}.{}'.format(prefix, k): new_query_dict[k]})
 
         # remove old keys
         for ok in list(self.query_dict):
