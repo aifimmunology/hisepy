@@ -189,6 +189,15 @@ def update_sdk_version():
     is required for the changes to take effect.
     """
     try:
+
+        # check that there's enough disk space in /home/workspace/sdk
+        total_disk = shutil.disk_usage(CONFIG['STORES']['SDK_STORE']).total 
+        usage_disk = shutil.disk_usage(CONFIG['STORES']['SDK_STORE']).used
+        if usage_disk / total_disk > 0.95:  # if more than 90% of disk is used
+            raise RuntimeError(
+                "Not enough disk space to download SDK. Please free up space in /home/workspace/sdk and try again."
+            )
+
         # Fetch latest version tag
         version_url = cu.hise_url("ide_management", "sdk_version", "python")
         version_tag = hreq.hise_get(version_url)
