@@ -286,6 +286,7 @@ def read_files(file_list: list[str] | None = None,
 
     # validate params; resolve query method used
     try:
+        failed_file_desc = []
         checked_file_list = []
         ru.validate_download_params(file_list, query_id, query_dict)
         if query_id is not None:
@@ -309,13 +310,21 @@ def read_files(file_list: list[str] | None = None,
             obj = ru.post_query(query_dict=query_dict)
 
         else:
+            failed_obj = []
             for file_id in file_list:
-                match = ru.availability_matches_is_public(file_id, is_public)
-                if match:
-                    checked_file_list.append(file_id)
+                try:
+                    match = ru.availability_matches_is_public(file_id, is_public)
+                    if match:
+                        checked_file_list.append(file_id)
+                except Exception as e:
+                    logger.error(f"Error checking availability for file {file_id}: {e}")
+
+                    # create temporary hise_file object to log the error for this file_id
+                    ru.append_error_response(failed_obj, {"id": file_id}, str(e), idx=None)
+                    failed_file_desc.append(file_id)
+
             obj = ru.post_query(file_list=checked_file_list,
                                 is_public=is_public)
-
     except Exception as e:
         raise Exception(f"Failed to fetch file descriptors: {e}")
 
@@ -380,9 +389,10 @@ def read_files(file_list: list[str] | None = None,
         # log the error, as we're not raising an error and not outright stopping the function call
         except Exception as e:
             logger.error(f"Failed to process file {f.get('id')}: {e}")
-
             ru.append_error_response(response, f, str(e), idx)
+
     # let the user know what files failed to download
+    response.extend(failed_obj)
     failed_files = [
         str(f.id) for f in response if not getattr(f, "status", False)
     ]
