@@ -486,18 +486,18 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
 
         if obj['payload'] is None:
             raise ValueError("User's query resulted in 0 results")
-        if not to_df:
-            return obj['payload']
 
-        dict_df = hf.sample_to_df(obj["payload"])
-
-        # grab fetched samples 
-        if sample_ids is None:
-            sample_ids = dict_df['metadata']['id'].tolist()
-        dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
+        # grab fetched samples and reshape to data.frame, if requested
+        sample_ids = [obj['payload'][i]['id'] for i in range(len(obj['payload']))]
         cu.log_downloaded_files_or_samples(
             sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
-        return dict_df
+        if not to_df:
+            return obj['payload']
+        else: 
+            dict_df = hf.sample_to_df(obj["payload"])
+            dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
+
+            return dict_df
 
     except Exception as e:
         raise Exception(f"Failed to retrieve sample metadata: {e}")
