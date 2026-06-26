@@ -278,6 +278,56 @@ def promote_file_in_project_store(store_name: str, file_name: str) -> bool:
 
 
 @with_default_logging
+def set_file_metadata_in_project_store(store_name : str, 
+                                       file_name : str, 
+                                       fields_to_set : dict, 
+                                       replace_where_multiple : bool = False): 
+    # validate params 
+    if not isinstance(store_name, str) or store_name is None:
+        raise ValueError("`store_name` must be a string.")
+    if not isinstance(file_name, str) or file_name is None:
+        raise ValueError("`file_name` must be a string.")
+    if not isinstance(fields_to_set, dict) or fields_to_set is None:
+        raise ValueError("`fields_to_set` must be a dictionary.")
+    if not isinstance(replace_where_multiple, bool):
+        raise ValueError("`replace_where_multiple` must be a boolean.")
+
+    # extract vals from keys, and check if they are valid
+    panel_id = fields_to_set.get('panelId', None)
+    batch_id = fields_to_set.get('batchId', None)
+    user_tags = fields_to_set.get('userTags', None)
+    sample_refs = fields_to_set.get('sampleRefs', None)
+    if panel_id is not None and not isinstance(panel_id, str):
+        raise ValueError("`panelId` must be a string if provided.")
+    if batch_id is not None and not isinstance(batch_id, str):
+        raise ValueError("`batchId` must be a string if provided.")
+    if user_tags is not None and not isinstance(user_tags, list):
+        raise ValueError("`userTags` must be a list if provided.")
+    if sample_refs is not None and not isinstance(sample_refs, list):
+        raise ValueError("`sampleRefs` must be a list if provided.")
+    else: 
+        regs = dict()
+        for (sf in sample_refs):
+            refs[sf] = None
+        fields_to_set['sampleRefs'] = refs
+
+    fields_to_set['replaceWhereMultiple'] = replace_where_multiple
+
+    resp = cu.parse_hise_response(requests.request("PUT",
+                            'https://{ser}/{hy}/{pfe}/{fol}/{fil}/{fn}'.format(
+                                ser=hise_server(),
+                                hy=CONFIG['HYDRATION']['HYDRATION_NAME'],
+                                pfe=CONFIG['PROJECT_STORE']['PROJECT_STORE_ENDPOINT'],
+                                fol=store_name,
+                                fil='files',
+                                fn=file_name),
+                            data=json.dumps(fields_to_set),
+                            headers=get_bearer_token_header()))
+
+    return resp 
+
+
+@with_default_logging
 def undo_promote_in_project_store(store_name: str, file_name: str) -> bool:
     """
     Undoes the promotion action, so long as the file 
