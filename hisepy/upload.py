@@ -348,6 +348,7 @@ def save_visualization_app(application_files: list[str],
                 [os.path.join(dirpath, dirname) for dirname in dirnames])
 
     template_params = {}
+    template_files = set()
     for template_var in vbt['buildVariables']:
         varName = template_var['varName']
         var_value = None
@@ -358,16 +359,19 @@ def save_visualization_app(application_files: list[str],
                     build_template_parameters[varName]):
             var_value = build_template_parameters[varName]
         template_params[varName] = get_template_variable(
-            template_var, all_files, all_dirs, infer_build_template_arguments,
+            template_var, template_files, all_dirs, infer_build_template_arguments,
             var_value)
 
-    tmpdirname = tempfile.mkdtemp(dir=CONFIG['STORES']['TEMP_STORE'])
+    tmpdirname = tempfile.mkdtemp(dir=CONFIG["STORES"]["TEMP_STORE"])
+
+    workspace = os.path.join(tmpdirname, "home", "workspace")
+    os.makedirs(workspace, exist_ok=True)
     os.chmod(tmpdirname, 0o777)
     logger.info("Created temporary directory for Visualization App build: %s",
                 tmpdirname)
 
-    hpu.create_temp_directory_files(list(all_files), tmpdirname)
-
+    hpu.create_temp_directory_files(list(template_files), workspace, preserve_tree=False)
+    hpu.create_temp_directory_files(list(all_files), workspace)
     tarfile_path = os.path.join(tmpdirname, 'viz_app.tar.gz')
     logger.debug('Creating tarball: %s', tarfile_path)
     with tarfile.open(tarfile_path, 'w:gz') as tar:
