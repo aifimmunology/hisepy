@@ -88,19 +88,41 @@ def check_default_project(proj: str):
         set_default_project(proj)
 
 
-def create_temp_directory_files(paths: list[str], tmpdir: str) -> None:
-    """Copy all files/directories into a temporary directory, preserving relative paths."""
-    for src in paths:
-        rel_path = os.path.relpath(src, "/")
-        dst = os.path.join(tmpdir, os.path.dirname(rel_path))
-        os.makedirs(dst, exist_ok=True)
+from pathlib import Path
+import os
+import shutil
 
-        if os.path.isfile(src):
-            shutil.copy(src, dst)
-        elif os.path.isdir(src):
-            shutil.copytree(src,
-                            os.path.join(tmpdir, rel_path),
-                            dirs_exist_ok=True)
+
+def create_temp_directory_files(
+    paths: list[str],
+    tmpdir: str,
+    preserve_tree: bool = True,
+) -> None:
+    """Copy files/directories into a temporary directory.
+
+    If preserve_tree=True, recreate the original directory structure.
+    If preserve_tree=False, place all selected files/directories directly
+    under tmpdir.
+    """
+    for src in paths:
+        src = Path(src)
+
+        if preserve_tree:
+            rel_path = src.relative_to("/")
+            dst = Path(tmpdir) / rel_path
+
+            if src.is_file():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+            elif src.is_dir():
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+        else:
+            dst = Path(tmpdir) / src.name
+
+            if src.is_file():
+                shutil.copy2(src, dst)
+            elif src.is_dir():
+                shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
 def do_conda_export(to_directory: str = ""):
