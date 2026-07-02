@@ -295,6 +295,19 @@ def set_file_metadata_in_project_store(store_name : str,
 
     Returns: 
         Response from the HISE server after attempting to set the metadata.
+
+    Example: 
+            set_file_metadata_in_project_store(
+                store_name='my_project_store',
+                file_name='my_file.txt',
+                fields_to_set={
+                    'panelId': 'panel_123',
+                    'batchId': 'batch_456',
+                    'userTags': {'other': 'value1', 'name': 'value2'},
+                    'sampleRefs': ['sample_1', 'sample_2']
+                },
+                replace_where_multiple=True
+            )
     """
     
     # validate params 
