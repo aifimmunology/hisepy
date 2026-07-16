@@ -44,7 +44,6 @@ from .conda_pack import (save_custom_conda_environment)
 from .pixi_pack import (save_custom_pixi_environment,
                         install_github_package_to_pixi_env)
 from .reader_utils import (hise_file, query_files)
-from .version import __version__
 
 # if somebody does "from somepackage import *", this is what they will
 # be able to access:
