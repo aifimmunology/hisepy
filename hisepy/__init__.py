@@ -1,4 +1,12 @@
 
+try:
+    from .version import __version__          # written by setuptools_scm at build time
+except ImportError:                           # unbuilt source tree
+    from importlib.metadata import version as _v, PackageNotFoundError
+    try:
+        __version__ = _v("hisepy")            # read from installed pip metadata
+    except PackageNotFoundError:
+        __version__ = "0.0.0+unknown"
 from .formatter import (hise_file_to_df, subject_to_df, sample_to_df)
 from .lookup import (lookup_queryable_fields, lookup_unique_entries)
 from .project_store import (list_project_stores, list_files_in_project_store,
@@ -36,7 +44,6 @@ from .conda_pack import (save_custom_conda_environment)
 from .pixi_pack import (save_custom_pixi_environment,
                         install_github_package_to_pixi_env)
 from .reader_utils import (hise_file, query_files)
-from .version import __version__
 
 # if somebody does "from somepackage import *", this is what they will
 # be able to access:
