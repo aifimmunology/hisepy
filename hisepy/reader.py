@@ -32,18 +32,22 @@ def _filename_from_response_headers(resp, default_name: str) -> str:
     if match:
         file_name = unquote(match.group(1))
     else:
-        match = re.search(r'filename="?([^";]+)"?', header, flags=re.IGNORECASE)
+        match = re.search(r'filename="?([^";]+)"?',
+                          header,
+                          flags=re.IGNORECASE)
         if match:
             file_name = match.group(1)
 
     if not file_name:
-        content_type = resp.headers.get("Content-Type", "").split(";")[0].strip()
+        content_type = resp.headers.get("Content-Type",
+                                        "").split(";")[0].strip()
         extension = mimetypes.guess_extension(
             content_type) if content_type else ""
         file_name = f"{default_name}{extension}"
 
     normalized_name = file_name.replace("\\", "/")
-    if normalized_name.startswith("/") or re.match(r"^[A-Za-z]:", normalized_name):
+    if normalized_name.startswith("/") or re.match(r"^[A-Za-z]:",
+                                                   normalized_name):
         raise SystemError(f"Unsafe filename in response headers: {file_name}")
     if any(part == ".." for part in normalized_name.split("/")):
         raise SystemError(f"Unsafe filename in response headers: {file_name}")
@@ -52,16 +56,17 @@ def _filename_from_response_headers(resp, default_name: str) -> str:
     if "\x00" in safe_name:
         raise SystemError(f"Unsafe filename in response headers: {file_name}")
     if safe_name in ("", ".", ".."):
-        raise SystemError(f"Unable to parse a valid filename from response headers: {file_name}")
+        raise SystemError(
+            f"Unable to parse a valid filename from response headers: {file_name}"
+        )
 
     return safe_name
 
 
 def _download_ide_artifact(identifier: str, artifact_type: str) -> str:
-    endpoint = cu.hise_url(
-        "ide_management",
-        "ide_path",
-        resource=f"download/{identifier}/{artifact_type}")
+    endpoint = cu.hise_url("ide_management",
+                           "ide_path",
+                           resource=f"download/{identifier}/{artifact_type}")
     resp = requests.get(endpoint,
                         headers=get_bearer_token_header(),
                         stream=True)
@@ -169,7 +174,9 @@ def cache_files(file_ids: list[str] | None = None,
 
             # don't outright fail, but log the error
             except Exception as e:
-                logger.error("Unexpected error processing file, %s. Error response: %s", file_id, e)
+                logger.error(
+                    "Unexpected error processing file, %s. Error response: %s",
+                    file_id, e)
                 fail_files.append(str(file_id))
 
         if fail_files:
@@ -178,7 +185,7 @@ def cache_files(file_ids: list[str] | None = None,
             logger.extra["_override"].update({
                 "success": False,
                 "message": f"Partial failure: {len(fail_files)} files failed",
-                "severity": "error"  
+                "severity": "error"
             })
 
         return dl_paths
@@ -313,14 +320,18 @@ def read_files(file_list: list[str] | None = None,
             failed_obj = []
             for file_id in file_list:
                 try:
-                    match = ru.availability_matches_is_public(file_id, is_public)
+                    match = ru.availability_matches_is_public(
+                        file_id, is_public)
                     if match:
                         checked_file_list.append(file_id)
                 except Exception as e:
-                    logger.error(f"Error checking availability for file {file_id}: {e}")
+                    logger.error(
+                        f"Error checking availability for file {file_id}: {e}")
 
                     # create temporary hise_file object to log the error for this file_id
-                    ru.append_error_response(failed_obj, {"id": file_id}, str(e), idx=None)
+                    ru.append_error_response(failed_obj, {"id": file_id},
+                                             str(e),
+                                             idx=None)
                     failed_file_desc.append(file_id)
 
             obj = ru.post_query(file_list=checked_file_list,
@@ -396,14 +407,14 @@ def read_files(file_list: list[str] | None = None,
     failed_files = [
         str(f.id) for f in response if not getattr(f, "status", False)
     ]
-    
+
     if failed_files:
         logger.warning("Some files failed to download: %s", failed_files)
         # log partial error information in logger.extra so that error handler can log it correctly
         logger.extra["_override"].update({
             "success": False,
             "message": f"Partial failure: {len(failed_files)} files failed",
-            "severity": "error"  
+            "severity": "error"
         })
 
     # finally reshape to data.frame, if requested
@@ -418,30 +429,28 @@ def read_files(file_list: list[str] | None = None,
 
 
 @with_default_logging
-def get_ide_artifacts(ide: str | None = None,
-                      trace: str | None = None) -> list[str]:
+def get_ide_artifacts(ide_snapshot_id: str = None) -> list[str]:
     """
-    Downloads IDE notebook and environment artifacts for an ide or trace UUID.
-    Exactly one of `ide` or `trace` must be provided.
+    Downloads IDE notebook and environment artifacts for an ide snapshot
+    Allows the download of code and environment data from the IDE Snapshot created
+    when upload_files is called, without requiring the cloning of the entire ide.
 
     Parameters:
-        ide (str): ide UUID
-        trace (str): trace UUID
+        (str): the UUID of the IDE Snapshot containing the artifacts
     Returns:
         list[str]: downloaded filepaths
     """
-    if (ide is None) == (trace is None):
-        raise ValueError("Specify exactly one of `ide` or `trace`.")
+    if (ide_snapshot_id is None):
+        raise ValueError("Please provide an IDE Snapshot.")
 
-    artifact_id = ide if ide is not None else trace
     try:
-        uuid.UUID(artifact_id)
+        uuid.UUID(ide_snapshot_id)
     except ValueError:
-        raise ValueError("`ide` or `trace` must be a valid UUID.")
+        raise ValueError("provided value was not a value UUID")
 
     return [
-        _download_ide_artifact(artifact_id, "notebook"),
-        _download_ide_artifact(artifact_id, "environment")
+        _download_ide_artifact(ide_snapshot_id, "notebook"),
+        _download_ide_artifact(ide_snapshot_id, "environment")
     ]
 
 
@@ -488,14 +497,17 @@ def read_samples(sample_ids: list = None, query_dict: dict = None, to_df=True):
             raise ValueError("User's query resulted in 0 results")
 
         # grab fetched samples and reshape to data.frame, if requested
-        sample_ids = [obj['payload'][i]['id'] for i in range(len(obj['payload']))]
+        sample_ids = [
+            obj['payload'][i]['id'] for i in range(len(obj['payload']))
+        ]
         cu.log_downloaded_files_or_samples(
             sample_ids=sample_ids, ide_dir=CONFIG["STORES"]["TEMP_STORE"])
         if not to_df:
             return obj['payload']
-        else: 
+        else:
             dict_df = hf.sample_to_df(obj["payload"])
-            dict_df['metadata'] = hf.attach_project_info_to_df(dict_df['metadata'])
+            dict_df['metadata'] = hf.attach_project_info_to_df(
+                dict_df['metadata'])
 
             return dict_df
 
