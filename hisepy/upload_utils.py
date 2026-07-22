@@ -29,7 +29,6 @@ valid_upload_stores = [permanent_store, project_store]
 file_key = "file"
 file_type_key = "file_type"
 file_sample_id_key = "input_sample_ids"
-file_kit_guid_key = "input_sample_kit_guids"
 
 
 def build_upload_payload(files, title, store, destination, project,
@@ -272,9 +271,7 @@ def gen_upload_body(files):
             "type":
             ft,
             "inputSampleIds":
-            f[file_sample_id_key] if file_sample_id_key in f else None,
-            "inputSampleKitGuids":
-            f[file_kit_guid_key] if file_kit_guid_key in f else None
+            f[file_sample_id_key] if file_sample_id_key in f else None
         })
     return body
 
@@ -386,18 +383,12 @@ def resolve_upload_context(study_space_id, project, files, do_prompt):
                     f[file_sample_id_key]) > 0:
                 hasSamples = True
                 break
-        if file_kit_guid_key in f:
-            if f[file_kit_guid_key] is not None and len(
-                    f[file_kit_guid_key]) > 0:
-                hasSamples = True
-                break
 
     if not hasSamples:
         samples = select_input_samples()
-        uus, kgs = split_uuids(samples)
+        uus = split_uuids(samples)
         for f in files:
             f[file_sample_id_key] = uus
-            f[file_kit_guid_key] = kgs
 
     if project:
         if do_prompt:
@@ -626,30 +617,21 @@ def validate_upload_input_ids(input_file_ids: list, files: list, ide_dir):
 
 
 def split_uuids(items):
-    uuids, others = [], []
+    uuids = []
     for item in items:
         try:
             uuid.UUID(item)
             uuids.append(item)
         except ValueError:
-            others.append(item)
-    return uuids, others
+            raise ValueError(f"{item} is not a valid UUID")
+    return uuids
 
 
 def get_input_samples(files):
-    """Extracts sample IDs and kit GUIDs from the list of files."""
-    sample_kit_guids = {}
+    """Extracts sample IDs from the list of files."""
     sample_ids = []
     for f in files:
         if file_sample_id_key in f and f[file_sample_id_key] is not None:
             for f in f[file_sample_id_key]:
                 sample_ids.append(f)
-        if file_kit_guid_key in f and f[file_kit_guid_key] is not None:
-            for f in f[file_kit_guid_key]:
-                sample_kit_guids[f] = True
-    if len(sample_kit_guids) > 0:
-        filter = {"sampleKitGuid": {"$in": list(sample_kit_guids.keys())}}
-        samples = cu.get_samples_for_query(filter)
-        for s in samples:
-            sample_ids.append(s["id"])
     return sample_ids
