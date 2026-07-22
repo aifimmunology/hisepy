@@ -446,7 +446,7 @@ def get_ide_artifacts(ide_snapshot_id: str = None) -> list[str]:
     try:
         uuid.UUID(ide_snapshot_id)
     except ValueError:
-        raise ValueError("provided value was not a value UUID")
+        raise ValueError("provided value was not a valid UUID")
 
     return [
         _download_ide_artifact(ide_snapshot_id, "notebook"),

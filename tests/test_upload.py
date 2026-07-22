@@ -305,7 +305,6 @@ class TestUploader():
             "file": f"{self.wd}/file1.txt",
             "file_type": "txt",
             "input_sample_ids": ["s1", "s2"],
-            "input_sample_kit_guids": ["sk1", "sk2"]
         }, {
             "file": f"{self.wd}/file2.txt",
             "file_type": "csv"
@@ -313,13 +312,11 @@ class TestUploader():
             "files": [{
                 "name": f"{self.wd}/file1.txt",
                 "type": "txt",
-                "inputSampleIds": ["s1", "s2"],
-                "inputSampleKitGuids": ["sk1", "sk2"]
+                "inputSampleIds": ["s1", "s2"]
             }, {
                 "name": f"{self.wd}/file2.txt",
                 "type": "csv",
-                "inputSampleIds": None,
-                "inputSampleKitGuids": None
+                "inputSampleIds": None
             }]
         }
 

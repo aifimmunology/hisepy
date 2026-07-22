@@ -274,7 +274,8 @@ class TestReader:
             hpru.validate_samples_subjects_params(self.file_ids,
                                                   self.query_dict)
 
-    @patch("hisepy.reader.get_bearer_token_header", return_value={"Authorization": "Bearer token"})
+    @patch("hisepy.reader.get_bearer_token_header",
+           return_value={"Authorization": "Bearer token"})
     @patch("hisepy.reader.cu.hise_url")
     @patch("hisepy.reader.requests.get")
     def test_get_ide_artifacts_downloads_notebook_and_environment(
@@ -303,7 +304,7 @@ class TestReader:
         mock_get.side_effect = [notebook_resp, env_resp]
 
         monkeypatch.chdir(tmp_path)
-        paths = hpr.get_ide_artifacts.__wrapped__(ide=ide_id)
+        paths = hpr.get_ide_artifacts.__wrapped__(ide_id)
 
         assert len(paths) == 2
         assert os.path.basename(paths[0]) == "notebook.ipynb"
@@ -311,41 +312,13 @@ class TestReader:
         assert os.path.exists(paths[0])
         assert os.path.exists(paths[1])
 
-    @patch("hisepy.reader.get_bearer_token_header", return_value={"Authorization": "Bearer token"})
-    @patch("hisepy.reader.cu.hise_url")
-    @patch("hisepy.reader.requests.get")
-    def test_get_ide_artifacts_accepts_trace_uuid(self, mock_get, mock_hise_url,
-                                                  _mock_headers, tmp_path,
-                                                  monkeypatch):
-        trace_id = "123e4567-e89b-12d3-a456-426614174001"
-        mock_hise_url.side_effect = [
-            "https://server/ide-nextgen/instances/download/id/notebook",
-            "https://server/ide-nextgen/instances/download/id/environment",
-        ]
-
-        def _resp():
-            resp = MagicMock()
-            resp.status_code = 200
-            resp.headers = {"Content-Type": "application/octet-stream"}
-            resp.iter_content.return_value = [b"bytes"]
-            return resp
-
-        mock_get.side_effect = [_resp(), _resp()]
-
-        monkeypatch.chdir(tmp_path)
-        paths = hpr.get_ide_artifacts.__wrapped__(trace=trace_id)
-
-        assert os.path.basename(paths[0]).startswith("notebook")
-        assert os.path.basename(paths[1]).startswith("environment")
-
     def test_get_ide_artifacts_validates_input(self):
-        with pytest.raises(ValueError, match="Specify exactly one of `ide` or `trace`."):
+        with pytest.raises(ValueError,
+                           match="Please provide an IDE Snapshot."):
             hpr.get_ide_artifacts.__wrapped__()
-        with pytest.raises(ValueError, match="Specify exactly one of `ide` or `trace`."):
-            hpr.get_ide_artifacts.__wrapped__(ide="123e4567-e89b-12d3-a456-426614174000",
-                                              trace="123e4567-e89b-12d3-a456-426614174001")
-        with pytest.raises(ValueError, match="must be a valid UUID"):
-            hpr.get_ide_artifacts.__wrapped__(ide="not-a-uuid")
+        with pytest.raises(ValueError,
+                           match="provided value was not a valid UUID"):
+            hpr.get_ide_artifacts.__wrapped__("not-a-uuid")
 
     @pytest.mark.parametrize("bad_filename", [
         "../../etc/passwd",
@@ -357,8 +330,7 @@ class TestReader:
             self, bad_filename):
         resp = MagicMock()
         resp.headers = {
-            "Content-Disposition":
-            f'attachment; filename="{bad_filename}"'
+            "Content-Disposition": f'attachment; filename="{bad_filename}"'
         }
         with pytest.raises(SystemError, match="Unsafe filename"):
             hpr._filename_from_response_headers(resp, "notebook")
