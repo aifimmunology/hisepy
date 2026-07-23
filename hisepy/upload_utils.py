@@ -410,7 +410,7 @@ def select_input_samples():
     # Check for empty input
     if provided_samples is None or provided_samples == "":
         return []
-    # replace qutoes and split by commas
+    # replace quotes and split by commas
     if '"' in provided_samples:
         provided_samples = provided_samples.replace('"', '')
     return [s.strip() for s in provided_samples.split(",")]
