@@ -413,7 +413,7 @@ def select_input_samples():
     # replace qutoes and split by commas
     if '"' in provided_samples:
         provided_samples = provided_samples.replace('"', '')
-    sampleIds = [s.strip() for s in provided_samples.split(",")]
+    return [s.strip() for s in provided_samples.split(",")]
 
 
 def select_study_space(proj):
@@ -631,7 +631,8 @@ def get_input_samples(files):
     """Extracts sample IDs from the list of files."""
     sample_ids = []
     for file_entry in files:
-        if file_sample_id_key in file_entry and file_entry[file_sample_id_key] is not None:
+        if file_sample_id_key in file_entry and file_entry[
+                file_sample_id_key] is not None:
             for sample_id in file_entry[file_sample_id_key]:
                 sample_ids.append(sample_id)
     return sample_ids
