@@ -436,7 +436,7 @@ def get_ide_artifacts(ide_snapshot_id: str = None) -> list[str]:
     when upload_files is called, without requiring the cloning of the entire ide.
 
     Parameters:
-        (str): the UUID of the IDE Snapshot containing the artifacts
+        ide_snapshot_id (str): the UUID of the IDE Snapshot containing the artifacts
     Returns:
         list[str]: downloaded filepaths
     """
