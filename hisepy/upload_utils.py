@@ -629,10 +629,10 @@ def split_uuids(items):
 
 def get_input_samples(files):
     """Extracts sample IDs from the list of files."""
-    sample_ids = []
+    sample_ids = {}
     for file_entry in files:
         if file_sample_id_key in file_entry and file_entry[
                 file_sample_id_key] is not None:
             for sample_id in file_entry[file_sample_id_key]:
-                sample_ids.append(sample_id)
-    return sample_ids
+                sample_ids[sample_id] = None
+    return list(sample_ids)
