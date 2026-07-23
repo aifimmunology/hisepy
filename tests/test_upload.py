@@ -16,7 +16,7 @@ import hisepy.upload as hpu
 import hisepy.common_utils as cu
 from hisepy.auth import ide_instance_guid, instance_account_guid, IDEInstance
 from hisepy.upload import get_study_spaces
-from hisepy.upload_utils import get_ide_env_name, do_conda_export, validate_upload_input_ids, validate_upload_data, gen_upload_body, split_uuids
+from hisepy.upload_utils import do_conda_export, validate_upload_input_ids, validate_upload_data, gen_upload_body, split_uuids
 
 _here = os.path.abspath(os.path.dirname(hpu.__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
