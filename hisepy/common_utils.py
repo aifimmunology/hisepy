@@ -131,15 +131,15 @@ def current_notebook():
                 print("Please select (1-%d), or enter c to cancel " % (len(notebooks)))
                 user_in = input().strip()
                 if user_in.lower() == "c":
-                    raise RuntimeError("User cancelled notebook selection")
+                    raise RuntimeError("Notebook selection cancelled by user.")
                 try:
                     resp = int(user_in) - 1
                 except ValueError:
-                     resp = -1
+                    resp = -1
                 if (resp < 0 or resp >= len(notebooks)):
                     print(
                         "Invalid option for current notebook. Please try again and choose a value between [1,%s]"
-                        % (num_printed_notebooks))
+                        % (notebooks))
 
             the_current_notebook = notebooks[resp]
             return notebooks[resp]
