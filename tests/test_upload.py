@@ -16,7 +16,7 @@ import hisepy.upload as hpu
 import hisepy.common_utils as cu
 from hisepy.auth import ide_instance_guid, instance_account_guid, IDEInstance
 from hisepy.upload import get_study_spaces
-from hisepy.upload_utils import get_ide_env_name, do_conda_export, validate_upload_input_ids, validate_upload_data, gen_upload_body
+from hisepy.upload_utils import do_conda_export, validate_upload_input_ids, validate_upload_data, gen_upload_body, split_uuids
 
 _here = os.path.abspath(os.path.dirname(hpu.__file__))
 CONFIG = cu.read_yaml('{}/config.yaml'.format(_here))
@@ -305,7 +305,6 @@ class TestUploader():
             "file": f"{self.wd}/file1.txt",
             "file_type": "txt",
             "input_sample_ids": ["s1", "s2"],
-            "input_sample_kit_guids": ["sk1", "sk2"]
         }, {
             "file": f"{self.wd}/file2.txt",
             "file_type": "csv"
@@ -313,16 +312,25 @@ class TestUploader():
             "files": [{
                 "name": f"{self.wd}/file1.txt",
                 "type": "txt",
-                "inputSampleIds": ["s1", "s2"],
-                "inputSampleKitGuids": ["sk1", "sk2"]
+                "inputSampleIds": ["s1", "s2"]
             }, {
                 "name": f"{self.wd}/file2.txt",
                 "type": "csv",
-                "inputSampleIds": None,
-                "inputSampleKitGuids": None
+                "inputSampleIds": None
             }]
         }
 
         # clean up temporary files
         os.system(f"rm {self.wd}/file1.txt")
         os.system(f"rm {self.wd}/file2.txt")
+
+    def test_split_uuids_valid(self):
+        valid_uuids = [
+            "84dfd43c-e034-4ae8-8a50-25ecbce6fe24",
+            "10f58583-1cdf-4f18-8de4-dc1ca94783e2",
+        ]
+        assert split_uuids(valid_uuids) == valid_uuids
+
+    def test_split_uuids_invalid(self):
+        with pytest.raises(ValueError):
+            split_uuids(["not-a-uuid"])

@@ -252,15 +252,17 @@ def retry_ide_commit(id: str):
         raise Exception("Cannot retry commit on a legacy IDE")
     if ide_is_from_guest_account():
         url = guest_hise_server(
-            cu.hise_url("ide_management",
-                        "upload_file_v3_path",
-                        id,
-                        args={"condaEnvironmentFile": hpu.do_conda_export()[0]}))
+            cu.hise_url(
+                "ide_management",
+                "upload_file_v3_path",
+                id,
+                args={"condaEnvironmentFile": hpu.do_conda_export()[0]}))
     else:
-        url = cu.hise_url("ide_management",
-                          "upload_file_v3_path",
-                          id,
-                          args={"condaEnvironmentFile": hpu.do_conda_export()[0]})
+        url = cu.hise_url(
+            "ide_management",
+            "upload_file_v3_path",
+            id,
+            args={"condaEnvironmentFile": hpu.do_conda_export()[0]})
     return cu.parse_hise_response(requests.put(url))
 
 
@@ -953,16 +955,16 @@ def upload_files(
         file_map.append(f)
 
     return upload_files_internal(files=file_map,
-                          study_space_id=study_space_id,
-                          project=project,
-                          title=title,
-                          input_file_ids=input_file_ids,
-                          store=store,
-                          destination=destination,
-                          do_prompt=do_prompt,
-                          do_conda_build_check=do_conda_build_check,
-                          use_fast_mode=use_fast_mode,
-                          no_file_set=no_file_set)
+                                 study_space_id=study_space_id,
+                                 project=project,
+                                 title=title,
+                                 input_file_ids=input_file_ids,
+                                 store=store,
+                                 destination=destination,
+                                 do_prompt=do_prompt,
+                                 do_conda_build_check=do_conda_build_check,
+                                 use_fast_mode=use_fast_mode,
+                                 no_file_set=no_file_set)
 
 
 @with_default_logging
@@ -985,7 +987,6 @@ def upload_file_map(files: list,
                       file: absolute filepath of file to be uploaded
                       file_type: (optional, can be inferred) the result file type of the file
                       input_sample_ids: optional list of input sample guids
-                      input_sample_kit_guids: list of sample kit guids (instead of sample guids)
         study_space_id (str): ID that pertains to a study in the collaboration space (optional)
         project (str): project short name (required if study space is not specified, defaults to the ide's default setting
         title (str): 10+ character title for upload result
@@ -1001,22 +1002,22 @@ def upload_file_map(files: list,
     Example:
         hp.upload_file_map(files=[{"file": '/home/jupyter/upload_file.csv',
                                    "file_type": "csv",
-                                   "input_sample_kit_guids": ["SK1", "SK2"]}],
+                                   "input_sample_ids": ["a1a03ecb-5a1d-4995-8db9-56bd18a36247"]}],
                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
-                        title='a upload title',
+                        title='an upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
     """
     return upload_files_internal(files=files,
-                          study_space_id=study_space_id,
-                          project=project,
-                          title=title,
-                          input_file_ids=input_file_ids,
-                          store=store,
-                          destination=destination,
-                          do_prompt=do_prompt,
-                          do_conda_build_check=do_conda_build_check,
-                          use_fast_mode=use_fast_mode,
-                          no_file_set=no_file_set)
+                                 study_space_id=study_space_id,
+                                 project=project,
+                                 title=title,
+                                 input_file_ids=input_file_ids,
+                                 store=store,
+                                 destination=destination,
+                                 do_prompt=do_prompt,
+                                 do_conda_build_check=do_conda_build_check,
+                                 use_fast_mode=use_fast_mode,
+                                 no_file_set=no_file_set)
 
 
 @with_default_logging
@@ -1103,14 +1104,17 @@ def upload_files_internal(files: list,
     if use_fast_mode:
         if cu.prompt_yn(CONFIG['PROMPTS']['FAST_MODE_UPLOAD']):
             qargs['useFastMode'] = True
-        else: 
-            logger.info("User declined to use fast_mode after prompt; canceling upload_files call.")
+        else:
+            logger.info(
+                "User declined to use fast_mode after prompt; canceling upload_files call."
+            )
             return
 
     global upload_files_conda_env_checked
     if not upload_files_conda_env_checked:
         if not use_fast_mode and package_manager == "conda":  # check the conda environment if user isn't not running fast_mode
-            hpu.ensure_conda_env_ready(do_conda_build_check, conda_export_info[1])
+            hpu.ensure_conda_env_ready(do_conda_build_check,
+                                       conda_export_info[1])
             upload_files_conda_env_checked = True
 
     # upload thy files
