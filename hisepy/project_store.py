@@ -289,8 +289,8 @@ def set_file_metadata_in_project_store(store_name : str,
         store_name (str): name of project store 
         file_name (str): name of file 
         fields_to_set (dict): dictionary containing the fields to set. 
-            Possible keys are 'panelId', 'batchId', 'userTags', and 'sampleRefs'.
-            'panelId' and 'batchId' should be strings, 'userTags' should be a dictionary, and 'sampleRefs' should be a list of sample references.
+            Possible keys are 'panelId', 'batchId', 'userTags', and 'sampleReferences'.
+            'panelId' and 'batchId' should be strings, 'userTags' should be a dictionary, and 'sampleReferences' should be a list of sample references.
         replace_where_multiple (bool): if True, will replace the field values even if there are multiple existing values. If False, will not replace if there are multiple existing values. Default is False.
 
     Returns: 
@@ -304,7 +304,7 @@ def set_file_metadata_in_project_store(store_name : str,
                     'panelId': 'panel_123',
                     'batchId': 'batch_456',
                     'userTags': {'other': 'value1', 'name': 'value2'},
-                    'sampleRefs': ['sample_1', 'sample_2']
+                    'sampleReferences': ['sample_1', 'sample_2']
                 },
                 replace_where_multiple=True
             )
@@ -324,7 +324,7 @@ def set_file_metadata_in_project_store(store_name : str,
     panel_id = fields_to_set.get('panelId', None)
     batch_id = fields_to_set.get('batchId', None)
     user_tags = fields_to_set.get('userTags', None)
-    sample_refs = fields_to_set.get('sampleRefs', None)
+    sample_refs = fields_to_set.get('sampleReferences', None)
     if panel_id is not None and not isinstance(panel_id, str):
         raise ValueError("`panelId` must be a string if provided.")
     if batch_id is not None and not isinstance(batch_id, str):
@@ -332,12 +332,12 @@ def set_file_metadata_in_project_store(store_name : str,
     if user_tags is not None and not isinstance(user_tags, dict):
         raise ValueError("`userTags` must be a list if provided.")
     if sample_refs is not None and not isinstance(sample_refs, list):
-        raise ValueError("`sampleRefs` must be a list if provided.")
+        raise ValueError("`sampleReferences` must be a list if provided.")
     elif sample_refs is not None: 
         refs = dict()
         for sf in sample_refs:
             refs[sf] = None
-        fields_to_set['sampleRefs'] = refs
+        fields_to_set['sampleReferences'] = refs
 
     fields_to_set['replaceWhereMultiple'] = replace_where_multiple
 
