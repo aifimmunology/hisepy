@@ -111,7 +111,7 @@ def current_notebook():
         return test_notebook
     ambiguitySeconds = 15 * 60
     notebooks = os.popen(
-        "find /home -iname \"*.ipynb\" -printf \"%T@ %p\n\" -amin 5 | grep -v .ipynb_checkpoints | sort -nr | head -n {} | cut -f2- -d ' '"
+        "find /home -iname \"*.ipynb\" -amin -5 -printf \"%A@ %p\n\"   | grep -v .ipynb_checkpoints | sort -nr | head -n {} | cut -f2- -d ' '"
         .format(num_printed_notebooks)).read().rstrip().split("\n")
     if len(notebooks) == 0 or notebooks[0] == "":
         raise TypeError(
@@ -128,12 +128,19 @@ def current_notebook():
                 print("Cannot determine the current notebook.")
                 for idx in range(len(notebooks)):
                     print("%d) %s" % (idx + 1, notebooks[idx]))
-                print("Please select (1-%d) " % (len(notebooks)))
-                resp = int(input()) - 1
+                print("Please select (1-%d), or enter c to cancel " % (len(notebooks)))
+                user_in = input().strip()
+                if user_in.lower() == "c":
+                    raise RuntimeError("Notebook selection cancelled by user.")
+                try:
+                    resp = int(user_in) - 1
+                except ValueError:
+                    resp = -1
                 if (resp < 0 or resp >= len(notebooks)):
                     print(
                         "Invalid option for current notebook. Please try again and choose a value between [1,%s]"
-                        % (num_printed_notebooks))
+                        % (notebooks))
+
             the_current_notebook = notebooks[resp]
             return notebooks[resp]
 
