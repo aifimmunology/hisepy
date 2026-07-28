@@ -278,10 +278,10 @@ def promote_file_in_project_store(store_name: str, file_name: str) -> bool:
 
 
 @with_default_logging
-def set_file_metadata_in_project_store(store_name : str, 
-                                       file_name : str, 
-                                       fields_to_set : dict, 
-                                       replace_where_multiple : bool = False): 
+def set_file_metadata_in_project_store(store_name: str, 
+                                       file_name: str, 
+                                       fields_to_set: dict, 
+                                       replace_where_multiple: bool = False): 
     """
     Add or modify panel ID, batch ID, user tags, and sample references on a file in a project store, to make it more easily findable when searching HISE
     
