@@ -14,7 +14,8 @@ from .project_store import (list_project_stores, list_files_in_project_store,
                             promote_file_in_project_store,
                             undo_promote_in_project_store,
                             delete_file_in_project_store,
-                            undo_delete_in_project_store)
+                            undo_delete_in_project_store,
+                            set_file_metadata_in_project_store)
 from .project_folder import (list_project_folders,
                              list_files_in_project_folder,
                              download_from_project_folder)
@@ -62,5 +63,6 @@ __all__ = [
     'get_files_for_query', 'save_dash_app', 'list_filesets', 'cache_fileset',
     'get_ide_artifacts', 'save_abstraction', 'set_default_store',
     'set_default_project', 'get_default_store', 'get_default_project',
-    'set_memory_limit', 'get_memory_usage', 'save_visualization_app'
+    'set_memory_limit', 'get_memory_usage', 'save_visualization_app',
+    'set_file_metadata_in_project_store'
 ]
