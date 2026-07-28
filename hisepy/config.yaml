@@ -32,7 +32,7 @@ PROMPTS:
   SAVE_CUSTOM_ENV: "You are about to save a custom {} environment. This will save your current active environment"
   RAY_INIT_EXISTS: "A ray.init() call is detected within your training job script, and will be submitted without modification"
   FAST_MODE_UPLOAD: "You are uploading in fast mode. This will skip checking that your environment can build, and will speed up the entire upload process. Do you want to continue?"
-  PROVIDE_SAMPLES: "Please provide input of comma separated sample ids or sample kit guids for the files being uploaded. If you do not have any samples, press enter: "
+  PROVIDE_SAMPLES: "Please provide input of comma separated sample ids for the files being uploaded. If you do not have any samples, press enter: "
   
 # Authorization config
 AUTHORIZE:
