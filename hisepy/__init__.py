@@ -63,5 +63,6 @@ __all__ = [
     'get_files_for_query', 'save_dash_app', 'list_filesets', 'cache_fileset',
     'get_ide_artifacts', 'save_abstraction', 'set_default_store',
     'set_default_project', 'get_default_store', 'get_default_project',
-    'set_memory_limit', 'get_memory_usage', 'save_visualization_app'
+    'set_memory_limit', 'get_memory_usage', 'save_visualization_app',
+    'set_file_metadata_in_project_store'
 ]
