@@ -3,7 +3,6 @@ import os
 import sys
 
 _here = os.path.abspath(os.path.dirname(__file__))
-
 if sys.version_info[0] < 3:
     with open(os.path.join(_here, 'README.rst')) as f:
         long_description = f.read()
@@ -23,8 +22,10 @@ setup(
     install_requires=[],
     use_scm_version={
         "write_to": "hisepy/version.py",
+        "fallback_version": "0.0.0",
     },
     setup_requires=["setuptools_scm"],
+    version=about['__version__'],
     scripts=['hisepy/config.yaml'],
     include_package_data=True,
     classifiers=[
