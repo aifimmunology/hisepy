@@ -1,7 +1,7 @@
 # help with interacting with materialized view for emr/subject/file etc
 # can this just be a list of values...?
 MATERIALIZED_VIEW:
-  QUERYABLE_FIELDS :
+  QUERYABLE_FIELDS:
     - file
     - sample
     - subject
@@ -17,11 +17,11 @@ MATERIALIZED_VIEW:
   LAB: lab
 
 FILETYPES:
-  SCRNA_RESULT : scRNA-seq-labeled
+  SCRNA_RESULT: scRNA-seq-labeled
   DASH_APP: dash_app.tar.gz
 
 PROMPTS:
-  UPLOAD : You are trying to upload file IDs.
+  UPLOAD: You are trying to upload file IDs.
   ABSTRACTION: You are about to save an abstract visualization template
   QUERY_ID_READ: "DEPRECATED: You are passing a {} to {}. This parameter is no longer supported and does not work well with when trying to produce a Certificate of Reproducibility. It is recommended to submit a list of file_ids instead"
   UPLOAD_FROM_LEGACY: You are attempting to upload a file from a legacy IDE. This is not supported. Please migrate code, data, and results to a nextgen IDE.
@@ -33,23 +33,23 @@ PROMPTS:
   RAY_INIT_EXISTS: "A ray.init() call is detected within your training job script, and will be submitted without modification"
   FAST_MODE_UPLOAD: "You are uploading in fast mode. This will skip checking that your environment can build, and will speed up the entire upload process. Do you want to continue?"
   PROVIDE_SAMPLES: "Please provide input of comma separated sample ids for the files being uploaded. If you do not have any samples, press enter: "
-  
+
 # Authorization config
 AUTHORIZE:
-  METADATA_SERVER_ROOT : http://metadata.google.internal/computeMetadata/v1/instance
-  INSTANCE_NAME_PATH : name
-  CLIENT_ID_PATH : attributes/iap-client-id
-  ACCOUNT_GUID_PATH : attributes/currentAccountGuid
-  IDENTITY_PATH : service-accounts/default/identity
-  SERVER_ID_PATH : attributes/hise-server
-  TOKEN_ENV : TOKEN_GENERATOR
+  METADATA_SERVER_ROOT: http://metadata.google.internal/computeMetadata/v1/instance
+  INSTANCE_NAME_PATH: name
+  CLIENT_ID_PATH: attributes/iap-client-id
+  ACCOUNT_GUID_PATH: attributes/currentAccountGuid
+  IDENTITY_PATH: service-accounts/default/identity
+  SERVER_ID_PATH: attributes/hise-server
+  TOKEN_ENV: TOKEN_GENERATOR
 
 PROJECT_STORE:
-  TAG_FIELD_NAME : availability
-  PROJECT_STORE_ENDPOINT : analysis/projectStore
-  AVAILABLE_TAG : available
-  DELETED_TAG : marked_for_deletion
-  PROMOTION_TAG : marked_for_promotion
+  TAG_FIELD_NAME: availability
+  PROJECT_STORE_ENDPOINT: analysis/projectStore
+  AVAILABLE_TAG: available
+  DELETED_TAG: marked_for_deletion
+  PROMOTION_TAG: marked_for_promotion
 
 STORES:
   INPUT_STORE: /home/workspace/input
@@ -61,55 +61,55 @@ STORES:
   SDK_STORE: /home/workspace/sdk
 
 PROJECT_FOLDER:
-  PROJECT_FOLDER_ENDPOINT : analysis/projectFolder
+  PROJECT_FOLDER_ENDPOINT: analysis/projectFolder
 
 PUBLISHING:
   FILE_SEARCH_PATH: publishing/file/q
 
 # hydration endpoints
 HYDRATION:
-  HYDRATION_NAME : hydration
-  USER_FOLDER_PATH : hydration/analysis/userFolder
-  DESCRIPTORS_PATH : hydration/analysis/descriptors
+  HYDRATION_NAME: hydration
+  USER_FOLDER_PATH: hydration/analysis/userFolder
+  DESCRIPTORS_PATH: hydration/analysis/descriptors
   DOWNLOAD_PATHV2: hydration/analysis/download/v2/file
-  DOWNLOAD_PATH : hydration/source/server
+  DOWNLOAD_PATH: hydration/source/server
   UPLOAD_PATH: hydration/source/studyspace/file
-  QUERY_SEARCH_PATH : hydration/analysis/query
+  QUERY_SEARCH_PATH: hydration/analysis/query
   FILE_SET_DOWNLOAD: hydration/analysis/fileSet
   WEBSOCKET_PATH: hydration/source/stream/open
   HISE_WIDE_STATIC_IMG_PATH: hydration/source/abstraction/save
   REVIEW_JOB_OUTPUT_PATH: hydration/analysis/training/output
 
 AMDS:
-  AMDS_NAME : accountmanager
-  PROJECT_PATH : accountmanager/project
+  AMDS_NAME: accountmanager
+  PROJECT_PATH: accountmanager/project
   USER_PATH: accountmanager/userinfo
-  ACCOUNT_PATH : accountmanager/account
+  ACCOUNT_PATH: accountmanager/account
 
 # ledger file availabilities
 BIO_SDK_FILE_AVAILABILITIES:
-  NOT_STARTED : bio_sdk_not_started
-  IN_PROGRESS : bio_sdk_in_progress
-  UNDER_REVIEW : bio_sdk_under_review
-  REJECTED : bio_sdk_rejected
+  NOT_STARTED: bio_sdk_not_started
+  IN_PROGRESS: bio_sdk_in_progress
+  UNDER_REVIEW: bio_sdk_under_review
+  REJECTED: bio_sdk_rejected
 
 # ledger endpoints
 LEDGER:
-  LEDGER_NAME : ledger
-  SAMPLE_SEARCH_PATH : ledger/sample/q
-  SUBJECT_SEARCH_PATH : ledger/subject/q
-  FILE_SEARCH_PATH : ledger/file/q
+  LEDGER_NAME: ledger
+  SAMPLE_SEARCH_PATH: ledger/sample/q
+  SUBJECT_SEARCH_PATH: ledger/subject/q
+  FILE_SEARCH_PATH: ledger/file/q
   RESULT_FILE_SEARCH_PATH: ledger/resultfile
   FILE_METADATA_PATH: ledger/file
   SAMPLE_PATH: ledger/sample
-  
+
 # tracer endpoints
 TRACER:
-  TRACER_NAME : tracer
-  TRACE_PATH : tracer/trace
+  TRACER_NAME: tracer
+  TRACE_PATH: tracer/trace
   IDE_PATH: tracer/ide
   STUDY_SPACE_PATH: tracer/studyspace
-  FILE_SET : tracer/fileset
+  FILE_SET: tracer/fileset
   IDE_INSTANCE: tracer/ideinstance
   TRAINING_JOB: tracer/trainingjob
   TRAINING_JOB_COLS:
@@ -134,15 +134,15 @@ TRACER:
 
 # globals specific for IDE
 IDE:
-  CACHE_DIR : cache
-  HOME_DIR : /home/jupyter
+  CACHE_DIR: cache
+  HOME_DIR: /home/jupyter
   HOME_DIR_V2: /home/workspace
-  CACHE_LOG_NAME : .hisefilelog.rds
-  DEFAULTS_LOG_NAME : .hiseprefs.rds
+  CACHE_LOG_NAME: .hisefilelog.rds
+  DEFAULTS_LOG_NAME: .hiseprefs.rds
   LEGACY_IDE_TAG: "Legacy"
   NEXTGEN_IDE_TAG: "nextgen"
-  DOWNLOAD_CHUNK_SIZE : 102400
-  PAGINATION_SIZE : 100
+  DOWNLOAD_CHUNK_SIZE: 102400
+  PAGINATION_SIZE: 100
 
 JOB_ORCHESTRATE:
   RAY_WORKFLOW: orchestrate/ray/workflow
@@ -166,45 +166,45 @@ IDE_MANAGEMENT:
 
 # NOTE: should this be separate from the rest of scheduler section?
 TOOLCHAIN:
-  SCHEDULER_PATH : toolchain/scheduler
+  SCHEDULER_PATH: toolchain/scheduler
   VISUALIZATION_PATH: toolchain/visualization
   ABSTRACTION_PATH: toolchain/abstraction
   UPLOAD_FILE_PATH: toolchain/file
   SAVE_DASH_APP_PATH: toolchain/visualization/dash
   DEPLOY_DASH_APP_PATH: toolchain/deploy/visualization
-  TOOLCHAIN_IDE : toolchain/instances
+  TOOLCHAIN_IDE: toolchain/instances
   UPLOAD_HARVEST_LOWER_BOUND_MB: 10.0
 
 ABSTRACTION:
-  VIZ_CONFIGS_PATH : /home/workspace/examples/demos/Visualization_apps/dash/configs
+  VIZ_CONFIGS_PATH: /home/workspace/examples/hise-api-demos/demos/Visualization_apps/dash/configs/
   SUBJECT_METADATA_URN: urn:hise:metadata:subject
   SAMPLE_METADATA_URN: urn:hise:metadata:sample
 
 # scheduler endpoints and global...
 SCHEDULER:
-  PLATFORM_DEFAULT : Notebook
-  PLATFORM_LOUVAIN : Louvain
-  JOB_ID_FIELD : id
-  FILE_IDS_FIELD : fileIds
-  STATUS_FIELD : status
-  TITLE_FIELD : title
-  LEDGER_OUTPUT_FIELD : ledger_output
-  NOTEBOOK_NAME_FIELD : notebook_name
-  INSTANCE_NAME_FIELD : instance_name
-  NOTEBOOK_PATH_FIELD : notebook_path
-  INPUT_FILES_FIELD : input_files
-  OUTPUT_FILES_FIELD : output_files
-  PLATFORM_FIELD : platform
-  PROJECT_FIELD : project
-  JOB_COMPLETE_STATUS : Completed
+  PLATFORM_DEFAULT: Notebook
+  PLATFORM_LOUVAIN: Louvain
+  JOB_ID_FIELD: id
+  FILE_IDS_FIELD: fileIds
+  STATUS_FIELD: status
+  TITLE_FIELD: title
+  LEDGER_OUTPUT_FIELD: ledger_output
+  NOTEBOOK_NAME_FIELD: notebook_name
+  INSTANCE_NAME_FIELD: instance_name
+  NOTEBOOK_PATH_FIELD: notebook_path
+  INPUT_FILES_FIELD: input_files
+  OUTPUT_FILES_FIELD: output_files
+  PLATFORM_FIELD: platform
+  PROJECT_FIELD: project
+  JOB_COMPLETE_STATUS: Completed
 
 TEMP_FILES:
-  NBCONVERT_TMP_FILE : nbconverted_file.py
-  JOB_ENTRYPOINT_FILE : app.py
+  NBCONVERT_TMP_FILE: nbconverted_file.py
+  JOB_ENTRYPOINT_FILE: app.py
   CONDA_PACK_TMP_FILE: conda_pack.tar.gz
 
 TEMP_FOLDERS:
-  TRAINING_JOB_TMP : training_job
+  TRAINING_JOB_TMP: training_job
 
 VISUALIZATION:
   PLOTLY_DATA_FILE: plotly_data.json
@@ -215,279 +215,279 @@ WORKFLOW:
   UI_PATH: workflow/flow
 
 AI_PROMPT:
-  TRANSFORM: | 
-      "You are a senior Python + Ray migration engineer.
-    
-      Your task is to transform the provided Python code into a Ray-compatible implementation.
-    
-      CRITICAL: This is a code transformation task, NOT a code generation task.
-      The output MUST remain semantically equivalent to the input program.
-    
-      --------------------------------------------------
-      CLUSTER ENVIRONMENT
-      --------------------------------------------------
-      - python code: {source_code}
-      - workers: {worker_count}
-      - cpus_per_worker: {cpu_count}
-      - gpus_per_worker: {gpu_count}
-      - memory_gb_per_worker: {memory_size}
-      - total_cpus: {total_cpu}
-      - total_gpus: {total_gpu}
-    
-      --------------------------------------------------
-      1. STRICT SEMANTIC PRESERVATION (MANDATORY)
-      --------------------------------------------------
-      - Preserve the exact original computation and workflow.
-      - The same inputs must produce the same outputs.
-    
-      DO NOT:
-      - Replace real data with synthetic/mock data
-      - Replace domain libraries (scanpy, torch, sklearn, lightgbm, etc.)
-      - Replace models, datasets, or pipelines
-      - Introduce demo/example pipelines or fake configurations
-      - Remove or rewrite core classes/functions unless required for Ray
-    
-      All original logic must remain recognizable.
-    
-      --------------------------------------------------
-      2. MINIMAL TRANSFORMATION (DIFF-BASED THINKING)
-      --------------------------------------------------
-      - Apply the smallest set of changes needed.
-      - Keep structure, naming, and flow close to the original.
-      - Do NOT rewrite the entire script.
-      - Most of the original code should remain intact.
-    
-      --------------------------------------------------
-      3. LOCAL VS IMPORTED CODE (VERY IMPORTANT)
-      --------------------------------------------------
-      - ONLY transform functions/classes defined in this script.
-    
-      NEVER modify:
-      - imported functions (numpy, pandas, sklearn, torch, scanpy, etc.)
-      - library method calls
-      - chained calls (e.g. model.fit(...).predict(...))
-    
-      --------------------------------------------------
-      4. WHEN TO USE RAY (JUSTIFIED PARALLELISM ONLY)
-      --------------------------------------------------
-      - Only introduce parallelism if there is a clear independent unit of work.
-    
-      IF NO PARALLELISM EXISTS:
-      - Keep execution sequential OR
-      - Optionally wrap the main workload in a single @ray.remote task
-    
-      DO NOT:
-      - Invent artificial loops, configs, or workloads
-      - Split a single training job into fake parallel tasks
-    
-      --------------------------------------------------
-      5. OVERALL IMPLEMENTATION STYLE
-      --------------------------------------------------
-      - Keep a normal main() entrypoint.
-      - Keep the script runnable from the command line.
-    
-      ONLY IF parallelism exists:
-      - Use an app-style structure:
-        - explicit @ray.remote functions
-        - optional submit_bounded(...) using ray.wait(...)
-        - driver-side aggregation
-        - results_df = pd.DataFrame(flat_results) when applicable
-        - strong type hints (e.g. List[Dict[str, Any]])
-    
-      Do NOT introduce this structure if unnecessary.
-    
-      --------------------------------------------------
-      6. REMOTE FUNCTION / ACTOR DESIGN
-      --------------------------------------------------
-      - Use @ray.remote only for functions/classes defined in this script.
-    
-      Tasks:
-      - Stateless computation → use @ray.remote functions
-    
-      Actors:
-      - Use ONLY if:
-        - state must persist
-        - initialization is expensive and reused
-    
-      Do not introduce actors unless clearly beneficial.
-    
-      - Return normal Python objects (dict or list[dict])
-      - Do not mutate driver-side objects from remote tasks
-      - Do not use patterns like .append.remote(...)
-    
-      --------------------------------------------------
-      7. CORRECT USE OF .remote()
-      --------------------------------------------------
-      - Apply .remote() ONLY to Ray-decorated functions/classes
-    
-      NEVER apply .remote() to:
-      - imported functions
-      - normal object methods
-      - chained calls
-    
-      FORBIDDEN:
-      - .remote.remote(...)
-      - ray.get(ray.get(...))
-    
-      Actor usage:
-      - actor = Class.remote(...)
-      - actor.method.remote(...)
-      - Use ray.get(...) only when results are needed on the driver
-    
-      --------------------------------------------------
-      8. OBJECTREF HANDLING (STRICT)
-      --------------------------------------------------
-      - Prefer consistent interfaces:
-        - either pass ObjectRef OR raw values, not both
-    
-      - Use ray.put(...) ONLY when:
-        - a large object is reused across multiple tasks
-    
-      - Avoid calling ray.get(...) inside remote functions
-      - Resolve results on the driver whenever possible
-    
-      DO NOT:
-      - introduce defensive isinstance(..., ObjectRef) patterns unnecessarily
-      - use ObjectRef if there is only one task
-    
-      --------------------------------------------------
-      9. LARGE REUSABLE OBJECTS
-      --------------------------------------------------
-      - Avoid repeatedly sending large objects
-    
-      IF reused across many tasks:
-          data_ref = ray.put(data)
-    
-      - Pass ObjectRef to tasks
-    
-      Applies to:
-      - AnnData
-      - pandas DataFrames
-      - NumPy arrays
-      - model artifacts
-    
-      --------------------------------------------------
-      10. RESULT AGGREGATION
-      --------------------------------------------------
-      ONLY if parallel tasks exist:
-    
-      - Flatten nested results:
-          flat_results = [...]
-    
-      - Build final DataFrame:
-          results_df = pd.DataFrame(flat_results)
-    
-      - Perform aggregation on the driver
-    
-      --------------------------------------------------
-      11. RESOURCE PLANNING
-      --------------------------------------------------
-      - Use cluster resources to annotate tasks:
-    
-          @ray.remote(num_cpus=..., num_gpus=...)
-    
-      Guidelines:
-      - CPU-heavy → assign CPUs
-      - GPU-required → assign GPUs
-      - Do NOT assign GPU unless clearly required
-    
-      - If only part of a workflow uses GPU:
-        prefer separating CPU and GPU tasks
-    
-      --------------------------------------------------
-      12. CONCURRENCY AND BOUNDED SCHEDULING
-      --------------------------------------------------
-      ONLY if multiple tasks exist:
-    
-      - Do not submit unbounded tasks
-      - Use ray.wait(...) for bounded execution
-    
-      - Optionally implement submit_bounded(...)
-    
-      - Expose concurrency via CLI:
-          --max-inflight
-    
-      Defaults:
-      GPU-bound → max_inflight ≈ {gpu_concurrency_hint} (use a concrete integer or runtime value)
-      CPU-bound → max_inflight ≈ {cpu_concurrency_hint} (e.g., os.cpu_count())
+  TRANSFORM: |
+    "You are a senior Python + Ray migration engineer.
 
-      --------------------------------------------------
-      13. MEMORY-AWARE BEHAVIOR
-      --------------------------------------------------
-      - Avoid large task backlogs
-      - Avoid unnecessary copies
-      - Prefer bounded scheduling
-      - Prefer object reuse over duplication
-    
-      --------------------------------------------------
-      14. EXECUTION MODEL
-      --------------------------------------------------
-      Driver:
-      - orchestration
-      - task submission
-      - aggregation
-    
-      Workers:
-      - computation only
-    
-      Do NOT move driver logic into workers.
-    
-      --------------------------------------------------
-      15. MODEL TRAINING CONSTRAINTS
-      --------------------------------------------------
-      - Do NOT split a single training call into multiple tasks
-      - If training is one operation:
-        - keep it as a single task OR run on driver
-    
-      --------------------------------------------------
-      16. RAY API COMPATIBILITY
-      --------------------------------------------------
-      - Use only stable public APIs
-      - Avoid private/internal Ray modules
-    
-      If needed:
-          ctx = ray.init(...)
-          dashboard_url = getattr(ctx, "dashboard_url", None) or ctx.address_info.get("webui_url")
-    
-      --------------------------------------------------
-      17. ANTI-PATTERNS (FORBIDDEN)
-      --------------------------------------------------
-      - Artificial workloads
-      - Synthetic data generation
-      - Over-sharding trivial work
-      - ray.get() in tight loops unnecessarily
-      - Global mutable state across tasks
-    
-      --------------------------------------------------
-      18. PRESERVATION OF ORIGINAL LOGIC
-      --------------------------------------------------
-      - Preserve:
-        - business logic
-        - I/O behavior
-        - logging
-        - CLI
-        - output schema
-    
-      --------------------------------------------------
-      19. CODE QUALITY
-      --------------------------------------------------
-      - Keep code clean and maintainable
-      - Keep imports minimal
-      - Add comments only for important Ray decisions
-    
-      --------------------------------------------------
-      20. OUTPUT RULES
-      --------------------------------------------------
-      - Return ONLY valid Python code
-      - Do NOT include explanations
-      - Do NOT include markdown
-      - any outputs need to be written to /home/workspace/output
-    
-      --------------------------------------------------
-      21. SELF-CHECK (DO NOT OUTPUT)
-      --------------------------------------------------
-      Before returning code, ensure:
-      - Original classes/functions still exist
-      - No synthetic data introduced
-      - No imported functions modified
-      - No artificial parallelism added"
+    Your task is to transform the provided Python code into a Ray-compatible implementation.
+
+    CRITICAL: This is a code transformation task, NOT a code generation task.
+    The output MUST remain semantically equivalent to the input program.
+
+    --------------------------------------------------
+    CLUSTER ENVIRONMENT
+    --------------------------------------------------
+    - python code: {source_code}
+    - workers: {worker_count}
+    - cpus_per_worker: {cpu_count}
+    - gpus_per_worker: {gpu_count}
+    - memory_gb_per_worker: {memory_size}
+    - total_cpus: {total_cpu}
+    - total_gpus: {total_gpu}
+
+    --------------------------------------------------
+    1. STRICT SEMANTIC PRESERVATION (MANDATORY)
+    --------------------------------------------------
+    - Preserve the exact original computation and workflow.
+    - The same inputs must produce the same outputs.
+
+    DO NOT:
+    - Replace real data with synthetic/mock data
+    - Replace domain libraries (scanpy, torch, sklearn, lightgbm, etc.)
+    - Replace models, datasets, or pipelines
+    - Introduce demo/example pipelines or fake configurations
+    - Remove or rewrite core classes/functions unless required for Ray
+
+    All original logic must remain recognizable.
+
+    --------------------------------------------------
+    2. MINIMAL TRANSFORMATION (DIFF-BASED THINKING)
+    --------------------------------------------------
+    - Apply the smallest set of changes needed.
+    - Keep structure, naming, and flow close to the original.
+    - Do NOT rewrite the entire script.
+    - Most of the original code should remain intact.
+
+    --------------------------------------------------
+    3. LOCAL VS IMPORTED CODE (VERY IMPORTANT)
+    --------------------------------------------------
+    - ONLY transform functions/classes defined in this script.
+
+    NEVER modify:
+    - imported functions (numpy, pandas, sklearn, torch, scanpy, etc.)
+    - library method calls
+    - chained calls (e.g. model.fit(...).predict(...))
+
+    --------------------------------------------------
+    4. WHEN TO USE RAY (JUSTIFIED PARALLELISM ONLY)
+    --------------------------------------------------
+    - Only introduce parallelism if there is a clear independent unit of work.
+
+    IF NO PARALLELISM EXISTS:
+    - Keep execution sequential OR
+    - Optionally wrap the main workload in a single @ray.remote task
+
+    DO NOT:
+    - Invent artificial loops, configs, or workloads
+    - Split a single training job into fake parallel tasks
+
+    --------------------------------------------------
+    5. OVERALL IMPLEMENTATION STYLE
+    --------------------------------------------------
+    - Keep a normal main() entrypoint.
+    - Keep the script runnable from the command line.
+
+    ONLY IF parallelism exists:
+    - Use an app-style structure:
+      - explicit @ray.remote functions
+      - optional submit_bounded(...) using ray.wait(...)
+      - driver-side aggregation
+      - results_df = pd.DataFrame(flat_results) when applicable
+      - strong type hints (e.g. List[Dict[str, Any]])
+
+    Do NOT introduce this structure if unnecessary.
+
+    --------------------------------------------------
+    6. REMOTE FUNCTION / ACTOR DESIGN
+    --------------------------------------------------
+    - Use @ray.remote only for functions/classes defined in this script.
+
+    Tasks:
+    - Stateless computation → use @ray.remote functions
+
+    Actors:
+    - Use ONLY if:
+      - state must persist
+      - initialization is expensive and reused
+
+    Do not introduce actors unless clearly beneficial.
+
+    - Return normal Python objects (dict or list[dict])
+    - Do not mutate driver-side objects from remote tasks
+    - Do not use patterns like .append.remote(...)
+
+    --------------------------------------------------
+    7. CORRECT USE OF .remote()
+    --------------------------------------------------
+    - Apply .remote() ONLY to Ray-decorated functions/classes
+
+    NEVER apply .remote() to:
+    - imported functions
+    - normal object methods
+    - chained calls
+
+    FORBIDDEN:
+    - .remote.remote(...)
+    - ray.get(ray.get(...))
+
+    Actor usage:
+    - actor = Class.remote(...)
+    - actor.method.remote(...)
+    - Use ray.get(...) only when results are needed on the driver
+
+    --------------------------------------------------
+    8. OBJECTREF HANDLING (STRICT)
+    --------------------------------------------------
+    - Prefer consistent interfaces:
+      - either pass ObjectRef OR raw values, not both
+
+    - Use ray.put(...) ONLY when:
+      - a large object is reused across multiple tasks
+
+    - Avoid calling ray.get(...) inside remote functions
+    - Resolve results on the driver whenever possible
+
+    DO NOT:
+    - introduce defensive isinstance(..., ObjectRef) patterns unnecessarily
+    - use ObjectRef if there is only one task
+
+    --------------------------------------------------
+    9. LARGE REUSABLE OBJECTS
+    --------------------------------------------------
+    - Avoid repeatedly sending large objects
+
+    IF reused across many tasks:
+        data_ref = ray.put(data)
+
+    - Pass ObjectRef to tasks
+
+    Applies to:
+    - AnnData
+    - pandas DataFrames
+    - NumPy arrays
+    - model artifacts
+
+    --------------------------------------------------
+    10. RESULT AGGREGATION
+    --------------------------------------------------
+    ONLY if parallel tasks exist:
+
+    - Flatten nested results:
+        flat_results = [...]
+
+    - Build final DataFrame:
+        results_df = pd.DataFrame(flat_results)
+
+    - Perform aggregation on the driver
+
+    --------------------------------------------------
+    11. RESOURCE PLANNING
+    --------------------------------------------------
+    - Use cluster resources to annotate tasks:
+
+        @ray.remote(num_cpus=..., num_gpus=...)
+
+    Guidelines:
+    - CPU-heavy → assign CPUs
+    - GPU-required → assign GPUs
+    - Do NOT assign GPU unless clearly required
+
+    - If only part of a workflow uses GPU:
+      prefer separating CPU and GPU tasks
+
+    --------------------------------------------------
+    12. CONCURRENCY AND BOUNDED SCHEDULING
+    --------------------------------------------------
+    ONLY if multiple tasks exist:
+
+    - Do not submit unbounded tasks
+    - Use ray.wait(...) for bounded execution
+
+    - Optionally implement submit_bounded(...)
+
+    - Expose concurrency via CLI:
+        --max-inflight
+
+    Defaults:
+    GPU-bound → max_inflight ≈ {gpu_concurrency_hint} (use a concrete integer or runtime value)
+    CPU-bound → max_inflight ≈ {cpu_concurrency_hint} (e.g., os.cpu_count())
+
+    --------------------------------------------------
+    13. MEMORY-AWARE BEHAVIOR
+    --------------------------------------------------
+    - Avoid large task backlogs
+    - Avoid unnecessary copies
+    - Prefer bounded scheduling
+    - Prefer object reuse over duplication
+
+    --------------------------------------------------
+    14. EXECUTION MODEL
+    --------------------------------------------------
+    Driver:
+    - orchestration
+    - task submission
+    - aggregation
+
+    Workers:
+    - computation only
+
+    Do NOT move driver logic into workers.
+
+    --------------------------------------------------
+    15. MODEL TRAINING CONSTRAINTS
+    --------------------------------------------------
+    - Do NOT split a single training call into multiple tasks
+    - If training is one operation:
+      - keep it as a single task OR run on driver
+
+    --------------------------------------------------
+    16. RAY API COMPATIBILITY
+    --------------------------------------------------
+    - Use only stable public APIs
+    - Avoid private/internal Ray modules
+
+    If needed:
+        ctx = ray.init(...)
+        dashboard_url = getattr(ctx, "dashboard_url", None) or ctx.address_info.get("webui_url")
+
+    --------------------------------------------------
+    17. ANTI-PATTERNS (FORBIDDEN)
+    --------------------------------------------------
+    - Artificial workloads
+    - Synthetic data generation
+    - Over-sharding trivial work
+    - ray.get() in tight loops unnecessarily
+    - Global mutable state across tasks
+
+    --------------------------------------------------
+    18. PRESERVATION OF ORIGINAL LOGIC
+    --------------------------------------------------
+    - Preserve:
+      - business logic
+      - I/O behavior
+      - logging
+      - CLI
+      - output schema
+
+    --------------------------------------------------
+    19. CODE QUALITY
+    --------------------------------------------------
+    - Keep code clean and maintainable
+    - Keep imports minimal
+    - Add comments only for important Ray decisions
+
+    --------------------------------------------------
+    20. OUTPUT RULES
+    --------------------------------------------------
+    - Return ONLY valid Python code
+    - Do NOT include explanations
+    - Do NOT include markdown
+    - any outputs need to be written to /home/workspace/output
+
+    --------------------------------------------------
+    21. SELF-CHECK (DO NOT OUTPUT)
+    --------------------------------------------------
+    Before returning code, ensure:
+    - Original classes/functions still exist
+    - No synthetic data introduced
+    - No imported functions modified
+    - No artificial parallelism added"
