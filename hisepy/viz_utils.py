@@ -10,10 +10,10 @@ from os import chmod, path, walk
 from os.path import abspath, dirname, isdir, isfile
 from typing import Any, Tuple
 
+import hisepy.upload_utils as hpu
 from hisepy.auth import get_bearer_token_header
 from hisepy.common_utils import hise_url
 from hisepy.logging import logger
-from hisepy.upload_utils import create_temp_directory_files
 
 
 def create_visualization_tarball(CONFIG: Any,
@@ -25,7 +25,7 @@ def create_visualization_tarball(CONFIG: Any,
                 'Abstraction' if is_abstraction else 'Visualization',
                 tmpdirname)
 
-    create_temp_directory_files(all_files, tmpdirname)
+    hpu.create_temp_directory_files(all_files, tmpdirname)
 
     tarfile_basename = ('abstraction'
                         if is_abstraction else 'viz') + '_app.tar.gz'
