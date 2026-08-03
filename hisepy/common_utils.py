@@ -128,7 +128,8 @@ def current_notebook():
                 print("Cannot determine the current notebook.")
                 for idx in range(len(notebooks)):
                     print("%d) %s" % (idx + 1, notebooks[idx]))
-                print("Please select (1-%d), or enter c to cancel " % (len(notebooks)))
+                print("Please select (1-%d), or enter c to cancel " %
+                      (len(notebooks)))
                 user_in = input().strip()
                 if user_in.lower() == "c":
                     raise RuntimeError("Notebook selection cancelled by user.")
@@ -403,7 +404,7 @@ def project_guid_to_shortname(proj_guid):
 
 def project_shortname_to_guid(proj_name):
     """
-    Takes a string, looks up if there's a Project shortname with the passed in value. If there is, return the corresponding
+    Takes a string, looks up if there's a Project shortname or GUID with the passed in value. If there is, return the corresponding
     guid. Otherwise, let the user know the Project doesn't exist.
 
     Parameters:
@@ -413,13 +414,16 @@ def project_shortname_to_guid(proj_name):
 
     # chosen project must be in there, right?
     if proj_name not in proj_df['short_name'].values:
-        raise ValueError(
-            "%s is not a valid project name. The following is a list of valid projects: %s"
-            % (proj_name, proj_df['short_name'].values))
-    else:
-        this_proj = proj_df.loc[
-            proj_df['short_name'].eq(proj_name),
-        ].reset_index(drop=True)
+        if proj_name not in proj_df['guid'].values:
+            raise ValueError(
+                "%s is not a valid project name or GUID. The following is a list of valid projects: %s"
+                % (proj_name, proj_df['short_name'].values))
+        else:
+            return proj_name
+
+    this_proj = proj_df.loc[
+        proj_df['short_name'].eq(proj_name),
+    ].reset_index(drop=True)
 
     # error if collisions exist
     if len(this_proj) > 1:
