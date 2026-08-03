@@ -1,6 +1,8 @@
 import os
 import pandas as pd
+import random
 import requests
+import string
 
 from hisepy.auth import debug, get_bearer_token_header, ide_instance_guid
 from hisepy.common_utils import hise_url, parse_hise_response, project_shortname_to_guid, read_yaml
@@ -27,15 +29,8 @@ def get_data_contracts(to_df: bool = True):
     
         """
     data_contracts_resp = parse_hise_response(
-        requests.post(
-            hise_url("hydration", "data_contract_path"),
-            headers=get_bearer_token_header(),
-            json={'Filter': {
-                'description': {
-                    '$exists': True,
-                    '$ne': ''
-                }
-            }}))
+        requests.get(hise_url("hydration", "data_contract_path"),
+                     headers=get_bearer_token_header()))
 
     # map the inputResultFileTypes field from GUIDs to friendly names
     result_files_map = {
@@ -46,7 +41,7 @@ def get_data_contracts(to_df: bool = True):
     for data_contract in data_contracts_resp:
         data_contract['inputResultFileTypes'] = [
             result_files_map.get(irft, irft)
-            for irft in data_contract.get('inputResultFileTypes', [])
+            for irft in data_contract['inputResultFileTypes'] or []
         ]
 
     keep_cols = [
@@ -90,6 +85,11 @@ def get_result_files(to_df: bool = True):
             return resp
     except Exception as e:
         raise Exception(f"failed to retrieve result files: {e}")
+
+
+def random_string(length: int) -> str:
+    return ''.join(
+        random.choices(string.ascii_letters + string.digits, k=length))
 
 
 def result_json_to_df(json_obj):
@@ -229,12 +229,16 @@ def save_abstraction(application_files: list[str],
                                                 is_abstraction=True)
 
     # POST to hydration and save the static image
+    # This endpoint errors if the image name isn't unique, so generate a random filename
     with open(png_image, 'rb') as png_file:
         img_resp = parse_hise_response(
             requests.post(url=hise_url('hydration',
                                        'hise_wide_static_img_path'),
                           headers=get_bearer_token_header(),
-                          files={'bytes': (png_image, png_file, 'image/png')}))
+                          files={
+                              'bytes': (random_string(32) + '.png', png_file,
+                                        'image/png')
+                          }))
 
     abstraction_workflow_url = hise_url('ide_management',
                                         'abstraction_workflow')
@@ -245,7 +249,7 @@ def save_abstraction(application_files: list[str],
         'artifactsFileName': tarfile_path,
         'dataContractId': data_contract_id,
         'description': description,
-        'images': [img_resp['id']],
+        'images': [img_resp['url']],
         'instanceGuid': ide_instance_guid(),
         'title': title,
         'visualizationBuildTemplateArgs': template_params,
