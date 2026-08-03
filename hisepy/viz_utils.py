@@ -27,12 +27,14 @@ def create_visualization_tarball(CONFIG: Any,
 
     create_temp_directory_files(all_files, tmpdirname)
 
-    tarfile_path = path.join(tmpdirname,
-                             ('abstraction' if is_abstraction else 'viz') +
-                             '_app.tar.gz')
+    tarfile_basename = ('abstraction'
+                        if is_abstraction else 'viz') + '_app.tar.gz'
+    tarfile_path = path.join(tmpdirname, tarfile_basename)
     logger.debug('Creating tarball: %s', tarfile_path)
     with tarfile.open(tarfile_path, 'w:gz') as tar:
-        tar.add(tmpdirname, arcname='')
+        tar.add(tmpdirname,
+                arcname='',
+                filter=lambda ti: None if ti.name == tarfile_basename else ti)
     return tarfile_path
 
 
@@ -258,6 +260,8 @@ def user_included_directory_structure(
             'either both files and dirs must be included or neither files nor dirs can be included'
         )
 
+    og_dirs = included_dirs
+    og_files = included_files
     # We're checking the filesystem itself. Grab all the files and directories rooted at user_dir
     if included_dirs is None or included_files is None:
         included_dirs = set([])
@@ -273,7 +277,7 @@ def user_included_directory_structure(
         if isinstance(val, dict):
             dirname = path.join(user_dir, name)
             if not dirname in included_dirs or not user_included_directory_structure(
-                    dirname, val, included_files, included_dirs):
+                    dirname, val, og_files, og_dirs):
                 return False
         elif isinstance(val, str):
             # Do we have a file with this exact name?
