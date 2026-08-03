@@ -32,9 +32,11 @@ def create_visualization_tarball(CONFIG: Any,
     tarfile_path = path.join(tmpdirname, tarfile_basename)
     logger.debug('Creating tarball: %s', tarfile_path)
     with tarfile.open(tarfile_path, 'w:gz') as tar:
-        tar.add(tmpdirname,
-                arcname='',
-                filter=lambda ti: None if ti.name == tarfile_basename else ti)
+        tar.add(
+            tmpdirname,
+            arcname='',
+            filter=lambda ti: None
+            if path.basename(ti.name) == tarfile_basename else ti)
     return tarfile_path
 
 
