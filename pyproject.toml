@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hisepy"
+description = "Python Interface to the Allen Institute For Immunology's Human Immune System Explorer (HISE)"
+readme = "README.rst"
+authors = [
+    { name = "Paul Mariz", email = "paul.mariz@alleninstitute.org" }
+]
+requires-python = ">=3.7"
+dynamic = ["version"]
+dependencies = [
+    "pandas>=2.2.3",
+    "numpy>=1.26.4",
+    "pyyaml>=6.0.2",
+    "plotly>=5.23.0",
+    "dash>=2.17.0",
+    "kaleido>=0.2.1",
+    "google-cloud-storage>=2.16.0",
+    "requests>=2.32.3",
+    "h5py>=3.12.1",
+    "pyreadr>=0.5.3",
+    "psutil>=7.0.0",
+    "termcolor>=2.3.0",
+    "ray>=2.52.1",
+    "astor>=0.8.1",
+    "ipython>=9.5.0",
+    "google-genai>=1.73.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/aifimmunology/hisepy"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hisepy*"]
+
+[tool.setuptools.package-data]
+hisepy = ["config.yaml"]
+
+[tool.setuptools_scm]
+write_to = "hisepy/version.py"
