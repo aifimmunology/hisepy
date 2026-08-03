@@ -318,7 +318,7 @@ def save_visualization_app(application_files: list[str],
     elif len(data_source_file_ids) == 0:
         raise RuntimeError('A non-empty list of data_source_files is required')
 
-    data_mount_path = data_mount_path.strip().removesuffix('/').lower()
+    data_mount_path = data_mount_path.strip().rstrip('/')
     if data_mount_path == '':
         raise RuntimeError('A non-empty data_mount_path is required')
     elif not data_mount_path.startswith('/'):
@@ -372,7 +372,9 @@ def save_visualization_app(application_files: list[str],
 
 def validate_data_mount_path(data_mount_path: str, files: set[str]):
     for f in files:
-        if f.lower().startswith(data_mount_path):
+        f_path = f.rstrip('/')
+        if f_path == data_mount_path or f_path.startswith(data_mount_path +
+                                                          '/'):
             raise ValueError(
                 f'data_mount_path "{data_mount_path}" will overwrite application file "{f}". Please choose a different data_mount_path.'
             )
@@ -642,9 +644,6 @@ def save_static_image(image, title, study_space_id=None):
     if not os.path.exists(image):
         raise ValueError("%s is not a valid file." % image)
 
-    img_dict = {
-        'bytes': (image, open(image, 'rb'), "image/%s" % (get_filetype(image)))
-    }
     hpu.validate_upload_data(files=[{
         "file": image
     }],
@@ -652,11 +651,16 @@ def save_static_image(image, title, study_space_id=None):
                              project=None,
                              title=title,
                              input_file_ids=["not a file"])
+
     args = {"studySpaceId": study_space_id, "title": title}
-    return parse_hise_response(
-        requests.post(hise_url("hydration", "upload_path", args=args),
-                      headers=get_bearer_token_header(),
-                      files=img_dict))
+    with open(image, 'rb') as image_file:
+        return parse_hise_response(
+            requests.post(hise_url("hydration", "upload_path", args=args),
+                          headers=get_bearer_token_header(),
+                          files={
+                              'bytes': (image, image_file,
+                                        "image/%s" % (get_filetype(image)))
+                          }))
 
 
 @with_default_logging

@@ -26,24 +26,33 @@ def get_data_contracts(to_df: bool = True):
             the object returned will be a json response. 
     
         """
-    keep_cols = [
-        'id', 'name', 'description', 'inputResultFileTypes', 'dockerImage',
-        'inputFileMount', 'outputFileMount'
-    ]
     data_contracts_resp = parse_hise_response(
-        requests.get(hise_url("hydration", "data_contract_path"),
-                     headers=get_bearer_token_header()))
+        requests.post(
+            hise_url("hydration", "data_contract_path"),
+            headers=get_bearer_token_header(),
+            json={'Filter': {
+                'description': {
+                    '$exists': True,
+                    '$ne': ''
+                }
+            }}))
 
     # map the inputResultFileTypes field from GUIDs to friendly names
     result_files_map = {
         result_file['id']: result_file['friendlyName']
         for result_file in get_result_files(to_df=False)
     }
+
     for data_contract in data_contracts_resp:
         data_contract['inputResultFileTypes'] = [
-            result_files_map[irft]
-            for irft in data_contract['inputResultFileTypes']
+            result_files_map.get(irft, irft)
+            for irft in data_contract.get('inputResultFileTypes', [])
         ]
+
+    keep_cols = [
+        'id', 'name', 'description', 'inputResultFileTypes', 'dockerImage',
+        'inputFileMount', 'outputFileMount'
+    ]
 
     try:
         if to_df:
@@ -220,29 +229,34 @@ def save_abstraction(application_files: list[str],
                                                 is_abstraction=True)
 
     # POST to hydration and save the static image
-    img_resp = parse_hise_response(
-        requests.post(
-            url=hise_url('hydration', 'hise_wide_static_img_path'),
-            headers=get_bearer_token_header(),
-            files={'bytes': (png_image, open(png_image, 'rb'), 'image/png')}))
+    with open(png_image, 'rb') as png_file:
+        img_resp = parse_hise_response(
+            requests.post(url=hise_url('hydration',
+                                       'hise_wide_static_img_path'),
+                          headers=get_bearer_token_header(),
+                          files={'bytes': (png_image, png_file, 'image/png')}))
 
     abstraction_workflow_url = hise_url('ide_management',
                                         'abstraction_workflow')
     logger.info('Creating Abstraction App workflow: %s',
                 abstraction_workflow_url)
+
+    payload = {
+        'artifactsFileName': tarfile_path,
+        'dataContractId': data_contract_id,
+        'description': description,
+        'images': [img_resp['id']],
+        'instanceGuid': ide_instance_guid(),
+        'title': title,
+        'visualizationBuildTemplateArgs': template_params,
+        'visualizationBuildTemplateId': vbt['id']
+    }
+    if proj_guid is not None:
+        payload['projectGuid'] = proj_guid
+
     resp = parse_hise_response(
         requests.post(url=abstraction_workflow_url,
-                      json={
-                          'artifactsFileName': tarfile_path,
-                          'dataContractId': data_contract_id,
-                          'description': description,
-                          'images': [img_resp['id']],
-                          'instanceGuid': ide_instance_guid(),
-                          'projectGuid': proj_guid,
-                          'title': title,
-                          'visualizationBuildTemplateArgs': template_params,
-                          'visualizationBuildTemplateId': vbt['id']
-                      },
+                      json=payload,
                       headers=get_bearer_token_header()))
     workflowId = resp['WorkflowId']
     logger.extra['_override']['workflow'] = workflowId
