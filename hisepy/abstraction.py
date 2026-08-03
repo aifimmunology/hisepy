@@ -16,13 +16,53 @@ save_abstraction_conda_env_checked = False
 
 
 @with_default_logging
-def get_result_files(to_df=True):
+def get_data_contracts(to_df: bool = True):
+    """ 
+        Returns available data contracts for the user's current account/projects.
+        The object returned will be a json object, or a data.frame.
+    
+        Parameters: 
+            to_df (bool): boolean, where if true, output will be a data.frame. Otherwise, 
+            the object returned will be a json response. 
+    
+        """
+    keep_cols = [
+        'id', 'name', 'description', 'inputResultFileTypes', 'dockerImage',
+        'inputFileMount', 'outputFileMount'
+    ]
+    data_contracts_resp = parse_hise_response(
+        requests.get(hise_url("hydration", "data_contract_path"),
+                     headers=get_bearer_token_header()))
+
+    # map the inputResultFileTypes field from GUIDs to friendly names
+    result_files_map = {
+        result_file['id']: result_file['friendlyName']
+        for result_file in get_result_files(to_df=False)
+    }
+    for data_contract in data_contracts_resp:
+        data_contract['inputResultFileTypes'] = [
+            result_files_map[irft]
+            for irft in data_contract['inputResultFileTypes']
+        ]
+
+    try:
+        if to_df:
+            result_df = result_json_to_df(data_contracts_resp)
+            return result_df[keep_cols]
+        else:
+            return data_contracts_resp
+    except Exception as e:
+        raise Exception(f"failed to retrieve data contracts: {e}")
+
+
+@with_default_logging
+def get_result_files(to_df: bool = True):
     """ 
     Returns available result files for the user's current account/projects.
     The object returned will be a json object, or a data.frame.
 
     Parameters: 
-        to_df (bool) : boolean, where if true, output will be a data.frame. Otherwise, 
+        to_df (bool): boolean, where if true, output will be a data.frame. Otherwise, 
         the object returned will be a json response. 
 
     """
