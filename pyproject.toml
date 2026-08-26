@@ -24,9 +24,10 @@ dependencies = [
     "pyreadr>=0.5.3",
     "psutil>=7.0.0",
     "termcolor>=2.3.0",
-    "ray>=2.52.1",
+    "ray[default]>=2.44.1",
     "astor>=0.8.1",
     "ipython>=9.5.0",
+    "tomli-w>=1.2.0",
     "google-genai>=1.73.1",
 ]
 
