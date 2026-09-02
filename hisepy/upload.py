@@ -688,6 +688,8 @@ def upload_files(
     do_conda_build_check: bool = True,
     use_fast_mode: bool | None = None,
     no_file_set: bool = False,
+    directory: str | None = None,
+    file_type_map: dict | None = None,
 ):
     """
     Uploads files to a store and records their provenance in HISE, but V3
@@ -699,13 +701,20 @@ def upload_files(
         title (str): 10+ character title for upload result
         input_file_ids (list): fileIds from HISE that were utilized to generate a user's result
         input_sample_ids (list): sampleIds from HISE that were utilized to generate a user's result
-        file_types (list): filetype of uploaded files. If specified, list must be same length as files list and filetypes will be associated in order. If not specified, filetypes will be inferred based on file extension.
+        file_types (list): filetype of uploaded files. If specified, list must be same length as files list and
+            filetypes will be associated in order. If not specified, filetypes will be inferred based on file
+            extension. Mutually exclusive with file_type_map. Cannot be used with directory.
         store (str): Which store ('project' or 'permanent') to use for the files, defaults to the ide's setting
         destination (str): Destination folder for the files
         do_prompt (bool): whether or not to prompt for user's input, asking to proceed.
         do_conda_build_check (bool): If true, create and build the active Conda environment.
         use_fast_mode (bool): If true, speed up the upload flow by skipping the step that builds the IDE environment.
         no_file_set (bool): If true, skip the automatic creation of a fileset for the uploaded files
+        directory (str): Path to a directory whose files will be added to the upload. The fully qualified directory
+            path is also forwarded to the service. Cannot be used with file_types.
+        file_type_map (dict): Mapping of file extension to file type (e.g. {"csv": "flow-cytometry-analysis", "txt": "txt#derived"}).
+            For each uploaded file the extension is looked up in this map and, if found, assigned as the file
+            type. Mutually exclusive with file_types.
     Returns:
         dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
     Example:
@@ -713,12 +722,38 @@ def upload_files(
                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
                         title='a upload title',
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
+
+        hp.upload_files(directory='/home/jupyter/results',
+                        file_type_map={'csv': 'CSV', 'txt': 'Text'},
+                        study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
+                        title='a upload title')
     """
+    if file_types is not None and file_type_map is not None:
+        raise ValueError(
+            "Specify either file_types or file_type_map, not both.")
+    if directory is not None and file_types is not None:
+        raise ValueError(
+            "Cannot use file_types with directory; file_types maps 1:1 to an explicit files list."
+        )
+
+    files = list(files)
+    abs_directory = None
+    if directory is not None:
+        abs_directory = os.path.abspath(directory)
+        dir_files = sorted(
+            os.path.join(root, name)
+            for root, _, names in os.walk(abs_directory) for name in names)
+        files = files + dir_files
+
     file_map = []
     for i, file in enumerate(files):
         f = {hpu.file_key: file, hpu.file_sample_id_key: input_sample_ids}
         if file_types is not None and len(file_types) > i:
             f[hpu.file_type_key] = file_types[i]
+        elif file_type_map is not None:
+            ext = os.path.splitext(file)[1].lstrip('.')
+            if ext in file_type_map:
+                f[hpu.file_type_key] = file_type_map[ext]
         file_map.append(f)
 
     return upload_files_internal(files=file_map,
@@ -731,7 +766,8 @@ def upload_files(
                                  do_prompt=do_prompt,
                                  do_conda_build_check=do_conda_build_check,
                                  use_fast_mode=use_fast_mode,
-                                 no_file_set=no_file_set)
+                                 no_file_set=no_file_set,
+                                 directory=abs_directory)
 
 
 @with_default_logging
@@ -798,7 +834,8 @@ def upload_files_internal(files: list,
                           do_prompt: bool = True,
                           do_conda_build_check: bool = True,
                           use_fast_mode: bool | None = None,
-                          no_file_set: bool | None = None):
+                          no_file_set: bool | None = None,
+                          directory: str | None = None):
 
     # override logEntry to denote fast_mode was used
     if use_fast_mode:
@@ -837,7 +874,8 @@ def upload_files_internal(files: list,
                                      input_file_ids=input_file_ids or [],
                                      home_dir=home_dir,
                                      inst=inst,
-                                     no_file_set=no_file_set)
+                                     no_file_set=no_file_set,
+                                     directory=directory)
 
     # get conda pack to determine whether to use pixi or conda
     package_manager = get_ide_package_manager()
