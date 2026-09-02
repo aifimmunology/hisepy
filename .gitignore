@@ -9,3 +9,4 @@ hisepy.egg-info
 __pycache__
 cache
 *.ipynb
+.hisefilelog.rds
