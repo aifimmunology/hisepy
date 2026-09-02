@@ -31,9 +31,17 @@ file_type_key = "file_type"
 file_sample_id_key = "input_sample_ids"
 
 
-def build_upload_payload(files, title, store, destination, project,
-                         study_space_id, input_file_ids, home_dir, inst,
-                         no_file_set):
+def build_upload_payload(files,
+                         title,
+                         store,
+                         destination,
+                         project,
+                         study_space_id,
+                         input_file_ids,
+                         home_dir,
+                         inst,
+                         no_file_set,
+                         directory=None):
     """Builds the structured payload for upload."""
     qargs = {
         "title": title,
@@ -51,6 +59,9 @@ def build_upload_payload(files, title, store, destination, project,
 
     if study_space_id and study_space_id is not no_study_default:
         qargs["studySpaceId"] = study_space_id
+
+    if directory is not None:
+        qargs["directory"] = directory
 
     qargs.update(gen_upload_body(files))
     return qargs
