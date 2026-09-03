@@ -10,3 +10,4 @@ __pycache__
 cache
 *.ipynb
 .hisefilelog.rds
+hisepy/version.py
