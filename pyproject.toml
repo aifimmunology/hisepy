@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hisepy"
 description = "Python Interface to the Allen Institute For Immunology's Human Immune System Explorer (HISE)"
-readme = "README.rst"
+readme = "README.md"
 authors = [
     { name = "Paul Mariz", email = "paul.mariz@alleninstitute.org" }
 ]
@@ -30,6 +30,8 @@ dependencies = [
     "tomli-w>=1.2.0",
     "google-genai>=1.73.1",
 ]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
 
 [project.urls]
 Homepage = "https://github.com/aifimmunology/hisepy"
@@ -42,5 +44,6 @@ include = ["hisepy*"]
 hisepy = ["config.yaml"]
 
 [tool.setuptools_scm]
+local_scheme = "no-local-version"
 write_to = "hisepy/version.py"
 fallback_version = "0.0.0"
