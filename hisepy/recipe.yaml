@@ -1,27 +1,30 @@
-{% set version = "1.15.19.dev4+gcd2b2ba9c.d20260818" %}
-{% set name = "hisepy" %}
+schema_version: 1
+
+context:
+  version: 1.15.26.dev1
+  python_min: "3.9"
 
 package:
   name: hisepy
-  version: {{ version }}
+  version: ${{ version }}
 
 source:
-  url: file:///Users/james.harvey/workplace/repos/hisepy/dist/hisepy-1.15.19.dev4%2Bgcd2b2ba9c.d20260818.tar.gz
-  sha256: 65ee5d61ca288accccb20dc1166cc7ebe08d0057bb49f27483e192dcb58c979b
+  url: https://pypi.org/packages/source/h/hisepy/hisepy-${{ version }}.tar.gz
+  sha256: 97fae619613b350020c9156c7e70650280dc57c78f874721c6d5698184715492
 
 build:
-  noarch: python
-  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
   number: 0
+  noarch: python
+  script: ${{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
 
 requirements:
   host:
-    - python >=3.11
+    - python ${{ python_min }}.*
     - setuptools >=64
     - setuptools-scm >=8
     - pip
   run:
-    - python >=3.11
+    - python >=${{ python_min }}
     - pandas >=2.2.3
     - numpy >=1.26.4
     - pyyaml >=6.0.2
@@ -34,26 +37,24 @@ requirements:
     - pyreadr >=0.5.3
     - psutil >=7.0.0
     - termcolor >=2.3.0
-    - ray[default] >=2.44.1
+    - ray >=2.44.1
     - astor >=0.8.1
     - ipython >=9.5.0
     - tomli-w >=1.2.0
     - google-genai >=1.73.1
 
-test:
-  imports:
-    - hisepy
-  commands:
-    - pip check
-  requires:
-    - pip
-    - python
+tests:
+  - python:
+      imports:
+        - hisepy
+      pip_check: true
+      python_version: ${{ python_min }}.*
 
 about:
-  home: https://github.com/aifimmunology/hisepy
   summary: Python Interface to the Allen Institute For Immunology's Human Immune System Explorer (HISE)
   license: MIT
   license_file: LICENSE
+  homepage: https://github.com/aifimmunology/hisepy
 
 extra:
   recipe-maintainers:

@@ -1,0 +1,47 @@
+Metadata-Version: 2.4
+Name: hisepy_jamesdharv
+Version: 1.15.26.dev0
+Summary: Python Interface to the Allen Institute For Immunology's Human Immune System Explorer (HISE)
+Author-email: Paul Mariz <paul.mariz@alleninstitute.org>
+License-Expression: MIT
+Project-URL: Homepage, https://github.com/aifimmunology/hisepy
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: pandas>=2.2.3
+Requires-Dist: numpy>=1.26.4
+Requires-Dist: pyyaml>=6.0.2
+Requires-Dist: plotly>=5.23.0
+Requires-Dist: dash>=2.17.0
+Requires-Dist: kaleido>=0.2.1
+Requires-Dist: google-cloud-storage>=2.16.0
+Requires-Dist: requests>=2.32.3
+Requires-Dist: h5py>=3.12.1
+Requires-Dist: pyreadr>=0.5.3
+Requires-Dist: psutil>=7.0.0
+Requires-Dist: termcolor>=2.3.0
+Requires-Dist: ray[default]>=2.44.1
+Requires-Dist: astor>=0.8.1
+Requires-Dist: ipython>=9.5.0
+Requires-Dist: tomli-w>=1.2.0
+Requires-Dist: google-genai>=1.73.1
+Dynamic: license-file
+
+## Running HISEPY Locally
+1. Start running toolchain-service locally. 
+2. On the terminal do the commands below to set the required environment variables, build the repo, and open a python environment.
+
+```
+export TEST_TOOLCHAIN_SERVER=localhost:2082
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials/example.json
+export AUTH_CLIENT_ID="example.apps.googleusercontent.com"
+python3 setup.py build
+python
+```
+
+The 'python' command opens the python environment and from there you can use hisepy. An example call is:
+
+```
+import hisepy as hp
+hp.read_files(["33b7f255-382a-4ffd-a754-162bb480cd30"])
+```

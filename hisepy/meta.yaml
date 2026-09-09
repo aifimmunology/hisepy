@@ -1,4 +1,4 @@
-{% set version = "1.15.19.dev4+gcd2b2ba9c.d20260818" %}
+{% set version = "1.15.26.dev1" %}
 {% set name = "hisepy" %}
 
 package:
@@ -6,8 +6,8 @@ package:
   version: {{ version }}
 
 source:
-  url: file:///Users/james.harvey/workplace/repos/hisepy/dist/hisepy-1.15.19.dev4%2Bgcd2b2ba9c.d20260818.tar.gz
-  sha256: 65ee5d61ca288accccb20dc1166cc7ebe08d0057bb49f27483e192dcb58c979b
+  url: https://pypi.org/packages/source/h/hisepy/hisepy-1.15.26.dev1.tar.gz
+  sha256: bcd2c795ee6d9105316fa9152ce042eac395825f9d545dcdde70bf07cf5355c2
 
 build:
   noarch: python
@@ -16,12 +16,12 @@ build:
 
 requirements:
   host:
-    - python >=3.11
+    - python >=3.9
     - setuptools >=64
     - setuptools-scm >=8
     - pip
   run:
-    - python >=3.11
+    - python >=3.9
     - pandas >=2.2.3
     - numpy >=1.26.4
     - pyyaml >=6.0.2
@@ -34,7 +34,7 @@ requirements:
     - pyreadr >=0.5.3
     - psutil >=7.0.0
     - termcolor >=2.3.0
-    - ray[default] >=2.44.1
+    - ray >=2.44.1
     - astor >=0.8.1
     - ipython >=9.5.0
     - tomli-w >=1.2.0

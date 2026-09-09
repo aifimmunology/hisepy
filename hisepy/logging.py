@@ -96,8 +96,7 @@ class LogEntry:
     success: bool = True
     # organization: str = field(default_factory=cu.get_organization)
     account: str = field(default_factory=instance_account_guid)
-    project: str = field(default_factory=IDEInstance().get_default_project
-                         ) if not debug() else TEST_IDE_GUID
+    project: str = field(default_factory=lambda: IDEInstance().get_default_project()) if not debug() else TEST_IDE_GUID
     environment_name: str = field(default_factory=cu.get_environment_name)
     time_elapsed: float = None
     message: str = ""
