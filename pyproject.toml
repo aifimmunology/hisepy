@@ -9,7 +9,7 @@ readme = "README.md"
 authors = [
     { name = "Paul Mariz", email = "paul.mariz@alleninstitute.org" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
     "pandas>=2.2.3",
