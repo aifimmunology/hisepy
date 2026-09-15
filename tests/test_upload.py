@@ -15,7 +15,6 @@ sys.path.insert(0, '../')
 import hisepy.upload as hpu
 import hisepy.common_utils as cu
 from hisepy.auth import ide_instance_guid, instance_account_guid, IDEInstance
-from hisepy.upload import get_study_spaces
 from hisepy.upload_utils import do_conda_export, validate_upload_input_ids, validate_upload_data, gen_upload_body, split_uuids
 
 _here = os.path.abspath(os.path.dirname(hpu.__file__))
@@ -334,3 +333,83 @@ class TestUploader():
     def test_split_uuids_invalid(self):
         with pytest.raises(ValueError):
             split_uuids(["not-a-uuid"])
+
+    # ---- _walk_directory: pure function, no IDE context needed ----
+    # All new directory-traversal logic lives here; test it directly
+    # rather than through the IDE-context-requiring upload_files decorator.
+
+    def test_walk_directory_recurses_normal_dirs(self, tmp_path):
+        """Regular subdirectories are recursed into and all files are returned."""
+        (tmp_path / 'a.csv').write_text('x')
+        sub = tmp_path / 'sub'
+        sub.mkdir()
+        (sub / 'b.txt').write_text('y')
+        deep = sub / 'deep'
+        deep.mkdir()
+        (deep / 'c.json').write_text('{}')
+
+        result = set(hpu._walk_directory(str(tmp_path), hpu._OPAQUE_DIR_EXTENSIONS))
+        assert result == {
+            str(tmp_path / 'a.csv'),
+            str(sub / 'b.txt'),
+            str(deep / 'c.json'),
+        }
+
+    def test_walk_directory_default_opaque_extensions(self, tmp_path):
+        """Built-in opaque dirs (.zarr, .n5, .tiledb) appear as single entries."""
+        (tmp_path / 'data.csv').write_text('x')
+
+        zarr = tmp_path / 'array.zarr'
+        zarr.mkdir()
+        (zarr / '.zattrs').write_text('{}')
+        chunk = zarr / '0'
+        chunk.mkdir()
+        (chunk / '0.0').write_bytes(b'\x00')
+
+        n5 = tmp_path / 'volume.n5'
+        n5.mkdir()
+        (n5 / 'attributes.json').write_text('{}')
+
+        tiledb = tmp_path / 'store.tiledb'
+        tiledb.mkdir()
+        (tiledb / '__schema').write_bytes(b'\x00')
+
+        sub = tmp_path / 'sub'
+        sub.mkdir()
+        (sub / 'notes.txt').write_text('hi')
+
+        result = set(hpu._walk_directory(str(tmp_path), hpu._OPAQUE_DIR_EXTENSIONS))
+        assert result == {
+            str(tmp_path / 'data.csv'),
+            str(zarr),
+            str(n5),
+            str(tiledb),
+            str(sub / 'notes.txt'),
+        }
+        assert not any('0.0' in p or '.zattrs' in p or 'attributes.json' in p
+                        for p in result)
+
+    def test_walk_directory_custom_opaque_extensions(self, tmp_path):
+        """Caller-supplied opaque extensions are respected."""
+        (tmp_path / 'data.csv').write_text('x')
+        custom = tmp_path / 'store.myformat'
+        custom.mkdir()
+        (custom / 'inner.bin').write_bytes(b'\x00')
+
+        result = set(hpu._walk_directory(str(tmp_path), ('.myformat',)))
+        assert str(custom) in result
+        assert not any('inner.bin' in p for p in result)
+
+    def test_walk_directory_file_type_map_keys_become_opaque(self, tmp_path):
+        """Union of default opaque extensions and file_type_map keys matches walk_directory behaviour."""
+        (tmp_path / 'data.csv').write_text('x')
+        custom = tmp_path / 'store.myformat'
+        custom.mkdir()
+        (custom / 'inner.bin').write_bytes(b'\x00')
+
+        file_type_map = {'myformat': 'MyCustomType', 'csv': 'CSV'}
+        opaque = tuple(set(hpu._OPAQUE_DIR_EXTENSIONS) | {'.' + ext for ext in file_type_map})
+        result = set(hpu._walk_directory(str(tmp_path), opaque))
+
+        assert str(custom) in result
+        assert not any('inner.bin' in p for p in result)

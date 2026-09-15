@@ -18,6 +18,25 @@ from hisepy.logging import with_default_logging, logger
 from hisepy.pixi_pack import get_pixi_env_dir
 from hisepy.viz_utils import create_visualization_tarball, enumerate_all_files, get_build_template_and_params
 
+# Directory extensions that should be treated as single opaque upload units
+# rather than recursed into (e.g. Zarr, N5, TileDB stores).
+_OPAQUE_DIR_EXTENSIONS = ('.zarr', '.n5', '.tiledb')
+
+
+def _walk_directory(base: str, opaque_extensions: tuple) -> list:
+    """Walk base recursively, treating dirs whose names end with an opaque
+    extension as atomic entries instead of recursing into them."""
+    result = []
+    for root, dirs, files in os.walk(base):
+        opaque = [d for d in dirs if d.endswith(opaque_extensions)]
+        for d in opaque:
+            result.append(os.path.join(root, d))
+            dirs.remove(d)
+        for f in files:
+            result.append(os.path.join(root, f))
+    return sorted(result)
+
+
 dataframe_file_type = "Visualization-dataframe"
 upload_files_conda_env_checked = False
 save_dash_conda_env_checked = False
@@ -712,9 +731,12 @@ def upload_files(
         no_file_set (bool): If true, skip the automatic creation of a fileset for the uploaded files
         directory (str): Path to a directory whose files will be added to the upload. The fully qualified directory
             path is also forwarded to the service. Cannot be used with file_types.
-        file_type_map (dict): Mapping of file extension to file type (e.g. {"csv": "flow-cytometry-analysis", "txt": "txt#derived"}).
+        file_type_map (dict): Mapping of file extension to file type (e.g. {"csv": "flow-cytometry-analysis", "zarr": "Zarr"}).
             For each uploaded file the extension is looked up in this map and, if found, assigned as the file
-            type. Mutually exclusive with file_types.
+            type. Mutually exclusive with file_types. When used with directory, any extension present in the
+            map is also treated as an opaque directory suffix (in addition to the built-in defaults
+            '.zarr', '.n5', '.tiledb'), so directory-format stores with a known extension are never
+            recursed into.
     Returns:
         dictionary with keys ["trace_id", "files", "workflowId", "fileIds", processId"]
     Example:
@@ -724,7 +746,7 @@ def upload_files(
                         input_file_ids=['9f6d7ab5-1c7b-4709-9455-3d8ffffbb6c8'])
 
         hp.upload_files(directory='/home/jupyter/results',
-                        file_type_map={'csv': 'CSV', 'txt': 'Text'},
+                        file_type_map={'csv': 'CSV', 'zarr': 'Zarr'},
                         study_space_id='f2f03ecb-5a1d-4995-8db9-56bd18a36aba',
                         title='a upload title')
     """
@@ -740,9 +762,10 @@ def upload_files(
     abs_directory = None
     if directory is not None:
         abs_directory = os.path.abspath(directory)
-        dir_files = sorted(
-            os.path.join(root, name)
-            for root, _, names in os.walk(abs_directory) for name in names)
+        opaque = set(_OPAQUE_DIR_EXTENSIONS)
+        if file_type_map:
+            opaque |= {'.' + ext for ext in file_type_map}
+        dir_files = _walk_directory(abs_directory, tuple(opaque))
         files = files + dir_files
 
     file_map = []
