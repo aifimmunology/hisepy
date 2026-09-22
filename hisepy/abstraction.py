@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import requests
 import string
+import time
 
 from hisepy.auth import debug, get_bearer_token_header, ide_instance_guid
 from hisepy.common_utils import hise_url, parse_hise_response, project_shortname_to_guid, read_yaml
@@ -15,6 +16,7 @@ CONFIG = read_yaml('{}/config.yaml'.format(_here))
 IDE_HOME_DIR = CONFIG['IDE']['HOME_DIR_V2'] if not debug() else os.getcwd()
 any_project_urn = "urn:hise:project:any"
 save_abstraction_conda_env_checked = False
+_TERMINAL_STAGES = {"deployed", "failed"}
 
 
 @with_default_logging
@@ -172,7 +174,8 @@ def save_abstraction(application_files: list[str],
                      build_template_major_version: int = -1,
                      build_template_minor_version: int = -1,
                      build_template_parameters: dict[str, str] | None = None,
-                     infer_build_template_arguments: bool = True):
+                     infer_build_template_arguments: bool = True,
+                     wait: bool = True):
     """ 
     Given an app supported by HISE Visualization Build Templates, save it as an abstraction to current user's account.
     
@@ -264,11 +267,66 @@ def save_abstraction(application_files: list[str],
                       headers=get_bearer_token_header()))
     workflowId = resp['WorkflowId']
     logger.extra['_override']['workflow'] = workflowId
-    return 'Abstraction App Workflow initiated: %s' % (hise_url(
-        'workflow', 'ui_path', workflowId))
+    if not wait:
+        from hisepy.abstraction_result import AbstractionResult
+        return AbstractionResult(workflow_id=workflowId, status="submitted")
+    return _poll_abstraction_status(workflowId)
+
+
+def _stage_message(stage: str) -> str:
+    messages = {
+        "saving": "[HISE] Saving abstraction...",
+        "polling_build": "[HISE] Building Docker image (this may take ~5 minutes)...",
+        "deploying": "[HISE] Deploying app to Cloud Run...",
+        "deployed": "[HISE] Abstraction deployed successfully.",
+        "failed": "[HISE] Abstraction workflow failed.",
+    }
+    return messages.get(stage, f"[HISE] Status: {stage}")
+
+
+def _fetch_abstraction_status(workflow_id: str) -> dict:
+    from hisepy.abstraction_result import AbstractionResult  # noqa: F401 (unused here, kept for symmetry)
+    url = hise_url('ide_management', 'abstraction_status', f"{workflow_id}/status")
+    return parse_hise_response(
+        requests.get(url=url, headers=get_bearer_token_header())
+    )
+
+
+def _poll_abstraction_status(workflow_id: str, poll_interval: int = 30) -> 'AbstractionResult':
+    from hisepy.abstraction_result import AbstractionResult
+    last_stage = None
+    while True:
+        status = _fetch_abstraction_status(workflow_id)
+        stage = status.get('stage', 'saving')
+        if stage != last_stage:
+            print(_stage_message(stage))
+            last_stage = stage
+        if stage in _TERMINAL_STAGES:
+            return AbstractionResult(
+                workflow_id=workflow_id,
+                status=stage,
+                abstraction_id=status.get('abstractionId'),
+                app_url=status.get('appUrl'),
+                error=status.get('error'),
+            )
+        time.sleep(poll_interval)
 
 
 def validate_data_contract_id(id: str):
     parse_hise_response(
         requests.get(hise_url('hydration', 'data_contract_path', id),
                      headers=get_bearer_token_header()))
+
+
+def get_abstraction_status(workflow_id: str) -> 'AbstractionResult':
+    """Check current status of a previously submitted abstraction workflow."""
+    from hisepy.abstraction_result import AbstractionResult
+    status = _fetch_abstraction_status(workflow_id)
+    stage = status.get('stage', 'saving')
+    return AbstractionResult(
+        workflow_id=workflow_id,
+        status=stage,
+        abstraction_id=status.get('abstractionId'),
+        app_url=status.get('appUrl'),
+        error=status.get('error'),
+    )

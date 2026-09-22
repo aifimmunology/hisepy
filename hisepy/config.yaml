@@ -165,6 +165,7 @@ IDE_MANAGEMENT:
   DASH_WORKFLOW: ide-nextgen/visualization/dash/workflow
   VIZAPP_WORKFLOW: ide-nextgen/visualization/viz-app/workflow
   ABSTRACTION_WORKFLOW: ide-nextgen/visualization/abstraction/workflow
+  ABSTRACTION_STATUS: ide-nextgen/visualization/abstraction/workflow
 
 # NOTE: should this be separate from the rest of scheduler section?
 TOOLCHAIN:
