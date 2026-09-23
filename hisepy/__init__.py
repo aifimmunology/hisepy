@@ -29,7 +29,8 @@ from .upload import (save_static_image, save_visualization, load_visualization,
 from .utils import (set_memory_limit, get_memory_usage, conda_env_builds,
                     update_sdk_version)
 from .abstraction import (save_abstraction, result_filetype_to_guid,
-                          get_result_files, get_data_contracts)
+                          get_result_files, get_data_contracts, get_abstraction_status)
+from .abstraction_result import AbstractionResult
 from .private_folders import (
     list_files_in_all_private_folders, list_files_in_private_folder,
     move_file_in_private_folder, delete_file_in_private_folder,
@@ -62,5 +63,5 @@ __all__ = [
     'set_default_project', 'get_default_store', 'get_default_project',
     'set_memory_limit', 'get_memory_usage', 'save_visualization_app',
     'set_file_metadata_in_project_store', 'result_filetype_to_guid',
-    'get_data_contracts'
+    'get_data_contracts', 'AbstractionResult', 'get_abstraction_status'
 ]
