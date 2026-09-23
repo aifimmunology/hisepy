@@ -175,7 +175,7 @@ def save_abstraction(application_files: list[str],
                      build_template_minor_version: int = -1,
                      build_template_parameters: dict[str, str] | None = None,
                      infer_build_template_arguments: bool = True,
-                     wait: bool = True):
+                     wait: bool = False):
     """ 
     Given an app supported by HISE Visualization Build Templates, save it as an abstraction to current user's account.
     
@@ -201,8 +201,11 @@ def save_abstraction(application_files: list[str],
             HISE Visualization Build Template, if known in advance
         infer_build_template_arguments (bool): flag for whether this method should try to infer paths
             for HISE Visualization Build Template arguments
+        wait (bool): if True, poll until deployment completes and return AbstractionResult.
+            If False (default), return immediately with AbstractionResult(status='submitted').
     Returns:
-        server response 
+        AbstractionResult: contains workflow_id, status, and (when wait=True) abstraction_id
+            and app_url on success. If wait=False, status is 'submitted'.
     Example: 
         hisepy.save_abstraction(application_files=['dash_app/app.py'],
                                 application_dirs=['data'],
@@ -285,15 +288,15 @@ def _stage_message(stage: str) -> str:
 
 
 def _fetch_abstraction_status(workflow_id: str) -> dict:
-    from hisepy.abstraction_result import AbstractionResult  # noqa: F401 (unused here, kept for symmetry)
-    url = hise_url('ide_management', 'abstraction_status', f"{workflow_id}/status")
+    url = hise_url('ide_management', 'abstraction_workflow', f"{workflow_id}/status")
     return parse_hise_response(
         requests.get(url=url, headers=get_bearer_token_header())
     )
 
 
-def _poll_abstraction_status(workflow_id: str, poll_interval: int = 30) -> 'AbstractionResult':
+def _poll_abstraction_status(workflow_id: str, poll_interval: int = 30, max_wait_seconds: int = 1800) -> 'AbstractionResult':
     from hisepy.abstraction_result import AbstractionResult
+    start = time.monotonic()
     last_stage = None
     while True:
         status = _fetch_abstraction_status(workflow_id)
@@ -308,6 +311,11 @@ def _poll_abstraction_status(workflow_id: str, poll_interval: int = 30) -> 'Abst
                 abstraction_id=status.get('abstractionId'),
                 app_url=status.get('appUrl'),
                 error=status.get('error'),
+            )
+        if time.monotonic() - start > max_wait_seconds:
+            raise TimeoutError(
+                f"[HISE] Polling timed out after {max_wait_seconds}s. "
+                f"Check status manually: hisepy.get_abstraction_status('{workflow_id}')"
             )
         time.sleep(poll_interval)
 
