@@ -180,6 +180,12 @@ def set_memory_limit(max_size_gb: int) -> None:
         raise Exception(f"failed to set memory limit: {e}")
     return
 
+def pip_install_sdk(version):
+    proc = subprocess.run(["pip", "install", "--upgrade", "hisepy"], check=True, text=True, capture_output=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"pip install failed: {proc.stderr}")
+    return 
+
 
 @with_default_logging
 def update_sdk_version():
@@ -190,14 +196,6 @@ def update_sdk_version():
     """
     try:
 
-        # check that there's enough disk space in /home/workspace/sdk
-        total_disk = shutil.disk_usage(CONFIG['STORES']['SDK_STORE']).total 
-        usage_disk = shutil.disk_usage(CONFIG['STORES']['SDK_STORE']).used
-        if usage_disk / total_disk > 0.95:  # if more than 90% of disk is used
-            raise RuntimeError(
-                "Not enough disk space to download SDK. Please free up space in /home/workspace/sdk and try again."
-            )
-
         # Fetch latest version tag
         version_url = cu.hise_url("ide_management", "sdk_version", "python")
         version_tag = hreq.hise_get(version_url)
@@ -205,37 +203,12 @@ def update_sdk_version():
             raise RuntimeError("No SDK version returned from server.")
         logger.info(f"Latest SDK version found: {version_tag}")
 
-        # Request SDK installation from remote service
-        install_url = cu.hise_url("ide_management", "install_sdk",
-                                  ide_instance_guid())
-        payload = {"hisePyTag": version_tag}
-        logger.info(
-            f"Requesting SDK installation for version {version_tag}...")
-        hreq.hise_post(install_url, data=json.dumps(payload))
-
-        # Wait for SDK to appear locally
-        sdk_dir = Path(CONFIG['STORES']['SDK_STORE']) / f"hisepy_{version_tag}"
-        logger.info(
-            f"Waiting for SDK directory {sdk_dir} to become available...")
-        wait_for_sdk(sdk_dir, timeout=SDK_POLL_TIMEOUT)
-
-        # Build and install the SDK
-        logger.info(
-            f"Installing SDK version {version_tag} into active environment...")
-        build_and_install_sdk(sdk_dir)
+        # install SDK
+        pip_install_sdk(version_tag)
 
         logger.info(f"✅ SDK version {version_tag} installed successfully.")
         return version_tag
-
-    except subprocess.CalledProcessError as e:
-        logger.error(
-            f"Command failed: {' '.join(e.cmd)}\nstdout:\n{e.stdout}\nstderr:\n{e.stderr}"
-        )
-        raise RuntimeError(
-            f"SDK installation failed for version {version_tag}") from e
-    except TimeoutError as e:
-        logger.error(str(e))
-        raise
+    
     except Exception as e:
         logger.exception(f"Unexpected error during SDK update: {e}")
         raise
