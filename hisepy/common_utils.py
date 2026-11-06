@@ -538,7 +538,7 @@ def log_downloaded_files_or_samples(file_id: str = None,
                 'downloadTimeStamp': [str(datetime.datetime.now())]
             })
 
-        cache_df = pd.concat([cache_df, new_entry])
+        cache_df = pd.concat([cache_df, new_entry], ignore_index=True)
         pyreadr.write_rds(
             '{h}/{d}'.format(h=ide_dir, d=CONFIG['IDE']['CACHE_LOG_NAME']),
             cache_df)
