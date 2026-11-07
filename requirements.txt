@@ -21,7 +21,7 @@ attrs==25.4.0
 beautifulsoup4==4.12.3
     # via google
 blinker==1.9.0
-    # via flask 
+    # via flask
 build==1.2.2.post1
     # via pip-tools
 certifi==2024.8.30
@@ -124,7 +124,7 @@ matplotlib-inline==0.2.1
     # via ipython
 mock==5.1.0
     # via -r requirements.in
-msgpack==1.2.1
+msgpack==1.2.3
     # via ray
 nest-asyncio==1.6.0
     # via dash
